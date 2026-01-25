@@ -15,8 +15,11 @@ namespace Lumino.API
 
             builder.Services.AddDbContext<LuminoDbContext>(options =>
             {
-                options.UseInMemoryDatabase("LuminoDb");
+                options.UseSqlServer(
+                    builder.Configuration.GetConnectionString("DefaultConnection")
+                );
             });
+
 
 
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
