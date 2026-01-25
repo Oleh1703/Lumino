@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Lumino.Api.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace Lumino.Api.Data
 {
@@ -8,5 +9,7 @@ namespace Lumino.Api.Data
             : base(options)
         {
         }
+
+        public DbSet<User> Users => Set<User>();
     }
 }

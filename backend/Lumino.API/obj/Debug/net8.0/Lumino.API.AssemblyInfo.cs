@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Lumino.API")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+41299d46bd72b66483c2cf031cb964b8fc3c2757")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+23270aabebf68e4da2a60acb9e61886d00071335")]
 [assembly: System.Reflection.AssemblyProductAttribute("Lumino.API")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Lumino.API")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
