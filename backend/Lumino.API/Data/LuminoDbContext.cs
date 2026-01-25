@@ -14,5 +14,6 @@ namespace Lumino.Api.Data
         public DbSet<Course> Courses => Set<Course>();
         public DbSet<Topic> Topics => Set<Topic>();
         public DbSet<Lesson> Lessons => Set<Lesson>();
+        public DbSet<Exercise> Exercises => Set<Exercise>();
     }
 }
