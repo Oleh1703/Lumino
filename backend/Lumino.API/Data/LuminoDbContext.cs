@@ -21,5 +21,7 @@ namespace Lumino.Api.Data
         public DbSet<UserVocabulary> UserVocabularies => Set<UserVocabulary>();
         public DbSet<Achievement> Achievements => Set<Achievement>();
         public DbSet<UserAchievement> UserAchievements => Set<UserAchievement>();
+        public DbSet<Scene> Scenes => Set<Scene>();
+        public DbSet<SceneAttempt> SceneAttempts => Set<SceneAttempt>();
     }
 }
