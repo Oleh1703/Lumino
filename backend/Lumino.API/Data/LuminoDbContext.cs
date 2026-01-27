@@ -19,5 +19,7 @@ namespace Lumino.Api.Data
         public DbSet<UserProgress> UserProgresses => Set<UserProgress>();
         public DbSet<VocabularyItem> VocabularyItems => Set<VocabularyItem>();
         public DbSet<UserVocabulary> UserVocabularies => Set<UserVocabulary>();
+        public DbSet<Achievement> Achievements => Set<Achievement>();
+        public DbSet<UserAchievement> UserAchievements => Set<UserAchievement>();
     }
 }
