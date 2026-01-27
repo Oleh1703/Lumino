@@ -17,6 +17,7 @@ namespace Lumino.Api.Data
         public DbSet<Exercise> Exercises => Set<Exercise>();
         public DbSet<LessonResult> LessonResults => Set<LessonResult>();
         public DbSet<UserProgress> UserProgresses => Set<UserProgress>();
-
+        public DbSet<VocabularyItem> VocabularyItems => Set<VocabularyItem>();
+        public DbSet<UserVocabulary> UserVocabularies => Set<UserVocabulary>();
     }
 }
