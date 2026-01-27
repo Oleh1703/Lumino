@@ -1,4 +1,4 @@
-﻿using Lumino.Api.Domain.Entities;
+using Lumino.Api.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Lumino.Api.Data
@@ -15,5 +15,8 @@ namespace Lumino.Api.Data
         public DbSet<Topic> Topics => Set<Topic>();
         public DbSet<Lesson> Lessons => Set<Lesson>();
         public DbSet<Exercise> Exercises => Set<Exercise>();
+        public DbSet<LessonResult> LessonResults => Set<LessonResult>();
+        public DbSet<UserProgress> UserProgresses => Set<UserProgress>();
+
     }
 }
