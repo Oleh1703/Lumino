@@ -1,5 +1,8 @@
 using Lumino.Api.Data;
 using Microsoft.EntityFrameworkCore;
+using Lumino.Api.Application.Interfaces;
+using Lumino.Api.Application.Services;
+
 
 namespace Lumino.API
 {
@@ -20,6 +23,7 @@ namespace Lumino.API
                 );
             });
 
+            builder.Services.AddScoped<IAuthService, AuthService>();
 
 
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
