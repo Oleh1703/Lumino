@@ -8,10 +8,12 @@ namespace Lumino.Api.Application.Services
     public class LessonResultService : ILessonResultService
     {
         private readonly LuminoDbContext _dbContext;
+        private readonly IAchievementService _achievementService;
 
-        public LessonResultService(LuminoDbContext dbContext)
+        public LessonResultService(LuminoDbContext dbContext, IAchievementService achievementService)
         {
             _dbContext = dbContext;
+            _achievementService = achievementService;
         }
 
         public SubmitLessonResponse SubmitLesson(int userId, SubmitLessonRequest request)
@@ -50,6 +52,7 @@ namespace Lumino.Api.Application.Services
             _dbContext.SaveChanges();
 
             UpdateUserProgress(userId, correct);
+            _achievementService.CheckAndGrantAchievements(userId, correct, exercises.Count);
 
             return new SubmitLessonResponse
             {

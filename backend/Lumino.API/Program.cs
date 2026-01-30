@@ -59,6 +59,7 @@ namespace Lumino.API
             builder.Services.AddScoped<IAdminExerciseService, AdminExerciseService>();
             builder.Services.AddScoped<ILessonResultService, LessonResultService>();
             builder.Services.AddScoped<IProgressService, ProgressService>();
+            builder.Services.AddScoped<IAchievementService, AchievementService>();
 
             // Swagger
             builder.Services.AddEndpointsApiExplorer();
