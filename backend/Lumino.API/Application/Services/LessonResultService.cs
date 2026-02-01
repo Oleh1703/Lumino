@@ -18,7 +18,22 @@ namespace Lumino.Api.Application.Services
 
         public SubmitLessonResponse SubmitLesson(int userId, SubmitLessonRequest request)
         {
-            var lesson = _dbContext.Lessons.First(x => x.Id == request.LessonId);
+            if (request == null)
+            {
+                throw new ArgumentException("Request is required");
+            }
+
+            if (request.Answers == null || request.Answers.Count == 0)
+            {
+                throw new ArgumentException("Answers are required");
+            }
+
+            var lesson = _dbContext.Lessons.FirstOrDefault(x => x.Id == request.LessonId);
+
+            if (lesson == null)
+            {
+                throw new KeyNotFoundException("Lesson not found");
+            }
 
             var exercises = _dbContext.Exercises
                 .Where(x => x.LessonId == lesson.Id)
@@ -32,6 +47,7 @@ namespace Lumino.Api.Application.Services
                     .FirstOrDefault(x => x.ExerciseId == exercise.Id);
 
                 if (userAnswer != null &&
+                    !string.IsNullOrWhiteSpace(userAnswer.Answer) &&
                     userAnswer.Answer.Trim().ToLower() ==
                     exercise.CorrectAnswer.Trim().ToLower())
                 {
@@ -90,4 +106,3 @@ namespace Lumino.Api.Application.Services
         }
     }
 }
-

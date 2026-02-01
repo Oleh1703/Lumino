@@ -15,9 +15,26 @@ namespace Lumino.Api.Application.Services
 
         public List<ExerciseResponse> GetExercisesByLesson(int lessonId)
         {
-            var lesson = _dbContext.Lessons.First(x => x.Id == lessonId);
-            var topic = _dbContext.Topics.First(x => x.Id == lesson.TopicId);
-            _dbContext.Courses.First(x => x.Id == topic.CourseId && x.IsPublished);
+            var lesson = _dbContext.Lessons.FirstOrDefault(x => x.Id == lessonId);
+
+            if (lesson == null)
+            {
+                throw new KeyNotFoundException("Lesson not found");
+            }
+
+            var topic = _dbContext.Topics.FirstOrDefault(x => x.Id == lesson.TopicId);
+
+            if (topic == null)
+            {
+                throw new KeyNotFoundException("Topic not found");
+            }
+
+            var course = _dbContext.Courses.FirstOrDefault(x => x.Id == topic.CourseId && x.IsPublished);
+
+            if (course == null)
+            {
+                throw new KeyNotFoundException("Course not found");
+            }
 
             return _dbContext.Exercises
                 .Where(x => x.LessonId == lesson.Id)

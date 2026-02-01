@@ -15,6 +15,16 @@ namespace Lumino.Api.Application.Services
 
         public void CheckAndGrantAchievements(int userId, int lessonScore, int totalQuestions)
         {
+            if (userId <= 0)
+            {
+                throw new ArgumentException("UserId is invalid");
+            }
+
+            if (lessonScore < 0 || totalQuestions < 0)
+            {
+                throw new ArgumentException("Lesson result values are invalid");
+            }
+
             GrantFirstLesson(userId);
             GrantFiveLessons(userId);
             GrantPerfectLesson(userId, lessonScore, totalQuestions);

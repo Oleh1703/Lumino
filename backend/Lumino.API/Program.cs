@@ -1,6 +1,7 @@
-using Lumino.Api.Data;
 using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Application.Services;
+using Lumino.Api.Data;
+using Lumino.API.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -120,6 +121,8 @@ namespace Lumino.API
             app.UseHttpsRedirection();
 
             app.UseCors("AllowFrontend");
+
+            app.UseMiddleware<ExceptionHandlingMiddleware>();
 
             app.UseAuthentication();
             app.UseAuthorization();

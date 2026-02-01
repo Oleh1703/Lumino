@@ -15,9 +15,19 @@ namespace Lumino.Api.Application.Services
 
         public List<LessonResponse> GetLessonsByTopic(int topicId)
         {
-            var topic = _dbContext.Topics.First(x => x.Id == topicId);
+            var topic = _dbContext.Topics.FirstOrDefault(x => x.Id == topicId);
 
-            var course = _dbContext.Courses.First(x => x.Id == topic.CourseId && x.IsPublished);
+            if (topic == null)
+            {
+                throw new KeyNotFoundException("Topic not found");
+            }
+
+            var course = _dbContext.Courses.FirstOrDefault(x => x.Id == topic.CourseId && x.IsPublished);
+
+            if (course == null)
+            {
+                throw new KeyNotFoundException("Course not found");
+            }
 
             return _dbContext.Lessons
                 .Where(x => x.TopicId == topic.Id)

@@ -32,6 +32,11 @@ namespace Lumino.Api.Application.Services
 
         public AdminLessonResponse Create(CreateLessonRequest request)
         {
+            if (request == null)
+            {
+                throw new ArgumentException("Request is required");
+            }
+
             var lesson = new Lesson
             {
                 TopicId = request.TopicId,
@@ -55,7 +60,17 @@ namespace Lumino.Api.Application.Services
 
         public void Update(int id, UpdateLessonRequest request)
         {
-            var lesson = _dbContext.Lessons.First(x => x.Id == id);
+            if (request == null)
+            {
+                throw new ArgumentException("Request is required");
+            }
+
+            var lesson = _dbContext.Lessons.FirstOrDefault(x => x.Id == id);
+
+            if (lesson == null)
+            {
+                throw new KeyNotFoundException("Lesson not found");
+            }
 
             lesson.Title = request.Title;
             lesson.Theory = request.Theory;
@@ -66,7 +81,13 @@ namespace Lumino.Api.Application.Services
 
         public void Delete(int id)
         {
-            var lesson = _dbContext.Lessons.First(x => x.Id == id);
+            var lesson = _dbContext.Lessons.FirstOrDefault(x => x.Id == id);
+
+            if (lesson == null)
+            {
+                throw new KeyNotFoundException("Lesson not found");
+            }
+
             _dbContext.Lessons.Remove(lesson);
             _dbContext.SaveChanges();
         }

@@ -25,10 +25,25 @@ namespace Lumino.Api.Application.Services
 
         public AuthResponse Register(RegisterRequest request)
         {
+            if (request == null)
+            {
+                throw new ArgumentException("Request is required");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Email))
+            {
+                throw new ArgumentException("Email is required");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Password))
+            {
+                throw new ArgumentException("Password is required");
+            }
+
             var existingUser = _dbContext.Users.FirstOrDefault(x => x.Email == request.Email);
             if (existingUser != null)
             {
-                throw new Exception("User already exists");
+                throw new ArgumentException("User already exists");
             }
 
             var passwordHash = HashPassword(request.Password);
@@ -54,16 +69,31 @@ namespace Lumino.Api.Application.Services
 
         public AuthResponse Login(LoginRequest request)
         {
+            if (request == null)
+            {
+                throw new ArgumentException("Request is required");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Email))
+            {
+                throw new ArgumentException("Email is required");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Password))
+            {
+                throw new ArgumentException("Password is required");
+            }
+
             var user = _dbContext.Users.FirstOrDefault(x => x.Email == request.Email);
             if (user == null)
             {
-                throw new Exception("Invalid credentials");
+                throw new UnauthorizedAccessException("Invalid credentials");
             }
 
             var isPasswordValid = VerifyPassword(request.Password, user.PasswordHash);
             if (!isPasswordValid)
             {
-                throw new Exception("Invalid credentials");
+                throw new UnauthorizedAccessException("Invalid credentials");
             }
 
             var token = GenerateJwtToken(user);

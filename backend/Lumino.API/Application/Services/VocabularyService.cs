@@ -41,6 +41,21 @@ namespace Lumino.Api.Application.Services
 
         public void AddWord(int userId, AddVocabularyRequest request)
         {
+            if (request == null)
+            {
+                throw new ArgumentException("Request is required");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Word))
+            {
+                throw new ArgumentException("Word is required");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Translation))
+            {
+                throw new ArgumentException("Translation is required");
+            }
+
             var word = request.Word.Trim();
             var translation = request.Translation.Trim();
 
@@ -83,7 +98,12 @@ namespace Lumino.Api.Application.Services
         public void DeleteWord(int userId, int userVocabularyId)
         {
             var entity = _dbContext.UserVocabularies
-                .First(x => x.Id == userVocabularyId && x.UserId == userId);
+                .FirstOrDefault(x => x.Id == userVocabularyId && x.UserId == userId);
+
+            if (entity == null)
+            {
+                throw new KeyNotFoundException("Vocabulary word not found");
+            }
 
             _dbContext.UserVocabularies.Remove(entity);
             _dbContext.SaveChanges();

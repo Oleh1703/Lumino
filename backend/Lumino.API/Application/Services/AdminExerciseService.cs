@@ -35,6 +35,11 @@ namespace Lumino.Api.Application.Services
 
         public AdminExerciseResponse Create(CreateExerciseRequest request)
         {
+            if (request == null)
+            {
+                throw new ArgumentException("Request is required");
+            }
+
             var exercise = new Exercise
             {
                 LessonId = request.LessonId,
@@ -62,7 +67,17 @@ namespace Lumino.Api.Application.Services
 
         public void Update(int id, UpdateExerciseRequest request)
         {
-            var exercise = _dbContext.Exercises.First(x => x.Id == id);
+            if (request == null)
+            {
+                throw new ArgumentException("Request is required");
+            }
+
+            var exercise = _dbContext.Exercises.FirstOrDefault(x => x.Id == id);
+
+            if (exercise == null)
+            {
+                throw new KeyNotFoundException("Exercise not found");
+            }
 
             exercise.Type = Enum.Parse<ExerciseType>(request.Type);
             exercise.Question = request.Question;
@@ -75,7 +90,13 @@ namespace Lumino.Api.Application.Services
 
         public void Delete(int id)
         {
-            var exercise = _dbContext.Exercises.First(x => x.Id == id);
+            var exercise = _dbContext.Exercises.FirstOrDefault(x => x.Id == id);
+
+            if (exercise == null)
+            {
+                throw new KeyNotFoundException("Exercise not found");
+            }
+
             _dbContext.Exercises.Remove(exercise);
             _dbContext.SaveChanges();
         }

@@ -30,6 +30,11 @@ namespace Lumino.Api.Application.Services
 
         public void CreateScene(SceneResponse request)
         {
+            if (request == null)
+            {
+                throw new ArgumentException("Request is required");
+            }
+
             var scene = new Scene
             {
                 Title = request.Title,
@@ -43,7 +48,17 @@ namespace Lumino.Api.Application.Services
 
         public void UpdateScene(int id, SceneResponse request)
         {
-            var scene = _dbContext.Scenes.First(x => x.Id == id);
+            if (request == null)
+            {
+                throw new ArgumentException("Request is required");
+            }
+
+            var scene = _dbContext.Scenes.FirstOrDefault(x => x.Id == id);
+
+            if (scene == null)
+            {
+                throw new KeyNotFoundException("Scene not found");
+            }
 
             scene.Title = request.Title;
             scene.Description = request.Description;
@@ -54,7 +69,12 @@ namespace Lumino.Api.Application.Services
 
         public void DeleteScene(int id)
         {
-            var scene = _dbContext.Scenes.First(x => x.Id == id);
+            var scene = _dbContext.Scenes.FirstOrDefault(x => x.Id == id);
+
+            if (scene == null)
+            {
+                throw new KeyNotFoundException("Scene not found");
+            }
 
             _dbContext.Scenes.Remove(scene);
             _dbContext.SaveChanges();

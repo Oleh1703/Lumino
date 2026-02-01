@@ -15,7 +15,12 @@ namespace Lumino.Api.Application.Services
 
         public UserProfileResponse GetCurrentUser(int userId)
         {
-            var user = _dbContext.Users.First(x => x.Id == userId);
+            var user = _dbContext.Users.FirstOrDefault(x => x.Id == userId);
+
+            if (user == null)
+            {
+                throw new KeyNotFoundException("User not found");
+            }
 
             return new UserProfileResponse
             {

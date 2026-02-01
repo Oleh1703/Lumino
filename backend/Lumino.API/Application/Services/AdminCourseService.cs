@@ -29,6 +29,11 @@ namespace Lumino.Api.Application.Services
 
         public AdminCourseResponse Create(CreateCourseRequest request)
         {
+            if (request == null)
+            {
+                throw new ArgumentException("Request is required");
+            }
+
             var course = new Course
             {
                 Title = request.Title,
@@ -50,7 +55,17 @@ namespace Lumino.Api.Application.Services
 
         public void Update(int id, UpdateCourseRequest request)
         {
-            var course = _dbContext.Courses.First(x => x.Id == id);
+            if (request == null)
+            {
+                throw new ArgumentException("Request is required");
+            }
+
+            var course = _dbContext.Courses.FirstOrDefault(x => x.Id == id);
+
+            if (course == null)
+            {
+                throw new KeyNotFoundException("Course not found");
+            }
 
             course.Title = request.Title;
             course.Description = request.Description;
@@ -61,7 +76,13 @@ namespace Lumino.Api.Application.Services
 
         public void Delete(int id)
         {
-            var course = _dbContext.Courses.First(x => x.Id == id);
+            var course = _dbContext.Courses.FirstOrDefault(x => x.Id == id);
+
+            if (course == null)
+            {
+                throw new KeyNotFoundException("Course not found");
+            }
+
             _dbContext.Courses.Remove(course);
             _dbContext.SaveChanges();
         }

@@ -15,7 +15,12 @@ namespace Lumino.Api.Application.Services
 
         public List<TopicResponse> GetTopicsByCourse(int courseId)
         {
-            var course = _dbContext.Courses.First(x => x.Id == courseId && x.IsPublished);
+            var course = _dbContext.Courses.FirstOrDefault(x => x.Id == courseId && x.IsPublished);
+
+            if (course == null)
+            {
+                throw new KeyNotFoundException("Course not found");
+            }
 
             return _dbContext.Topics
                 .Where(x => x.CourseId == course.Id)
