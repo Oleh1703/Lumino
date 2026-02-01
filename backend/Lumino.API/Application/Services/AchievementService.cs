@@ -1,16 +1,19 @@
 using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
+using Lumino.API.Utils;
 
 namespace Lumino.Api.Application.Services
 {
     public class AchievementService : IAchievementService
     {
         private readonly LuminoDbContext _dbContext;
+        private readonly IDateTimeProvider _dateTimeProvider;
 
-        public AchievementService(LuminoDbContext dbContext)
+        public AchievementService(LuminoDbContext dbContext, IDateTimeProvider dateTimeProvider)
         {
             _dbContext = dbContext;
+            _dateTimeProvider = dateTimeProvider;
         }
 
         public void CheckAndGrantAchievements(int userId, int lessonScore, int totalQuestions)
@@ -100,7 +103,7 @@ namespace Lumino.Api.Application.Services
             {
                 UserId = userId,
                 AchievementId = achievementId,
-                EarnedAt = DateTime.UtcNow
+                EarnedAt = _dateTimeProvider.UtcNow
             });
 
             _dbContext.SaveChanges();

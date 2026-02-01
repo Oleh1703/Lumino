@@ -82,6 +82,8 @@ namespace Lumino.API
             builder.Services.AddScoped<IVocabularyService, VocabularyService>();
             builder.Services.AddScoped<ISceneService, SceneService>();
 
+            builder.Services.AddScoped<IMediaService, MediaService>();
+
             // Swagger
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(options =>
@@ -122,6 +124,8 @@ namespace Lumino.API
             }
 
             app.UseHttpsRedirection();
+
+            app.UseStaticFiles();
 
             app.UseCors("AllowFrontend");
 

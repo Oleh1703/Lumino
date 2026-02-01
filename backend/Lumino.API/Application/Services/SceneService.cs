@@ -2,16 +2,19 @@ using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
+using Lumino.API.Utils;
 
 namespace Lumino.Api.Application.Services
 {
     public class SceneService : ISceneService
     {
         private readonly LuminoDbContext _dbContext;
+        private readonly IDateTimeProvider _dateTimeProvider;
 
-        public SceneService(LuminoDbContext dbContext)
+        public SceneService(LuminoDbContext dbContext, IDateTimeProvider dateTimeProvider)
         {
             _dbContext = dbContext;
+            _dateTimeProvider = dateTimeProvider;
         }
 
         public List<SceneResponse> GetAllScenes()
@@ -92,7 +95,7 @@ namespace Lumino.Api.Application.Services
                 UserId = userId,
                 SceneId = sceneId,
                 IsCompleted = true,
-                CompletedAt = DateTime.UtcNow
+                CompletedAt = _dateTimeProvider.UtcNow
             });
 
             _dbContext.SaveChanges();

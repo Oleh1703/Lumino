@@ -2,6 +2,7 @@ using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
+using Lumino.API.Utils;
 
 namespace Lumino.Api.Application.Services
 {
@@ -9,11 +10,16 @@ namespace Lumino.Api.Application.Services
     {
         private readonly LuminoDbContext _dbContext;
         private readonly IAchievementService _achievementService;
+        private readonly IDateTimeProvider _dateTimeProvider;
 
-        public LessonResultService(LuminoDbContext dbContext, IAchievementService achievementService)
+        public LessonResultService(
+            LuminoDbContext dbContext,
+            IAchievementService achievementService,
+            IDateTimeProvider dateTimeProvider)
         {
             _dbContext = dbContext;
             _achievementService = achievementService;
+            _dateTimeProvider = dateTimeProvider;
         }
 
         public SubmitLessonResponse SubmitLesson(int userId, SubmitLessonRequest request)
@@ -61,7 +67,7 @@ namespace Lumino.Api.Application.Services
                 LessonId = lesson.Id,
                 Score = correct,
                 TotalQuestions = exercises.Count,
-                CompletedAt = DateTime.UtcNow
+                CompletedAt = _dateTimeProvider.UtcNow
             };
 
             _dbContext.LessonResults.Add(result);
@@ -90,7 +96,7 @@ namespace Lumino.Api.Application.Services
                     UserId = userId,
                     CompletedLessons = 1,
                     TotalScore = score,
-                    LastUpdatedAt = DateTime.UtcNow
+                    LastUpdatedAt = _dateTimeProvider.UtcNow
                 };
 
                 _dbContext.UserProgresses.Add(progress);
@@ -99,7 +105,7 @@ namespace Lumino.Api.Application.Services
             {
                 progress.CompletedLessons++;
                 progress.TotalScore += score;
-                progress.LastUpdatedAt = DateTime.UtcNow;
+                progress.LastUpdatedAt = _dateTimeProvider.UtcNow;
             }
 
             _dbContext.SaveChanges();
