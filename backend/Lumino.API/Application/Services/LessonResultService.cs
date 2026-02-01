@@ -1,5 +1,6 @@
 using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Interfaces;
+using Lumino.Api.Application.Validators;
 using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
 using Lumino.API.Utils;
@@ -11,28 +12,23 @@ namespace Lumino.Api.Application.Services
         private readonly LuminoDbContext _dbContext;
         private readonly IAchievementService _achievementService;
         private readonly IDateTimeProvider _dateTimeProvider;
+        private readonly ISubmitLessonRequestValidator _submitLessonRequestValidator;
 
         public LessonResultService(
             LuminoDbContext dbContext,
             IAchievementService achievementService,
-            IDateTimeProvider dateTimeProvider)
+            IDateTimeProvider dateTimeProvider,
+            ISubmitLessonRequestValidator submitLessonRequestValidator)
         {
             _dbContext = dbContext;
             _achievementService = achievementService;
             _dateTimeProvider = dateTimeProvider;
+            _submitLessonRequestValidator = submitLessonRequestValidator;
         }
 
         public SubmitLessonResponse SubmitLesson(int userId, SubmitLessonRequest request)
         {
-            if (request == null)
-            {
-                throw new ArgumentException("Request is required");
-            }
-
-            if (request.Answers == null || request.Answers.Count == 0)
-            {
-                throw new ArgumentException("Answers are required");
-            }
+            _submitLessonRequestValidator.Validate(request);
 
             var lesson = _dbContext.Lessons.FirstOrDefault(x => x.Id == request.LessonId);
 

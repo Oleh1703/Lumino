@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Interfaces;
+using Lumino.Api.Application.Validators;
 using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Domain.Enums;
@@ -16,29 +17,24 @@ namespace Lumino.Api.Application.Services
     {
         private readonly LuminoDbContext _dbContext;
         private readonly IConfiguration _configuration;
+        private readonly IRegisterRequestValidator _registerRequestValidator;
+        private readonly ILoginRequestValidator _loginRequestValidator;
 
-        public AuthService(LuminoDbContext dbContext, IConfiguration configuration)
+        public AuthService(
+            LuminoDbContext dbContext,
+            IConfiguration configuration,
+            IRegisterRequestValidator registerRequestValidator,
+            ILoginRequestValidator loginRequestValidator)
         {
             _dbContext = dbContext;
             _configuration = configuration;
+            _registerRequestValidator = registerRequestValidator;
+            _loginRequestValidator = loginRequestValidator;
         }
 
         public AuthResponse Register(RegisterRequest request)
         {
-            if (request == null)
-            {
-                throw new ArgumentException("Request is required");
-            }
-
-            if (string.IsNullOrWhiteSpace(request.Email))
-            {
-                throw new ArgumentException("Email is required");
-            }
-
-            if (string.IsNullOrWhiteSpace(request.Password))
-            {
-                throw new ArgumentException("Password is required");
-            }
+            _registerRequestValidator.Validate(request);
 
             var existingUser = _dbContext.Users.FirstOrDefault(x => x.Email == request.Email);
             if (existingUser != null)
@@ -69,20 +65,7 @@ namespace Lumino.Api.Application.Services
 
         public AuthResponse Login(LoginRequest request)
         {
-            if (request == null)
-            {
-                throw new ArgumentException("Request is required");
-            }
-
-            if (string.IsNullOrWhiteSpace(request.Email))
-            {
-                throw new ArgumentException("Email is required");
-            }
-
-            if (string.IsNullOrWhiteSpace(request.Password))
-            {
-                throw new ArgumentException("Password is required");
-            }
+            _loginRequestValidator.Validate(request);
 
             var user = _dbContext.Users.FirstOrDefault(x => x.Email == request.Email);
             if (user == null)

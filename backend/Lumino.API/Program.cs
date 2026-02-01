@@ -1,5 +1,6 @@
 using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Application.Services;
+using Lumino.Api.Application.Validators;
 using Lumino.Api.Data;
 using Lumino.API.Middleware;
 using Lumino.API.Utils;
@@ -64,6 +65,10 @@ namespace Lumino.API
             });
 
             builder.Services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
+
+            builder.Services.AddScoped<IRegisterRequestValidator, RegisterRequestValidator>();
+            builder.Services.AddScoped<ILoginRequestValidator, LoginRequestValidator>();
+            builder.Services.AddScoped<ISubmitLessonRequestValidator, SubmitLessonRequestValidator>();
 
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<IUserService, UserService>();
