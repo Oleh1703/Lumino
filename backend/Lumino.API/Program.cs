@@ -2,6 +2,7 @@ using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Data;
 using Lumino.API.Middleware;
+using Lumino.API.Utils;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -61,6 +62,8 @@ namespace Lumino.API
                     builder.Configuration.GetConnectionString("DefaultConnection")
                 );
             });
+
+            builder.Services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
 
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<IUserService, UserService>();
