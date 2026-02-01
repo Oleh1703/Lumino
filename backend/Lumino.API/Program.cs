@@ -17,6 +17,20 @@ namespace Lumino.API
             // Add services to the container
             builder.Services.AddControllers();
 
+            // CORS (Frontend)
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowFrontend", policy =>
+                {
+                    policy.WithOrigins(
+                        "http://localhost:5173",
+                        "https://localhost:5173"
+                    )
+                    .AllowAnyHeader()
+                    .AllowAnyMethod();
+                });
+            });
+
             var jwtSettings = builder.Configuration.GetSection("Jwt");
 
             builder.Services.AddAuthentication(options =>
@@ -104,6 +118,9 @@ namespace Lumino.API
             }
 
             app.UseHttpsRedirection();
+
+            app.UseCors("AllowFrontend");
+
             app.UseAuthentication();
             app.UseAuthorization();
 
@@ -112,4 +129,3 @@ namespace Lumino.API
         }
     }
 }
-
