@@ -1,0 +1,26 @@
+## create tests:
+
+**in: \Lumino\backend ->
+Shuft+RCM -> cmd:**
+
+dotnet new xunit -n Lumino.Tests
+
+
+## create reference:
+
+dotnet add Lumino.Tests/Lumino.Tests.csproj reference Lumino.API/Lumino.API.csproj
+
+
+## download NuGet-pack:
+
+dotnet restore
+
+
+## run tests:
+
+dotnet test .\Lumino.Tests\Lumino.Tests.csproj
+
+
+## info tests:
+
+dotnet test .\Lumino.Tests\Lumino.Tests.csproj --list-tests
