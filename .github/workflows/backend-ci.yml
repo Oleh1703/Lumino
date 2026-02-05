@@ -1,0 +1,36 @@
+name: backend-ci
+
+on:
+  push:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        working-directory: backend
+        run: dotnet restore ./Lumino.sln
+
+      - name: Build
+        working-directory: backend
+        run: dotnet build ./Lumino.sln -c Release --no-restore
+
+      - name: Test
+        working-directory: backend
+        run: dotnet test ./Lumino.Tests/Lumino.Tests.csproj -c Release --no-build
