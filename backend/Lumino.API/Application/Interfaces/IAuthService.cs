@@ -7,5 +7,9 @@ namespace Lumino.Api.Application.Interfaces
         AuthResponse Register(RegisterRequest request);
 
         AuthResponse Login(LoginRequest request);
+
+        AuthResponse Refresh(RefreshTokenRequest request);
+
+        void Logout(RefreshTokenRequest request);
     }
 }

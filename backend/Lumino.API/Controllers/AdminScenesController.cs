@@ -7,7 +7,7 @@ namespace Lumino.Api.Controllers
 {
     [ApiController]
     [Route("api/admin/scenes")]
-    [Authorize]
+    [Authorize(Roles = "Admin")]
     public class AdminScenesController : ControllerBase
     {
         private readonly ISceneService _sceneService;

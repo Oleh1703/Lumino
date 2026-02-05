@@ -28,5 +28,19 @@ namespace Lumino.Api.Controllers
             var result = _authService.Login(request);
             return Ok(result);
         }
+
+        [HttpPost("refresh")]
+        public IActionResult Refresh(RefreshTokenRequest request)
+        {
+            var result = _authService.Refresh(request);
+            return Ok(result);
+        }
+
+        [HttpPost("logout")]
+        public IActionResult Logout(RefreshTokenRequest request)
+        {
+            _authService.Logout(request);
+            return NoContent();
+        }
     }
 }

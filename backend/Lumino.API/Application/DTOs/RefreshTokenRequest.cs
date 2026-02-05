@@ -1,8 +1,7 @@
 namespace Lumino.Api.Application.DTOs
 {
-    public class AuthResponse
+    public class RefreshTokenRequest
     {
-        public string Token { get; set; } = null!;
         public string RefreshToken { get; set; } = null!;
     }
 }

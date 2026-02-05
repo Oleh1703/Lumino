@@ -23,5 +23,7 @@ namespace Lumino.Api.Data
         public DbSet<UserAchievement> UserAchievements => Set<UserAchievement>();
         public DbSet<Scene> Scenes => Set<Scene>();
         public DbSet<SceneAttempt> SceneAttempts => Set<SceneAttempt>();
+
+        public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     }
 }

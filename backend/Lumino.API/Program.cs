@@ -57,6 +57,8 @@ namespace Lumino.API
                 };
             });
 
+            builder.Services.AddAuthorization();
+
             builder.Services.AddDbContext<LuminoDbContext>(options =>
             {
                 options.UseSqlServer(
@@ -88,6 +90,8 @@ namespace Lumino.API
             builder.Services.AddScoped<ISceneService, SceneService>();
 
             builder.Services.AddScoped<IMediaService, MediaService>();
+
+            builder.Services.AddScoped<IRefreshTokenCleanupService, RefreshTokenCleanupService>();
 
             // Swagger
             builder.Services.AddEndpointsApiExplorer();

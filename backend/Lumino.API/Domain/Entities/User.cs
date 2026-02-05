@@ -1,4 +1,4 @@
-﻿using Lumino.Api.Domain.Enums;
+using Lumino.Api.Domain.Enums;
 
 namespace Lumino.Api.Domain.Entities
 {
@@ -13,6 +13,8 @@ namespace Lumino.Api.Domain.Entities
         public Role Role { get; set; }
 
         public DateTime CreatedAt { get; set; }
+
+        public List<RefreshToken> RefreshTokens { get; set; } = new();
     }
 }
 
