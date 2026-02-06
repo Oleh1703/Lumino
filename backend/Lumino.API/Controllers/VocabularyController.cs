@@ -25,12 +25,41 @@ namespace Lumino.Api.Controllers
             return Ok(_vocabularyService.GetMyVocabulary(userId));
         }
 
+        [HttpGet("due")]
+        public IActionResult GetDue()
+        {
+            var userId = GetUserId();
+            return Ok(_vocabularyService.GetDueVocabulary(userId));
+        }
+
+        [HttpGet("review/next")]
+        public IActionResult GetNextReview()
+        {
+            var userId = GetUserId();
+            var item = _vocabularyService.GetNextReview(userId);
+
+            if (item == null)
+            {
+                return NoContent();
+            }
+
+            return Ok(item);
+        }
+
         [HttpPost]
         public IActionResult Add(AddVocabularyRequest request)
         {
             var userId = GetUserId();
             _vocabularyService.AddWord(userId, request);
             return NoContent();
+        }
+
+        [HttpPost("{id}/review")]
+        public IActionResult Review(int id, ReviewVocabularyRequest request)
+        {
+            var userId = GetUserId();
+            var result = _vocabularyService.ReviewWord(userId, id, request);
+            return Ok(result);
         }
 
         [HttpDelete("{id}")]

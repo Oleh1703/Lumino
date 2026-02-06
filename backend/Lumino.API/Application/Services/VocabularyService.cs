@@ -33,10 +33,69 @@ namespace Lumino.Api.Application.Services
                     Translation = vi.Translation,
                     Example = vi.Example,
                     AddedAt = uv.AddedAt,
-                    LastReviewedAt = uv.LastReviewedAt
+                    LastReviewedAt = uv.LastReviewedAt,
+                    NextReviewAt = uv.NextReviewAt,
+                    ReviewCount = uv.ReviewCount
                 };
 
             return query.ToList();
+        }
+
+        public List<VocabularyResponse> GetDueVocabulary(int userId)
+        {
+            var now = DateTime.UtcNow;
+
+            var query =
+                from uv in _dbContext.UserVocabularies
+                join vi in _dbContext.VocabularyItems on uv.VocabularyItemId equals vi.Id
+                where uv.UserId == userId && uv.NextReviewAt <= now
+                orderby uv.NextReviewAt, uv.AddedAt
+                select new VocabularyResponse
+                {
+                    Id = uv.Id,
+                    VocabularyItemId = vi.Id,
+                    Word = vi.Word,
+                    Translation = vi.Translation,
+                    Example = vi.Example,
+                    AddedAt = uv.AddedAt,
+                    LastReviewedAt = uv.LastReviewedAt,
+                    NextReviewAt = uv.NextReviewAt,
+                    ReviewCount = uv.ReviewCount
+                };
+
+            return query.ToList();
+        }
+
+        public VocabularyResponse? GetNextReview(int userId)
+        {
+            var now = DateTime.UtcNow;
+
+            var entity =
+                _dbContext.UserVocabularies
+                    .Where(x => x.UserId == userId && x.NextReviewAt <= now)
+                    .OrderBy(x => x.NextReviewAt)
+                    .ThenBy(x => x.AddedAt)
+                    .FirstOrDefault();
+
+            if (entity == null)
+            {
+                return null;
+            }
+
+            var item = _dbContext.VocabularyItems.First(x => x.Id == entity.VocabularyItemId);
+
+            return new VocabularyResponse
+            {
+                Id = entity.Id,
+                VocabularyItemId = item.Id,
+                Word = item.Word,
+                Translation = item.Translation,
+                Example = item.Example,
+                AddedAt = entity.AddedAt,
+                LastReviewedAt = entity.LastReviewedAt,
+                NextReviewAt = entity.NextReviewAt,
+                ReviewCount = entity.ReviewCount
+            };
         }
 
         public void AddWord(int userId, AddVocabularyRequest request)
@@ -83,16 +142,68 @@ namespace Lumino.Api.Application.Services
                 return;
             }
 
+            var now = DateTime.UtcNow;
+
             var userWord = new UserVocabulary
             {
                 UserId = userId,
                 VocabularyItemId = item.Id,
-                AddedAt = DateTime.UtcNow,
-                LastReviewedAt = null
+                AddedAt = now,
+                LastReviewedAt = null,
+                NextReviewAt = now,
+                ReviewCount = 0
             };
 
             _dbContext.UserVocabularies.Add(userWord);
             _dbContext.SaveChanges();
+        }
+
+        public VocabularyResponse ReviewWord(int userId, int userVocabularyId, ReviewVocabularyRequest request)
+        {
+            if (request == null)
+            {
+                throw new ArgumentException("Request is required");
+            }
+
+            var entity = _dbContext.UserVocabularies
+                .FirstOrDefault(x => x.Id == userVocabularyId && x.UserId == userId);
+
+            if (entity == null)
+            {
+                throw new KeyNotFoundException("Vocabulary word not found");
+            }
+
+            var now = DateTime.UtcNow;
+
+            entity.LastReviewedAt = now;
+
+            if (request.IsCorrect)
+            {
+                entity.ReviewCount = entity.ReviewCount + 1;
+                entity.NextReviewAt = CalculateNextReviewAt(now, entity.ReviewCount);
+            }
+            else
+            {
+                entity.ReviewCount = 0;
+                entity.NextReviewAt = now.AddHours(12);
+            }
+
+            _dbContext.SaveChanges();
+
+            var item = _dbContext.VocabularyItems.First(x => x.Id == entity.VocabularyItemId);
+
+            return new VocabularyResponse
+            {
+                Id = entity.Id,
+                VocabularyItemId = item.Id,
+                Word = item.Word,
+                Translation = item.Translation,
+                Example = item.Example,
+                AddedAt = entity.AddedAt,
+                LastReviewedAt = entity.LastReviewedAt,
+                NextReviewAt = entity.NextReviewAt,
+                ReviewCount = entity.ReviewCount
+            };
         }
 
         public void DeleteWord(int userId, int userVocabularyId)
@@ -107,6 +218,24 @@ namespace Lumino.Api.Application.Services
 
             _dbContext.UserVocabularies.Remove(entity);
             _dbContext.SaveChanges();
+        }
+
+        private static DateTime CalculateNextReviewAt(DateTime now, int reviewCount)
+        {
+            // Simplified spaced repetition (days): 1, 2, 4, 7, 14, 30, 60...
+            var days =
+                reviewCount switch
+                {
+                    1 => 1,
+                    2 => 2,
+                    3 => 4,
+                    4 => 7,
+                    5 => 14,
+                    6 => 30,
+                    _ => 60
+                };
+
+            return now.AddDays(days);
         }
     }
 }

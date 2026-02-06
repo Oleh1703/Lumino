@@ -7,7 +7,13 @@ namespace Lumino.Api.Application.Interfaces
     {
         List<VocabularyResponse> GetMyVocabulary(int userId);
 
+        List<VocabularyResponse> GetDueVocabulary(int userId);
+
+        VocabularyResponse? GetNextReview(int userId);
+
         void AddWord(int userId, AddVocabularyRequest request);
+
+        VocabularyResponse ReviewWord(int userId, int userVocabularyId, ReviewVocabularyRequest request);
 
         void DeleteWord(int userId, int userVocabularyId);
     }

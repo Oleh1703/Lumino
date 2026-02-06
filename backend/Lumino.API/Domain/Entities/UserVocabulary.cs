@@ -11,5 +11,9 @@ namespace Lumino.Api.Domain.Entities
         public DateTime AddedAt { get; set; }
 
         public DateTime? LastReviewedAt { get; set; }
+
+        public DateTime NextReviewAt { get; set; }
+
+        public int ReviewCount { get; set; }
     }
 }

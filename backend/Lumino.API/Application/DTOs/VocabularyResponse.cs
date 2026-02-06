@@ -2,9 +2,9 @@ namespace Lumino.Api.Application.DTOs
 {
     public class VocabularyResponse
     {
-        public int Id { get; set; }           
+        public int Id { get; set; }
 
-        public int VocabularyItemId { get; set; }   
+        public int VocabularyItemId { get; set; }
 
         public string Word { get; set; } = null!;
 
@@ -15,5 +15,9 @@ namespace Lumino.Api.Application.DTOs
         public DateTime AddedAt { get; set; }
 
         public DateTime? LastReviewedAt { get; set; }
+
+        public DateTime NextReviewAt { get; set; }
+
+        public int ReviewCount { get; set; }
     }
 }
