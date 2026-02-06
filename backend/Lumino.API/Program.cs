@@ -128,6 +128,8 @@ namespace Lumino.API
             // Configure the HTTP request pipeline
             if (app.Environment.IsDevelopment())
             {
+                LuminoSeeder.Seed(app);
+
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
