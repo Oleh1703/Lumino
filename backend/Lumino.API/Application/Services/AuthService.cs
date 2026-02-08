@@ -8,6 +8,7 @@ using Lumino.Api.Application.Validators;
 using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Domain.Enums;
+using Lumino.API.Utils;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
@@ -19,17 +20,20 @@ namespace Lumino.Api.Application.Services
         private readonly IConfiguration _configuration;
         private readonly IRegisterRequestValidator _registerRequestValidator;
         private readonly ILoginRequestValidator _loginRequestValidator;
+        private readonly IPasswordHasher _passwordHasher;
 
         public AuthService(
             LuminoDbContext dbContext,
             IConfiguration configuration,
             IRegisterRequestValidator registerRequestValidator,
-            ILoginRequestValidator loginRequestValidator)
+            ILoginRequestValidator loginRequestValidator,
+            IPasswordHasher passwordHasher)
         {
             _dbContext = dbContext;
             _configuration = configuration;
             _registerRequestValidator = registerRequestValidator;
             _loginRequestValidator = loginRequestValidator;
+            _passwordHasher = passwordHasher;
         }
 
         public AuthResponse Register(RegisterRequest request)
@@ -42,7 +46,7 @@ namespace Lumino.Api.Application.Services
                 throw new ArgumentException("User already exists");
             }
 
-            var passwordHash = HashPassword(request.Password);
+            var passwordHash = _passwordHasher.Hash(request.Password);
 
             var user = new User
             {
@@ -76,10 +80,17 @@ namespace Lumino.Api.Application.Services
                 throw new UnauthorizedAccessException("Invalid credentials");
             }
 
-            var isPasswordValid = VerifyPassword(request.Password, user.PasswordHash);
+            var isPasswordValid = _passwordHasher.Verify(request.Password, user.PasswordHash);
             if (!isPasswordValid)
             {
                 throw new UnauthorizedAccessException("Invalid credentials");
+            }
+
+            // ✅ Auto-upgrade legacy SHA256 to PBKDF2
+            if (_passwordHasher.NeedsRehash(user.PasswordHash))
+            {
+                user.PasswordHash = _passwordHasher.Hash(request.Password);
+                _dbContext.SaveChanges();
             }
 
             var accessToken = GenerateJwtToken(user);
@@ -239,20 +250,6 @@ namespace Lumino.Api.Application.Services
             {
                 token.RevokedAt = now;
             }
-        }
-
-        private static string HashPassword(string password)
-        {
-            using var sha256 = SHA256.Create();
-            var bytes = Encoding.UTF8.GetBytes(password);
-            var hash = sha256.ComputeHash(bytes);
-            return Convert.ToBase64String(hash);
-        }
-
-        private static bool VerifyPassword(string password, string storedHash)
-        {
-            var hash = HashPassword(password);
-            return hash == storedHash;
         }
 
         private static string GenerateRefreshToken()

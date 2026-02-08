@@ -1,6 +1,7 @@
-﻿using Lumino.Api.Application.DTOs;
+﻿﻿using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Domain.Entities;
+using Lumino.API.Utils;
 using Xunit;
 
 namespace Lumino.Tests;
@@ -17,7 +18,8 @@ public class AuthServiceTests
             dbContext,
             configuration,
             new FakeRegisterValidator(),
-            new FakeLoginValidator()
+            new FakeLoginValidator(),
+            new PasswordHasher()
         );
 
         var response = service.Register(new RegisterRequest
@@ -52,7 +54,8 @@ public class AuthServiceTests
             dbContext,
             configuration,
             new FakeRegisterValidator(),
-            new FakeLoginValidator()
+            new FakeLoginValidator(),
+            new PasswordHasher()
         );
 
         Assert.Throws<ArgumentException>(() =>
@@ -75,7 +78,8 @@ public class AuthServiceTests
             dbContext,
             configuration,
             new FakeRegisterValidator(),
-            new FakeLoginValidator()
+            new FakeLoginValidator(),
+            new PasswordHasher()
         );
 
         service.Register(new RegisterRequest

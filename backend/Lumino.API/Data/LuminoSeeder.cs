@@ -1,7 +1,6 @@
-using System.Security.Cryptography;
-using System.Text;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Domain.Enums;
+using Lumino.API.Utils;
 using Microsoft.EntityFrameworkCore;
 
 namespace Lumino.Api.Data
@@ -32,10 +31,12 @@ namespace Lumino.Api.Data
                 return;
             }
 
+            var hasher = new PasswordHasher();
+
             admin = new User
             {
                 Email = adminEmail,
-                PasswordHash = HashPassword("Admin123!"),
+                PasswordHash = hasher.Hash("Admin123!"),
                 Role = Role.Admin,
                 CreatedAt = DateTime.UtcNow
             };
@@ -139,15 +140,11 @@ namespace Lumino.Api.Data
 
         private static void SeedDemoContentEnglishOnly(LuminoDbContext dbContext)
         {
-            // Seed only if English A1 is not present
             if (dbContext.Courses.Any(x => x.Title == "English A1"))
             {
                 return;
             }
 
-            // =========================
-            // COURSE: English A1
-            // =========================
             var courseEnglish = new Course
             {
                 Title = "English A1",
@@ -175,7 +172,6 @@ namespace Lumino.Api.Data
             dbContext.Topics.AddRange(topic1, topic2);
             dbContext.SaveChanges();
 
-            // 8 lessons total (plan: 5-8 lessons)
             var lesson1 = new Lesson
             {
                 TopicId = topic1.Id,
@@ -204,7 +200,7 @@ namespace Lumino.Api.Data
             {
                 TopicId = topic1.Id,
                 Title = "Polite words",
-                Theory = "Sorry = Пробач\nExcuse me = Перепрошую\nYou're welcome = Будь ласка (у відповіді)",
+                Theory = "Sorry = Пробач\nExcuse me = Перепрошую\nYou're welcome = Нема за що",
                 Order = 4
             };
 
@@ -243,69 +239,68 @@ namespace Lumino.Api.Data
             dbContext.Lessons.AddRange(lesson1, lesson2, lesson3, lesson4, lesson5, lesson6, lesson7, lesson8);
             dbContext.SaveChanges();
 
-            // 32 exercises total (plan: 30-50 exercises). 4 exercises per lesson.
             AddExercises(dbContext, lesson1, new List<ExerciseSeed>
             {
-                new ExerciseSeed(ExerciseType.MultipleChoice, "Hello = ?", "[\"Привіт\",\"До побачення\",\"Дякую\"]", "Привіт"),
-                new ExerciseSeed(ExerciseType.Input, "Write Ukrainian for: Goodbye", "{}", "До побачення"),
-                new ExerciseSeed(ExerciseType.MultipleChoice, "Please = ?", "[\"Будь ласка\",\"Пробач\",\"Нема за що\"]", "Будь ласка"),
-                new ExerciseSeed(ExerciseType.Input, "Write Ukrainian for: Thank you", "{}", "Дякую")
+                new ExerciseSeed(Domain.Enums.ExerciseType.MultipleChoice, "Hello = ?", "[\"Привіт\",\"До побачення\",\"Дякую\"]", "Привіт"),
+                new ExerciseSeed(Domain.Enums.ExerciseType.Input, "Write Ukrainian for: Goodbye", "{}", "До побачення"),
+                new ExerciseSeed(Domain.Enums.ExerciseType.MultipleChoice, "Please = ?", "[\"Будь ласка\",\"Пробач\",\"Нема за що\"]", "Будь ласка"),
+                new ExerciseSeed(Domain.Enums.ExerciseType.Input, "Write Ukrainian for: Thank you", "{}", "Дякую")
             });
 
             AddExercises(dbContext, lesson2, new List<ExerciseSeed>
             {
-                new ExerciseSeed(ExerciseType.MultipleChoice, "How are you? = ?", "[\"Як ти?\",\"Де ти?\",\"Хто ти?\"]", "Як ти?"),
-                new ExerciseSeed(ExerciseType.Input, "Write English: У мене все добре", "{}", "I'm fine"),
-                new ExerciseSeed(ExerciseType.MultipleChoice, "And you? = ?", "[\"А ти?\",\"І я\",\"Ти добре?\"]", "А ти?"),
-                new ExerciseSeed(ExerciseType.Input, "Write English: Як ти?", "{}", "How are you?")
+                new ExerciseSeed(Domain.Enums.ExerciseType.MultipleChoice, "How are you? = ?", "[\"Як ти?\",\"Де ти?\",\"Хто ти?\"]", "Як ти?"),
+                new ExerciseSeed(Domain.Enums.ExerciseType.Input, "Write English: У мене все добре", "{}", "I'm fine"),
+                new ExerciseSeed(Domain.Enums.ExerciseType.MultipleChoice, "And you? = ?", "[\"А ти?\",\"І я\",\"Ти добре?\"]", "А ти?"),
+                new ExerciseSeed(Domain.Enums.ExerciseType.Input, "Write English: Як ти?", "{}", "How are you?")
             });
 
             AddExercises(dbContext, lesson3, new List<ExerciseSeed>
             {
-                new ExerciseSeed(ExerciseType.MultipleChoice, "My name is ... = ?", "[\"Мене звати ...\",\"Я добре\",\"Я тут\"]", "Мене звати ..."),
-                new ExerciseSeed(ExerciseType.Input, "Write English: Мене звати Анна", "{}", "My name is Anna"),
-                new ExerciseSeed(ExerciseType.MultipleChoice, "Nice to meet you = ?", "[\"Приємно познайомитись\",\"Добрий ранок\",\"До побачення\"]", "Приємно познайомитись"),
-                new ExerciseSeed(ExerciseType.Input, "Write English: Приємно познайомитись", "{}", "Nice to meet you")
+                new ExerciseSeed(Domain.Enums.ExerciseType.MultipleChoice, "My name is ... = ?", "[\"Мене звати ...\",\"Я добре\",\"Я тут\"]", "Мене звати ..."),
+                new ExerciseSeed(Domain.Enums.ExerciseType.Input, "Write English: Мене звати Анна", "{}", "My name is Anna"),
+                new ExerciseSeed(Domain.Enums.ExerciseType.MultipleChoice, "Nice to meet you = ?", "[\"Приємно познайомитись\",\"Добрий ранок\",\"До побачення\"]", "Приємно познайомитись"),
+                new ExerciseSeed(Domain.Enums.ExerciseType.Input, "Write English: Приємно познайомитись", "{}", "Nice to meet you")
             });
 
             AddExercises(dbContext, lesson4, new List<ExerciseSeed>
             {
-                new ExerciseSeed(ExerciseType.MultipleChoice, "Sorry = ?", "[\"Пробач\",\"Будь ласка\",\"Дякую\"]", "Пробач"),
-                new ExerciseSeed(ExerciseType.Input, "Write English: Перепрошую", "{}", "Excuse me"),
-                new ExerciseSeed(ExerciseType.MultipleChoice, "You're welcome = ?", "[\"Нема за що\",\"До побачення\",\"Привіт\"]", "Нема за що"),
-                new ExerciseSeed(ExerciseType.Input, "Write Ukrainian for: Excuse me", "{}", "Перепрошую")
+                new ExerciseSeed(Domain.Enums.ExerciseType.MultipleChoice, "Sorry = ?", "[\"Пробач\",\"Будь ласка\",\"Дякую\"]", "Пробач"),
+                new ExerciseSeed(Domain.Enums.ExerciseType.Input, "Write English: Перепрошую", "{}", "Excuse me"),
+                new ExerciseSeed(Domain.Enums.ExerciseType.MultipleChoice, "You're welcome = ?", "[\"Нема за що\",\"До побачення\",\"Привіт\"]", "Нема за що"),
+                new ExerciseSeed(Domain.Enums.ExerciseType.Input, "Write Ukrainian for: Excuse me", "{}", "Перепрошую")
             });
 
             AddExercises(dbContext, lesson5, new List<ExerciseSeed>
             {
-                new ExerciseSeed(ExerciseType.MultipleChoice, "Three = ?", "[\"Три\",\"Чотири\",\"П'ять\"]", "Три"),
-                new ExerciseSeed(ExerciseType.Input, "Write English: Два", "{}", "Two"),
-                new ExerciseSeed(ExerciseType.MultipleChoice, "One = ?", "[\"Один\",\"Нуль\",\"П'ять\"]", "Один"),
-                new ExerciseSeed(ExerciseType.Input, "Write English: П'ять", "{}", "Five")
+                new ExerciseSeed(Domain.Enums.ExerciseType.MultipleChoice, "Three = ?", "[\"Три\",\"Чотири\",\"П'ять\"]", "Три"),
+                new ExerciseSeed(Domain.Enums.ExerciseType.Input, "Write English: Два", "{}", "Two"),
+                new ExerciseSeed(Domain.Enums.ExerciseType.MultipleChoice, "One = ?", "[\"Один\",\"Нуль\",\"П'ять\"]", "Один"),
+                new ExerciseSeed(Domain.Enums.ExerciseType.Input, "Write English: П'ять", "{}", "Five")
             });
 
             AddExercises(dbContext, lesson6, new List<ExerciseSeed>
             {
-                new ExerciseSeed(ExerciseType.MultipleChoice, "Seven = ?", "[\"Сім\",\"Шість\",\"Вісім\"]", "Сім"),
-                new ExerciseSeed(ExerciseType.Input, "Write English: Десять", "{}", "Ten"),
-                new ExerciseSeed(ExerciseType.MultipleChoice, "Nine = ?", "[\"Дев'ять\",\"Вісім\",\"Сім\"]", "Дев'ять"),
-                new ExerciseSeed(ExerciseType.Input, "Write English: Шість", "{}", "Six")
+                new ExerciseSeed(Domain.Enums.ExerciseType.MultipleChoice, "Seven = ?", "[\"Сім\",\"Шість\",\"Вісім\"]", "Сім"),
+                new ExerciseSeed(Domain.Enums.ExerciseType.Input, "Write English: Десять", "{}", "Ten"),
+                new ExerciseSeed(Domain.Enums.ExerciseType.MultipleChoice, "Nine = ?", "[\"Дев'ять\",\"Вісім\",\"Сім\"]", "Дев'ять"),
+                new ExerciseSeed(Domain.Enums.ExerciseType.Input, "Write English: Шість", "{}", "Six")
             });
 
             AddExercises(dbContext, lesson7, new List<ExerciseSeed>
             {
-                new ExerciseSeed(ExerciseType.MultipleChoice, "How much is it? = ?", "[\"Скільки коштує?\",\"Де ти?\",\"Котра година?\"]", "Скільки коштує?"),
-                new ExerciseSeed(ExerciseType.Input, "Write English: Це коштує 5", "{}", "It is 5"),
-                new ExerciseSeed(ExerciseType.MultipleChoice, "It is ... = ?", "[\"Це коштує ...\",\"Мене звати ...\",\"Я добре\"]", "Це коштує ..."),
-                new ExerciseSeed(ExerciseType.Input, "Write English: Скільки коштує?", "{}", "How much is it?")
+                new ExerciseSeed(Domain.Enums.ExerciseType.MultipleChoice, "How much is it? = ?", "[\"Скільки коштує?\",\"Де ти?\",\"Котра година?\"]", "Скільки коштує?"),
+                new ExerciseSeed(Domain.Enums.ExerciseType.Input, "Write English: Це коштує 5", "{}", "It is 5"),
+                new ExerciseSeed(Domain.Enums.ExerciseType.MultipleChoice, "It is ... = ?", "[\"Це коштує ...\",\"Мене звати ...\",\"Я добре\"]", "Це коштує ..."),
+                new ExerciseSeed(Domain.Enums.ExerciseType.Input, "Write English: Скільки коштує?", "{}", "How much is it?")
             });
 
             AddExercises(dbContext, lesson8, new List<ExerciseSeed>
             {
-                new ExerciseSeed(ExerciseType.MultipleChoice, "What time is it? = ?", "[\"Котра година?\",\"Скільки коштує?\",\"Як тебе звати?\"]", "Котра година?"),
-                new ExerciseSeed(ExerciseType.Input, "Write English: Зараз 7 година", "{}", "It's 7 o'clock"),
-                new ExerciseSeed(ExerciseType.MultipleChoice, "It's ... o'clock = ?", "[\"Зараз ... година\",\"Це коштує ...\",\"Мене звати ...\"]", "Зараз ... година"),
-                new ExerciseSeed(ExerciseType.Input, "Write English: Котра година?", "{}", "What time is it?")
+                new ExerciseSeed(Domain.Enums.ExerciseType.MultipleChoice, "What time is it? = ?", "[\"Котра година?\",\"Скільки коштує?\",\"Як тебе звати?\"]", "Котра година?"),
+                new ExerciseSeed(Domain.Enums.ExerciseType.Input, "Write English: Зараз 7 година", "{}", "It's 7 o'clock"),
+                new ExerciseSeed(Domain.Enums.ExerciseType.MultipleChoice, "It's ... o'clock = ?", "[\"Зараз ... година\",\"Це коштує ...\",\"Мене звати ...\"]", "Зараз ... година"),
+                new ExerciseSeed(Domain.Enums.ExerciseType.Input, "Write English: Котра година?", "{}", "What time is it?")
             });
         }
 
@@ -332,16 +327,8 @@ namespace Lumino.Api.Data
             dbContext.SaveChanges();
         }
 
-        private static string HashPassword(string password)
-        {
-            using var sha256 = SHA256.Create();
-            var bytes = Encoding.UTF8.GetBytes(password);
-            var hash = sha256.ComputeHash(bytes);
-            return Convert.ToBase64String(hash);
-        }
-
         private record ExerciseSeed(
-            ExerciseType Type,
+            Domain.Enums.ExerciseType Type,
             string Question,
             string Data,
             string CorrectAnswer);

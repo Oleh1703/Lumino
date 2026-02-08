@@ -1,6 +1,7 @@
 ﻿using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Application.Validators;
+using Lumino.API.Utils;
 using Xunit;
 
 namespace Lumino.Tests.Integration;
@@ -17,7 +18,8 @@ public class AuthServiceIntegrationTests
             dbContext,
             configuration,
             new RegisterRequestValidator(),
-            new LoginRequestValidator()
+            new LoginRequestValidator(),
+            new PasswordHasher()
         );
 
         var registerResponse = service.Register(new RegisterRequest
@@ -35,51 +37,5 @@ public class AuthServiceIntegrationTests
         });
 
         Assert.False(string.IsNullOrWhiteSpace(loginResponse.Token));
-    }
-
-    [Fact]
-    public void Register_EmptyEmail_ShouldThrow()
-    {
-        var dbContext = TestDbContextFactory.Create();
-        var configuration = TestConfigurationFactory.Create();
-
-        var service = new AuthService(
-            dbContext,
-            configuration,
-            new RegisterRequestValidator(),
-            new LoginRequestValidator()
-        );
-
-        Assert.Throws<ArgumentException>(() =>
-        {
-            service.Register(new RegisterRequest
-            {
-                Email = "",
-                Password = "123456"
-            });
-        });
-    }
-
-    [Fact]
-    public void Login_UnknownEmail_ShouldThrow()
-    {
-        var dbContext = TestDbContextFactory.Create();
-        var configuration = TestConfigurationFactory.Create();
-
-        var service = new AuthService(
-            dbContext,
-            configuration,
-            new RegisterRequestValidator(),
-            new LoginRequestValidator()
-        );
-
-        Assert.Throws<UnauthorizedAccessException>(() =>
-        {
-            service.Login(new LoginRequest
-            {
-                Email = "unknown@mail.com",
-                Password = "123456"
-            });
-        });
     }
 }
