@@ -47,17 +47,22 @@ namespace Lumino.Api.Data
 
         private static void SeedAchievements(LuminoDbContext dbContext)
         {
-            if (dbContext.Achievements.Any())
-            {
-                return;
-            }
-
             var achievements = new List<Achievement>
             {
                 new Achievement
                 {
                     Title = "First Lesson",
                     Description = "Complete your first lesson"
+                },
+                new Achievement
+                {
+                    Title = "5 Lessons Completed",
+                    Description = "Complete 5 lessons"
+                },
+                new Achievement
+                {
+                    Title = "Perfect Lesson",
+                    Description = "Complete a lesson without mistakes"
                 },
                 new Achievement
                 {
@@ -71,7 +76,22 @@ namespace Lumino.Api.Data
                 }
             };
 
-            dbContext.Achievements.AddRange(achievements);
+            foreach (var item in achievements)
+            {
+                var fromDb = dbContext.Achievements.FirstOrDefault(x => x.Title == item.Title);
+
+                if (fromDb == null)
+                {
+                    dbContext.Achievements.Add(item);
+                    continue;
+                }
+
+                if (fromDb.Description != item.Description)
+                {
+                    fromDb.Description = item.Description;
+                }
+            }
+
             dbContext.SaveChanges();
         }
 

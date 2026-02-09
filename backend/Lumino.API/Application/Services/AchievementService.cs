@@ -31,6 +31,8 @@ namespace Lumino.Api.Application.Services
             GrantFirstLesson(userId);
             GrantFiveLessons(userId);
             GrantPerfectLesson(userId, lessonScore, totalQuestions);
+            GrantHundredXp(userId);
+            GrantStreakStarter(userId);
         }
 
         private void GrantFirstLesson(int userId)
@@ -40,7 +42,7 @@ namespace Lumino.Api.Application.Services
 
             var achievement = GetOrCreateAchievement(
                 "First Lesson",
-                "You completed your first lesson!"
+                "Complete your first lesson"
             );
 
             GrantToUserIfNotExists(userId, achievement.Id);
@@ -53,7 +55,7 @@ namespace Lumino.Api.Application.Services
 
             var achievement = GetOrCreateAchievement(
                 "5 Lessons Completed",
-                "You completed 5 lessons!"
+                "Complete 5 lessons"
             );
 
             GrantToUserIfNotExists(userId, achievement.Id);
@@ -65,10 +67,74 @@ namespace Lumino.Api.Application.Services
 
             var achievement = GetOrCreateAchievement(
                 "Perfect Lesson",
-                "You completed a lesson without mistakes!"
+                "Complete a lesson without mistakes"
             );
 
             GrantToUserIfNotExists(userId, achievement.Id);
+        }
+
+        private void GrantHundredXp(int userId)
+        {
+            var progress = _dbContext.UserProgresses.FirstOrDefault(x => x.UserId == userId);
+
+            int totalScore = progress != null
+                ? progress.TotalScore
+                : _dbContext.LessonResults.Where(x => x.UserId == userId).Sum(x => x.Score);
+
+            if (totalScore < 100) return;
+
+            var achievement = GetOrCreateAchievement(
+                "100 XP",
+                "Earn 100 total score"
+            );
+
+            GrantToUserIfNotExists(userId, achievement.Id);
+        }
+
+        private void GrantStreakStarter(int userId)
+        {
+            var dates = _dbContext.LessonResults
+                .Where(x => x.UserId == userId)
+                .Select(x => x.CompletedAt.Date)
+                .Distinct()
+                .OrderBy(x => x)
+                .ToList();
+
+            int maxStreak = CalculateMaxStreak(dates);
+
+            if (maxStreak < 3) return;
+
+            var achievement = GetOrCreateAchievement(
+                "Streak Starter",
+                "Study 3 days in a row"
+            );
+
+            GrantToUserIfNotExists(userId, achievement.Id);
+        }
+
+        private static int CalculateMaxStreak(List<DateTime> datesSortedAsc)
+        {
+            if (datesSortedAsc == null || datesSortedAsc.Count == 0)
+            {
+                return 0;
+            }
+
+            int max = 1;
+            int current = 1;
+
+            for (int i = 1; i < datesSortedAsc.Count; i++)
+            {
+                if (datesSortedAsc[i] == datesSortedAsc[i - 1].AddDays(1))
+                {
+                    current++;
+                    if (current > max) max = current;
+                    continue;
+                }
+
+                current = 1;
+            }
+
+            return max;
         }
 
         private Achievement GetOrCreateAchievement(string title, string description)
@@ -77,6 +143,12 @@ namespace Lumino.Api.Application.Services
 
             if (achievement != null)
             {
+                if (achievement.Description != description)
+                {
+                    achievement.Description = description;
+                    _dbContext.SaveChanges();
+                }
+
                 return achievement;
             }
 
