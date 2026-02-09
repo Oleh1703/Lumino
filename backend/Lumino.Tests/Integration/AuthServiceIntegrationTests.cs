@@ -1,7 +1,7 @@
 ﻿using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Application.Validators;
-using Lumino.API.Utils;
+using Lumino.Api.Utils;
 using Xunit;
 
 namespace Lumino.Tests.Integration;

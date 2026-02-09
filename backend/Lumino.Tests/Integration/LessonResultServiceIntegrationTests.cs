@@ -1,4 +1,4 @@
-﻿using Lumino.Api.Application.DTOs;
+﻿﻿using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Application.Validators;
 using Lumino.Api.Domain.Entities;
@@ -240,10 +240,12 @@ public class LessonResultServiceIntegrationTests
             }
         });
 
+        Assert.Equal(2, dbContext.LessonResults.Count(x => x.UserId == userId && x.LessonId == 1));
+
         var progress = dbContext.UserProgresses.FirstOrDefault(x => x.UserId == userId);
         Assert.NotNull(progress);
 
-        Assert.True(progress!.CompletedLessons >= 2);
-        Assert.True(progress.TotalScore >= 2);
+        Assert.Equal(1, progress!.CompletedLessons);
+        Assert.Equal(2, progress.TotalScore);
     }
 }

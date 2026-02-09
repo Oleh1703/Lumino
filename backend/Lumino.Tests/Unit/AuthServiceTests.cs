@@ -1,7 +1,7 @@
-﻿﻿using Lumino.Api.Application.DTOs;
+﻿using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Domain.Entities;
-using Lumino.API.Utils;
+using Lumino.Api.Utils;
 using Xunit;
 
 namespace Lumino.Tests;
@@ -29,6 +29,7 @@ public class AuthServiceTests
         });
 
         Assert.False(string.IsNullOrWhiteSpace(response.Token));
+        Assert.False(string.IsNullOrWhiteSpace(response.RefreshToken));
 
         var user = dbContext.Users.FirstOrDefault(x => x.Email == "test@mail.com");
         Assert.NotNull(user);

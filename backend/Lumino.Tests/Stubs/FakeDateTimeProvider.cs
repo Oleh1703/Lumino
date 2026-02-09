@@ -1,4 +1,4 @@
-﻿using Lumino.API.Utils;
+﻿using Lumino.Api.Utils;
 
 namespace Lumino.Tests;
 
