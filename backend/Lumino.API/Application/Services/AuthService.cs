@@ -8,7 +8,7 @@ using Lumino.Api.Application.Validators;
 using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Domain.Enums;
-using Lumino.API.Utils;
+using Lumino.Api.Utils;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 

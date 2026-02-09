@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Lumino.API.Utils
+namespace Lumino.Api.Utils
 {
     public class PasswordHasher : IPasswordHasher
     {

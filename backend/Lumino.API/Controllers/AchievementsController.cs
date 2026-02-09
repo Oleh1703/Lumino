@@ -1,8 +1,7 @@
-using Lumino.Api.Application.DTOs;
-using Lumino.Api.Data;
+using Lumino.Api.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Lumino.API.Utils;
+using Lumino.Api.Utils;
 
 namespace Lumino.Api.Controllers
 {
@@ -11,33 +10,18 @@ namespace Lumino.Api.Controllers
     [Authorize]
     public class AchievementsController : ControllerBase
     {
-        private readonly LuminoDbContext _dbContext;
+        private readonly IAchievementQueryService _achievementQueryService;
 
-        public AchievementsController(LuminoDbContext dbContext)
+        public AchievementsController(IAchievementQueryService achievementQueryService)
         {
-            _dbContext = dbContext;
+            _achievementQueryService = achievementQueryService;
         }
 
         [HttpGet("me")]
         public IActionResult GetMyAchievements()
         {
             var userId = ClaimsUtils.GetUserIdOrThrow(User);
-
-            var result = _dbContext.UserAchievements
-                .Where(x => x.UserId == userId)
-                .Join(
-                    _dbContext.Achievements,
-                    ua => ua.AchievementId,
-                    a => a.Id,
-                    (ua, a) => new AchievementResponse
-                    {
-                        Id = a.Id,
-                        Title = a.Title,
-                        Description = a.Description,
-                        EarnedAt = ua.EarnedAt
-                    }
-                )
-                .ToList();
+            var result = _achievementQueryService.GetUserAchievements(userId);
 
             return Ok(result);
         }

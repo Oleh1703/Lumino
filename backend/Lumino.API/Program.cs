@@ -2,14 +2,14 @@ using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Application.Validators;
 using Lumino.Api.Data;
-using Lumino.API.Middleware;
-using Lumino.API.Utils;
+using Lumino.Api.Middleware;
+using Lumino.Api.Utils;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
-namespace Lumino.API
+namespace Lumino.Api
 {
     public class Program
     {
@@ -26,6 +26,8 @@ namespace Lumino.API
                 options.AddPolicy("AllowFrontend", policy =>
                 {
                     policy.WithOrigins(
+                        "http://localhost:5173",
+                        "https://localhost:5173",
                         "http://localhost:5174",
                         "https://localhost:5174"
                     )
@@ -85,6 +87,7 @@ namespace Lumino.API
             builder.Services.AddScoped<ILessonResultService, LessonResultService>();
             builder.Services.AddScoped<IProgressService, ProgressService>();
             builder.Services.AddScoped<IAchievementService, AchievementService>();
+            builder.Services.AddScoped<IAchievementQueryService, AchievementQueryService>();
             builder.Services.AddScoped<ILessonResultQueryService, LessonResultQueryService>();
             builder.Services.AddScoped<IVocabularyService, VocabularyService>();
             builder.Services.AddScoped<ISceneService, SceneService>();

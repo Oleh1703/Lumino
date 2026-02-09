@@ -1,6 +1,6 @@
 using System.Security.Claims;
 
-namespace Lumino.API.Utils
+namespace Lumino.Api.Utils
 {
     public static class ClaimsUtils
     {

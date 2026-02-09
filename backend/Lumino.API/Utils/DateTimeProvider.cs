@@ -1,4 +1,4 @@
-namespace Lumino.API.Utils
+namespace Lumino.Api.Utils
 {
     public class DateTimeProvider : IDateTimeProvider
     {

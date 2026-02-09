@@ -1,6 +1,6 @@
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Domain.Enums;
-using Lumino.API.Utils;
+using Lumino.Api.Utils;
 using Microsoft.EntityFrameworkCore;
 
 namespace Lumino.Api.Data

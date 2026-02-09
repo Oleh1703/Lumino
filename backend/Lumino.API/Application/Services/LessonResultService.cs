@@ -3,7 +3,9 @@ using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Application.Validators;
 using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
-using Lumino.API.Utils;
+using Lumino.Api.Utils;
+using System.Text.Json;
+using System.Collections.Generic;
 
 namespace Lumino.Api.Application.Services
 {
@@ -42,20 +44,28 @@ namespace Lumino.Api.Application.Services
                 .ToList();
 
             int correct = 0;
+            var mistakeExerciseIds = new List<int>();
 
             foreach (var exercise in exercises)
             {
                 var userAnswer = request.Answers
                     .FirstOrDefault(x => x.ExerciseId == exercise.Id);
 
-                if (userAnswer != null &&
+                var isCorrect = userAnswer != null &&
                     !string.IsNullOrWhiteSpace(userAnswer.Answer) &&
                     userAnswer.Answer.Trim().ToLower() ==
-                    exercise.CorrectAnswer.Trim().ToLower())
+                    exercise.CorrectAnswer.Trim().ToLower();
+
+                if (isCorrect)
                 {
                     correct++;
+                    continue;
                 }
+
+                mistakeExerciseIds.Add(exercise.Id);
             }
+
+            var shouldIncrementCompletedLessons = !_dbContext.LessonResults.Any(x => x.UserId == userId && x.LessonId == lesson.Id);
 
             var result = new LessonResult
             {
@@ -63,24 +73,26 @@ namespace Lumino.Api.Application.Services
                 LessonId = lesson.Id,
                 Score = correct,
                 TotalQuestions = exercises.Count,
+                MistakesJson = JsonSerializer.Serialize(mistakeExerciseIds),
                 CompletedAt = _dateTimeProvider.UtcNow
             };
 
             _dbContext.LessonResults.Add(result);
             _dbContext.SaveChanges();
 
-            UpdateUserProgress(userId, correct);
+            UpdateUserProgress(userId, correct, shouldIncrementCompletedLessons);
             _achievementService.CheckAndGrantAchievements(userId, correct, exercises.Count);
 
             return new SubmitLessonResponse
             {
                 TotalExercises = exercises.Count,
                 CorrectAnswers = correct,
-                IsPassed = correct == exercises.Count
+                IsPassed = correct == exercises.Count,
+                MistakeExerciseIds = mistakeExerciseIds
             };
         }
 
-        private void UpdateUserProgress(int userId, int score)
+        private void UpdateUserProgress(int userId, int score, bool shouldIncrementCompletedLessons)
         {
             var progress = _dbContext.UserProgresses
                 .FirstOrDefault(x => x.UserId == userId);
@@ -90,7 +102,7 @@ namespace Lumino.Api.Application.Services
                 progress = new UserProgress
                 {
                     UserId = userId,
-                    CompletedLessons = 1,
+                    CompletedLessons = shouldIncrementCompletedLessons ? 1 : 0,
                     TotalScore = score,
                     LastUpdatedAt = _dateTimeProvider.UtcNow
                 };
@@ -99,7 +111,11 @@ namespace Lumino.Api.Application.Services
             }
             else
             {
-                progress.CompletedLessons++;
+                if (shouldIncrementCompletedLessons)
+                {
+                    progress.CompletedLessons++;
+                }
+
                 progress.TotalScore += score;
                 progress.LastUpdatedAt = _dateTimeProvider.UtcNow;
             }

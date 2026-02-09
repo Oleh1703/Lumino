@@ -1,6 +1,6 @@
 using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Interfaces;
-using Lumino.API.Utils;
+using Lumino.Api.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

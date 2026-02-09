@@ -1,7 +1,7 @@
 using Lumino.Api.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Lumino.API.Utils;
+using Lumino.Api.Utils;
 
 namespace Lumino.Api.Controllers
 {

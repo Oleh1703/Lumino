@@ -2,7 +2,7 @@ using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
-using Lumino.API.Utils;
+using Lumino.Api.Utils;
 
 namespace Lumino.Api.Application.Services
 {

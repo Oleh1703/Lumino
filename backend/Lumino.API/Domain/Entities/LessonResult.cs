@@ -12,6 +12,8 @@ namespace Lumino.Api.Domain.Entities
 
         public int TotalQuestions { get; set; }
 
+        public string? MistakesJson { get; set; }
+
         public DateTime CompletedAt { get; set; }
     }
 }

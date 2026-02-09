@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text.Json;
 
-namespace Lumino.API.Middleware
+namespace Lumino.Api.Middleware
 {
     public class ExceptionHandlingMiddleware
     {
