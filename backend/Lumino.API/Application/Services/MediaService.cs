@@ -23,24 +23,24 @@ namespace Lumino.Api.Application.Services
         {
             if (file == null)
             {
-                throw new Exception("File is required");
+                throw new ArgumentException("File is required");
             }
 
             if (file.Length <= 0)
             {
-                throw new Exception("File is empty");
+                throw new ArgumentException("File is empty");
             }
 
             if (file.Length > MaxFileSizeBytes)
             {
-                throw new Exception("File is too large");
+                throw new ArgumentException("File is too large");
             }
 
             var ext = Path.GetExtension(file.FileName).ToLower();
 
             if (string.IsNullOrWhiteSpace(ext) || !AllowedExtensions.Contains(ext))
             {
-                throw new Exception("File format is not allowed");
+                throw new ArgumentException("File format is not allowed");
             }
 
             var root = Directory.GetCurrentDirectory();

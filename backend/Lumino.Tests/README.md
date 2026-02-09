@@ -1,7 +1,7 @@
 ## create tests:
 
 **in: \Lumino\backend ->
-Shuft+RCM -> cmd:**
+Shift+RCM -> cmd:**
 
 dotnet new xunit -n Lumino.Tests
 
