@@ -1,8 +1,8 @@
 using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Interfaces;
+using Lumino.API.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace Lumino.Api.Controllers
 {
@@ -21,21 +21,21 @@ namespace Lumino.Api.Controllers
         [HttpGet("me")]
         public IActionResult GetMyVocabulary()
         {
-            var userId = GetUserId();
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
             return Ok(_vocabularyService.GetMyVocabulary(userId));
         }
 
         [HttpGet("due")]
         public IActionResult GetDue()
         {
-            var userId = GetUserId();
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
             return Ok(_vocabularyService.GetDueVocabulary(userId));
         }
 
         [HttpGet("review/next")]
         public IActionResult GetNextReview()
         {
-            var userId = GetUserId();
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
             var item = _vocabularyService.GetNextReview(userId);
 
             if (item == null)
@@ -49,7 +49,7 @@ namespace Lumino.Api.Controllers
         [HttpPost]
         public IActionResult Add(AddVocabularyRequest request)
         {
-            var userId = GetUserId();
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
             _vocabularyService.AddWord(userId, request);
             return NoContent();
         }
@@ -57,7 +57,7 @@ namespace Lumino.Api.Controllers
         [HttpPost("{id}/review")]
         public IActionResult Review(int id, ReviewVocabularyRequest request)
         {
-            var userId = GetUserId();
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
             var result = _vocabularyService.ReviewWord(userId, id, request);
             return Ok(result);
         }
@@ -65,19 +65,9 @@ namespace Lumino.Api.Controllers
         [HttpDelete("{id}")]
         public IActionResult Delete(int id)
         {
-            var userId = GetUserId();
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
             _vocabularyService.DeleteWord(userId, id);
             return NoContent();
-        }
-
-        private int GetUserId()
-        {
-            var value =
-                User.FindFirstValue(ClaimTypes.NameIdentifier)
-                ?? User.FindFirstValue(ClaimTypes.Name)
-                ?? User.FindFirstValue("sub");
-
-            return int.Parse(value!);
         }
     }
 }

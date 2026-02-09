@@ -1,7 +1,7 @@
 using Lumino.Api.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
+using Lumino.API.Utils;
 
 namespace Lumino.Api.Controllers
 {
@@ -20,12 +20,7 @@ namespace Lumino.Api.Controllers
         [HttpGet("me")]
         public IActionResult GetMe()
         {
-            var userId = int.Parse(
-                User.FindFirstValue(ClaimTypes.NameIdentifier)
-                ?? User.FindFirstValue(ClaimTypes.Name)
-                ?? User.FindFirstValue("sub")!
-            );
-
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
             var result = _userService.GetCurrentUser(userId);
             return Ok(result);
         }

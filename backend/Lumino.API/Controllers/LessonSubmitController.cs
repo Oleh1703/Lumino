@@ -1,13 +1,13 @@
-using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Interfaces;
+using Lumino.Api.Application.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
+using Lumino.API.Utils;
 
 namespace Lumino.Api.Controllers
 {
     [ApiController]
-    [Route("api/lessons/submit")]
+    [Route("api/lesson-submit")]
     [Authorize]
     public class LessonSubmitController : ControllerBase
     {
@@ -19,14 +19,9 @@ namespace Lumino.Api.Controllers
         }
 
         [HttpPost]
-        public IActionResult Submit(SubmitLessonRequest request)
+        public IActionResult SubmitLesson([FromBody] SubmitLessonRequest request)
         {
-            var userId = int.Parse(
-                User.FindFirstValue(ClaimTypes.NameIdentifier)
-                ?? User.FindFirstValue(ClaimTypes.Name)
-                ?? User.FindFirstValue("sub")!
-            );
-
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
             var result = _lessonResultService.SubmitLesson(userId, request);
             return Ok(result);
         }

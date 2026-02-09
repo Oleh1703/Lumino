@@ -2,7 +2,7 @@ using Lumino.Api.Application.DTOs;
 using Lumino.Api.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
+using Lumino.API.Utils;
 
 namespace Lumino.Api.Controllers
 {
@@ -21,11 +21,7 @@ namespace Lumino.Api.Controllers
         [HttpGet("me")]
         public IActionResult GetMyAchievements()
         {
-            var userId = int.Parse(
-                User.FindFirstValue(ClaimTypes.NameIdentifier)
-                ?? User.FindFirstValue(ClaimTypes.Name)
-                ?? User.FindFirstValue("sub")!
-            );
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
 
             var result = _dbContext.UserAchievements
                 .Where(x => x.UserId == userId)

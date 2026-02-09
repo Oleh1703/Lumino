@@ -1,8 +1,8 @@
 using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Interfaces;
+using Lumino.API.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace Lumino.Api.Controllers
 {
@@ -27,9 +27,7 @@ namespace Lumino.Api.Controllers
         [Authorize]
         public IActionResult Complete(MarkSceneCompletedRequest request)
         {
-            var userId = int.Parse(
-                User.FindFirstValue(ClaimTypes.NameIdentifier)!
-            );
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
 
             _sceneService.MarkCompleted(userId, request.SceneId);
             return NoContent();
@@ -39,9 +37,7 @@ namespace Lumino.Api.Controllers
         [Authorize]
         public IActionResult GetCompleted()
         {
-            var userId = int.Parse(
-                User.FindFirstValue(ClaimTypes.NameIdentifier)!
-            );
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
 
             return Ok(_sceneService.GetCompletedScenes(userId));
         }
