@@ -37,7 +37,7 @@ namespace Lumino.Api.Application.Services
 
         private void GrantFirstLesson(int userId)
         {
-            int lessonsCount = _dbContext.LessonResults.Count(x => x.UserId == userId);
+            int lessonsCount = _dbContext.LessonResults.Count(x => x.UserId == userId && x.TotalQuestions > 0 && x.Score == x.TotalQuestions);
             if (lessonsCount < 1) return;
 
             var achievement = GetOrCreateAchievement(
@@ -50,7 +50,7 @@ namespace Lumino.Api.Application.Services
 
         private void GrantFiveLessons(int userId)
         {
-            int lessonsCount = _dbContext.LessonResults.Count(x => x.UserId == userId);
+            int lessonsCount = _dbContext.LessonResults.Count(x => x.UserId == userId && x.TotalQuestions > 0 && x.Score == x.TotalQuestions);
             if (lessonsCount < 5) return;
 
             var achievement = GetOrCreateAchievement(
@@ -94,7 +94,7 @@ namespace Lumino.Api.Application.Services
         private void GrantStreakStarter(int userId)
         {
             var dates = _dbContext.LessonResults
-                .Where(x => x.UserId == userId)
+                .Where(x => x.UserId == userId && x.TotalQuestions > 0 && x.Score == x.TotalQuestions)
                 .Select(x => x.CompletedAt.Date)
                 .Distinct()
                 .OrderBy(x => x)

@@ -65,7 +65,10 @@ namespace Lumino.Api.Application.Services
                 mistakeExerciseIds.Add(exercise.Id);
             }
 
-            var shouldIncrementCompletedLessons = !_dbContext.LessonResults.Any(x => x.UserId == userId && x.LessonId == lesson.Id);
+            var isPassed = exercises.Count > 0 && correct == exercises.Count;
+
+            var shouldIncrementCompletedLessons = isPassed &&
+                !_dbContext.LessonResults.Any(x => x.UserId == userId && x.LessonId == lesson.Id && x.TotalQuestions > 0 && x.Score == x.TotalQuestions);
 
             var result = new LessonResult
             {
@@ -87,7 +90,7 @@ namespace Lumino.Api.Application.Services
             {
                 TotalExercises = exercises.Count,
                 CorrectAnswers = correct,
-                IsPassed = correct == exercises.Count,
+                IsPassed = isPassed,
                 MistakeExerciseIds = mistakeExerciseIds
             };
         }

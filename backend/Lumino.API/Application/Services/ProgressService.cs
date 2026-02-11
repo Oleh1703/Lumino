@@ -24,7 +24,7 @@ namespace Lumino.Api.Application.Services
             int totalLessons = _dbContext.Lessons.Count();
 
             int completedDistinctLessons = _dbContext.LessonResults
-                .Where(x => x.UserId == userId)
+                .Where(x => x.UserId == userId && x.TotalQuestions > 0 && x.Score == x.TotalQuestions)
                 .Select(x => x.LessonId)
                 .Distinct()
                 .Count();
@@ -39,7 +39,7 @@ namespace Lumino.Api.Application.Services
             var nowUtc = _dateTimeProvider.UtcNow;
 
             var studyDatesUtc = _dbContext.LessonResults
-                .Where(x => x.UserId == userId)
+                .Where(x => x.UserId == userId && x.TotalQuestions > 0 && x.Score == x.TotalQuestions)
                 .Select(x => x.CompletedAt)
                 .ToList();
 

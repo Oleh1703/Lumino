@@ -1,4 +1,4 @@
-﻿using Lumino.Api.Application.Services;
+﻿﻿using Lumino.Api.Application.Services;
 using Lumino.Api.Domain.Entities;
 using Xunit;
 
@@ -71,7 +71,7 @@ public class ProgressServiceTests
             {
                 UserId = 1,
                 LessonId = 1,
-                Score = 10,
+                Score = 4,
                 TotalQuestions = 4,
                 CompletedAt = new DateTime(2026, 2, 7, 10, 0, 0, DateTimeKind.Utc)
             },
@@ -79,7 +79,7 @@ public class ProgressServiceTests
             {
                 UserId = 1,
                 LessonId = 2,
-                Score = 20,
+                Score = 4,
                 TotalQuestions = 4,
                 CompletedAt = new DateTime(2026, 2, 8, 10, 0, 0, DateTimeKind.Utc)
             },
@@ -87,7 +87,7 @@ public class ProgressServiceTests
             {
                 UserId = 1,
                 LessonId = 1,
-                Score = 25,
+                Score = 4,
                 TotalQuestions = 4,
                 CompletedAt = new DateTime(2026, 2, 9, 10, 0, 0, DateTimeKind.Utc)
             }
@@ -156,7 +156,7 @@ public class ProgressServiceTests
         {
             UserId = 1,
             LessonId = 1,
-            Score = 10,
+            Score = 4,
             TotalQuestions = 4,
             CompletedAt = new DateTime(2026, 2, 7, 10, 0, 0, DateTimeKind.Utc)
         });
