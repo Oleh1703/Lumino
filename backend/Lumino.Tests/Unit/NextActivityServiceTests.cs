@@ -1,4 +1,4 @@
-﻿using Lumino.Api.Application.Services;
+﻿﻿using Lumino.Api.Application.Services;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Utils;
 using Microsoft.Extensions.Options;
@@ -206,6 +206,112 @@ public class NextActivityServiceTests
         Assert.Null(next);
     }
 
+    [Fact]
+    public void GetNext_WhenHasActiveCourse_ReturnsLessonFromActiveCourse()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        // Course 1 (published) - щоб перевірити що активний курс має пріоритет
+        dbContext.Courses.Add(new Course
+        {
+            Id = 1,
+            Title = "English A1",
+            Description = "Desc",
+            IsPublished = true
+        });
+
+        dbContext.Topics.Add(new Topic
+        {
+            Id = 1,
+            CourseId = 1,
+            Title = "Basics",
+            Order = 1
+        });
+
+        dbContext.Lessons.Add(new Lesson
+        {
+            Id = 1,
+            TopicId = 1,
+            Title = "Lesson 1",
+            Theory = "T",
+            Order = 1
+        });
+
+        // Course 2 (published) - активний
+        dbContext.Courses.Add(new Course
+        {
+            Id = 2,
+            Title = "German A1",
+            Description = "Desc",
+            IsPublished = true
+        });
+
+        dbContext.Topics.Add(new Topic
+        {
+            Id = 2,
+            CourseId = 2,
+            Title = "Start",
+            Order = 1
+        });
+
+        dbContext.Lessons.Add(new Lesson
+        {
+            Id = 3,
+            TopicId = 2,
+            Title = "DE Lesson 1",
+            Theory = "T",
+            Order = 1
+        });
+
+        dbContext.Lessons.Add(new Lesson
+        {
+            Id = 4,
+            TopicId = 2,
+            Title = "DE Lesson 2",
+            Theory = "T",
+            Order = 2
+        });
+
+        SeedScenes(dbContext);
+
+        dbContext.UserCourses.Add(new UserCourse
+        {
+            Id = 1,
+            UserId = 5,
+            CourseId = 2,
+            IsActive = true,
+            LastLessonId = 3,
+            StartedAt = new DateTime(2026, 2, 10, 0, 0, 0, DateTimeKind.Utc),
+            LastOpenedAt = new DateTime(2026, 2, 10, 0, 0, 0, DateTimeKind.Utc)
+        });
+
+        dbContext.UserLessonProgresses.Add(new UserLessonProgress
+        {
+            Id = 1,
+            UserId = 5,
+            LessonId = 3,
+            IsUnlocked = true,
+            IsCompleted = false,
+            BestScore = 0,
+            LastAttemptAt = null
+        });
+
+        dbContext.SaveChanges();
+
+        var service = new NextActivityService(
+            dbContext,
+            new FixedDateTimeProvider(new DateTime(2026, 2, 11, 0, 0, 0, DateTimeKind.Utc)),
+            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneCompletionScore = 5 })
+        );
+
+        var next = service.GetNext(5);
+
+        Assert.NotNull(next);
+        Assert.Equal("Lesson", next!.Type);
+        Assert.Equal(3, next.LessonId);
+        Assert.Equal(2, next.TopicId);
+    }
+
     private static void SeedLessons(Lumino.Api.Data.LuminoDbContext dbContext)
     {
         dbContext.Courses.Add(new Course
@@ -251,7 +357,7 @@ public class NextActivityServiceTests
             Id = 1,
             Title = "Scene 1",
             Description = "D",
-            SceneType = "dialog"
+            SceneType = "Dialogue"
         });
 
         dbContext.Scenes.Add(new Scene
@@ -259,7 +365,7 @@ public class NextActivityServiceTests
             Id = 2,
             Title = "Scene 2",
             Description = "D",
-            SceneType = "dialog"
+            SceneType = "Dialogue"
         });
     }
 }

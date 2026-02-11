@@ -94,6 +94,120 @@ namespace Lumino.Api.Application.Services
                 .Distinct()
                 .ToList();
 
+            // якщо є активний курс — шукаємо next lesson в межах активного курсу,
+            // якщо активного курсу нема — fallback.
+            var activeCourse = _dbContext.UserCourses
+                .FirstOrDefault(x => x.UserId == userId && x.IsActive);
+
+            if (activeCourse != null)
+            {
+                var lessonsInCourse = (
+                    from t in _dbContext.Topics
+                    join l in _dbContext.Lessons on t.Id equals l.TopicId
+                    join c in _dbContext.Courses on t.CourseId equals c.Id
+                    where c.IsPublished && c.Id == activeCourse.CourseId
+                    orderby t.Order, l.Order
+                    select new
+                    {
+                        LessonId = l.Id,
+                        TopicId = t.Id,
+                        LessonTitle = l.Title
+                    }
+                ).ToList();
+
+                if (lessonsInCourse.Count > 0)
+                {
+                    var progressDict = _dbContext.UserLessonProgresses
+                        .Where(x => x.UserId == userId)
+                        .ToDictionary(x => x.LessonId, x => x);
+
+                    // 1) спробувати повернути LastLessonId (якщо він ще не пройдений)
+                    if (activeCourse.LastLessonId != null)
+                    {
+                        var lastId = activeCourse.LastLessonId.Value;
+
+                        if (!passedLessonIds.Contains(lastId))
+                        {
+                            if (progressDict.TryGetValue(lastId, out var lp))
+                            {
+                                if (lp.IsUnlocked)
+                                {
+                                    var lastLesson = lessonsInCourse.FirstOrDefault(x => x.LessonId == lastId);
+
+                                    if (lastLesson != null)
+                                    {
+                                        return new NextActivityResponse
+                                        {
+                                            Type = "Lesson",
+                                            LessonId = lastLesson.LessonId,
+                                            TopicId = lastLesson.TopicId,
+                                            LessonTitle = lastLesson.LessonTitle
+                                        };
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                // якщо прогресу ще нема (дуже рідко), не ламаємось — просто віддамо як next в курсі
+                                var lastLesson = lessonsInCourse.FirstOrDefault(x => x.LessonId == lastId);
+
+                                if (lastLesson != null)
+                                {
+                                    return new NextActivityResponse
+                                    {
+                                        Type = "Lesson",
+                                        LessonId = lastLesson.LessonId,
+                                        TopicId = lastLesson.TopicId,
+                                        LessonTitle = lastLesson.LessonTitle
+                                    };
+                                }
+                            }
+                        }
+                    }
+
+                    // 2) перший unlocked і непройдений урок у рамках активного курсу
+                    foreach (var item in lessonsInCourse)
+                    {
+                        if (passedLessonIds.Contains(item.LessonId))
+                        {
+                            continue;
+                        }
+
+                        if (progressDict.TryGetValue(item.LessonId, out var p))
+                        {
+                            if (!p.IsUnlocked)
+                            {
+                                continue;
+                            }
+
+                            return new NextActivityResponse
+                            {
+                                Type = "Lesson",
+                                LessonId = item.LessonId,
+                                TopicId = item.TopicId,
+                                LessonTitle = item.LessonTitle
+                            };
+                        }
+                    }
+
+                    // fallback в рамках активного курсу (якщо прогреси ще не створені/порожні)
+                    var firstNotPassed = lessonsInCourse
+                        .FirstOrDefault(x => !passedLessonIds.Contains(x.LessonId));
+
+                    if (firstNotPassed != null)
+                    {
+                        return new NextActivityResponse
+                        {
+                            Type = "Lesson",
+                            LessonId = firstNotPassed.LessonId,
+                            TopicId = firstNotPassed.TopicId,
+                            LessonTitle = firstNotPassed.LessonTitle
+                        };
+                    }
+                }
+            }
+
+            // fallback
             var nextLesson =
                 (from l in _dbContext.Lessons
                  join t in _dbContext.Topics on l.TopicId equals t.Id
