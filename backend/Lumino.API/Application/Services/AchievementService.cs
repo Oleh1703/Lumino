@@ -95,13 +95,14 @@ namespace Lumino.Api.Application.Services
 
         private void GrantHundredXp(int userId)
         {
-            var progress = _dbContext.UserProgresses.FirstOrDefault(x => x.UserId == userId);
+            // 100 XP рахуємо по правилу "best per lesson"
+            int bestTotalScore = _dbContext.LessonResults
+                .Where(x => x.UserId == userId)
+                .GroupBy(x => x.LessonId)
+                .Select(g => g.Max(x => x.Score))
+                .Sum();
 
-            int totalScore = progress != null
-                ? progress.TotalScore
-                : _dbContext.LessonResults.Where(x => x.UserId == userId).Sum(x => x.Score);
-
-            if (totalScore < 100) return;
+            if (bestTotalScore < 100) return;
 
             var achievement = GetOrCreateAchievement(
                 "100 XP",

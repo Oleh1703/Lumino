@@ -1,4 +1,4 @@
-﻿﻿﻿using Lumino.Api.Application.DTOs;
+﻿﻿﻿﻿using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Application.Validators;
 using Lumino.Api.Domain.Entities;
@@ -129,7 +129,7 @@ public class LessonResultServiceIntegrationTests
         });
     }
 
-    // partial correct -> IsPassed false
+    // partial correct -> IsPassed false (80%)
     [Fact]
     public void SubmitLesson_PartialCorrect_ShouldNotPass()
     {
@@ -191,9 +191,9 @@ public class LessonResultServiceIntegrationTests
         Assert.False(response.IsPassed);
     }
 
-    // call twice -> progress accumulates
+    // call twice -> TotalScore must not be farmed
     [Fact]
-    public void SubmitLesson_Twice_ShouldAccumulateUserProgress()
+    public void SubmitLesson_Twice_ShouldNotFarmTotalScore()
     {
         var dbContext = TestDbContextFactory.Create();
 
@@ -253,6 +253,8 @@ public class LessonResultServiceIntegrationTests
         Assert.NotNull(progress);
 
         Assert.Equal(1, progress!.CompletedLessons);
-        Assert.Equal(2, progress.TotalScore);
+
+        // TotalScore = best score per lesson, тому 1, а не 2
+        Assert.Equal(1, progress.TotalScore);
     }
 }

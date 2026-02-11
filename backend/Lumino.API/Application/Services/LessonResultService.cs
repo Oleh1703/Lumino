@@ -72,7 +72,7 @@ namespace Lumino.Api.Application.Services
             var passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
             var isPassed = LessonPassingRules.IsPassed(correct, exercises.Count, passingScorePercent);
 
-            // ✅ CompletedLessons збільшуємо лише при першому PASSED цього уроку
+            // CompletedLessons збільшуємо лише при першому PASSED цього уроку
             var shouldIncrementCompletedLessons = isPassed &&
                 !_dbContext.LessonResults.Any(x =>
                     x.UserId == userId &&
@@ -94,7 +94,7 @@ namespace Lumino.Api.Application.Services
             _dbContext.LessonResults.Add(result);
             _dbContext.SaveChanges();
 
-            UpdateUserProgress(userId, correct, shouldIncrementCompletedLessons);
+            UpdateUserProgress(userId, shouldIncrementCompletedLessons);
             _achievementService.CheckAndGrantAchievements(userId, correct, exercises.Count);
 
             return new SubmitLessonResponse
@@ -106,7 +106,7 @@ namespace Lumino.Api.Application.Services
             };
         }
 
-        private void UpdateUserProgress(int userId, int score, bool shouldIncrementCompletedLessons)
+        private void UpdateUserProgress(int userId, bool shouldIncrementCompletedLessons)
         {
             var progress = _dbContext.UserProgresses
                 .FirstOrDefault(x => x.UserId == userId);
@@ -117,7 +117,7 @@ namespace Lumino.Api.Application.Services
                 {
                     UserId = userId,
                     CompletedLessons = shouldIncrementCompletedLessons ? 1 : 0,
-                    TotalScore = score,
+                    TotalScore = CalculateBestTotalScore(userId),
                     LastUpdatedAt = _dateTimeProvider.UtcNow
                 };
 
@@ -130,11 +130,21 @@ namespace Lumino.Api.Application.Services
                     progress.CompletedLessons++;
                 }
 
-                progress.TotalScore += score;
+                // TotalScore = сума найкращих результатів по кожному уроку
+                progress.TotalScore = CalculateBestTotalScore(userId);
                 progress.LastUpdatedAt = _dateTimeProvider.UtcNow;
             }
 
             _dbContext.SaveChanges();
+        }
+
+        private int CalculateBestTotalScore(int userId)
+        {
+            return _dbContext.LessonResults
+                .Where(x => x.UserId == userId)
+                .GroupBy(x => x.LessonId)
+                .Select(g => g.Max(x => x.Score))
+                .Sum();
         }
     }
 }
