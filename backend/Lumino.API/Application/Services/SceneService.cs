@@ -3,6 +3,7 @@ using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Utils;
+using Microsoft.Extensions.Options;
 
 namespace Lumino.Api.Application.Services
 {
@@ -10,11 +11,19 @@ namespace Lumino.Api.Application.Services
     {
         private readonly LuminoDbContext _dbContext;
         private readonly IDateTimeProvider _dateTimeProvider;
+        private readonly IAchievementService _achievementService;
+        private readonly LearningSettings _learningSettings;
 
-        public SceneService(LuminoDbContext dbContext, IDateTimeProvider dateTimeProvider)
+        public SceneService(
+            LuminoDbContext dbContext,
+            IDateTimeProvider dateTimeProvider,
+            IAchievementService achievementService,
+            IOptions<LearningSettings> learningSettings)
         {
             _dbContext = dbContext;
             _dateTimeProvider = dateTimeProvider;
+            _achievementService = achievementService;
+            _learningSettings = learningSettings.Value;
         }
 
         public List<SceneResponse> GetAllScenes()
@@ -99,6 +108,10 @@ namespace Lumino.Api.Application.Services
             });
 
             _dbContext.SaveChanges();
+
+            UpdateUserProgressAfterScene(userId);
+
+            _achievementService.CheckAndGrantSceneAchievements(userId);
         }
 
         public List<int> GetCompletedScenes(int userId)
@@ -107,6 +120,48 @@ namespace Lumino.Api.Application.Services
                 .Where(x => x.UserId == userId && x.IsCompleted)
                 .Select(x => x.SceneId)
                 .ToList();
+        }
+
+        private void UpdateUserProgressAfterScene(int userId)
+        {
+            var now = _dateTimeProvider.UtcNow;
+
+            var progress = _dbContext.UserProgresses
+                .FirstOrDefault(x => x.UserId == userId);
+
+            int lessonsScore = _dbContext.LessonResults
+                .Where(x => x.UserId == userId)
+                .GroupBy(x => x.LessonId)
+                .Select(g => g.Max(x => x.Score))
+                .Sum();
+
+            int completedDistinctScenes = _dbContext.SceneAttempts
+                .Where(x => x.UserId == userId && x.IsCompleted)
+                .Select(x => x.SceneId)
+                .Distinct()
+                .Count();
+
+            int scenesScore = completedDistinctScenes * _learningSettings.SceneCompletionScore;
+
+            if (progress == null)
+            {
+                progress = new UserProgress
+                {
+                    UserId = userId,
+                    CompletedLessons = 0,
+                    TotalScore = lessonsScore + scenesScore,
+                    LastUpdatedAt = now
+                };
+
+                _dbContext.UserProgresses.Add(progress);
+                _dbContext.SaveChanges();
+                return;
+            }
+
+            progress.TotalScore = lessonsScore + scenesScore;
+            progress.LastUpdatedAt = now;
+
+            _dbContext.SaveChanges();
         }
     }
 }

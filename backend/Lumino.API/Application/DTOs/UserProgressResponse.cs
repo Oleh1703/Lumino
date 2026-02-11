@@ -17,5 +17,9 @@ namespace Lumino.Api.Application.DTOs
         public int CurrentStreakDays { get; set; }
 
         public DateTime? LastStudyAt { get; set; }
+
+        public int TotalScenes { get; set; }
+
+        public int CompletedDistinctScenes { get; set; }
     }
 }

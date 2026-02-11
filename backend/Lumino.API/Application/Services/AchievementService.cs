@@ -41,6 +41,18 @@ namespace Lumino.Api.Application.Services
             GrantStreakStarter(userId);
         }
 
+        public void CheckAndGrantSceneAchievements(int userId)
+        {
+            if (userId <= 0)
+            {
+                throw new ArgumentException("UserId is invalid");
+            }
+
+            GrantFirstScene(userId);
+            GrantFiveScenes(userId);
+            GrantStreakStarter(userId);
+        }
+
         private void GrantFirstLesson(int userId)
         {
             int passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
@@ -69,7 +81,6 @@ namespace Lumino.Api.Application.Services
         {
             int passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
 
-            // рахуємо по DISTINCT уроках (а не по кількості проходжень)
             int passedDistinctLessons = _dbContext.LessonResults
                 .Where(x =>
                     x.UserId == userId &&
@@ -104,7 +115,6 @@ namespace Lumino.Api.Application.Services
 
         private void GrantHundredXp(int userId)
         {
-            // anti-farm XP (best per lesson)
             int bestTotalScore = _dbContext.LessonResults
                 .Where(x => x.UserId == userId)
                 .GroupBy(x => x.LessonId)
@@ -121,17 +131,62 @@ namespace Lumino.Api.Application.Services
             GrantToUserIfNotExists(userId, achievement.Id);
         }
 
+        private void GrantFirstScene(int userId)
+        {
+            int completedDistinctScenes = _dbContext.SceneAttempts
+                .Where(x => x.UserId == userId && x.IsCompleted)
+                .Select(x => x.SceneId)
+                .Distinct()
+                .Count();
+
+            if (completedDistinctScenes < 1) return;
+
+            var achievement = GetOrCreateAchievement(
+                "First Scene",
+                "Complete your first scene"
+            );
+
+            GrantToUserIfNotExists(userId, achievement.Id);
+        }
+
+        private void GrantFiveScenes(int userId)
+        {
+            int completedDistinctScenes = _dbContext.SceneAttempts
+                .Where(x => x.UserId == userId && x.IsCompleted)
+                .Select(x => x.SceneId)
+                .Distinct()
+                .Count();
+
+            if (completedDistinctScenes < 5) return;
+
+            var achievement = GetOrCreateAchievement(
+                "5 Scenes Completed",
+                "Complete 5 scenes"
+            );
+
+            GrantToUserIfNotExists(userId, achievement.Id);
+        }
+
         private void GrantStreakStarter(int userId)
         {
             int passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
 
-            var dates = _dbContext.LessonResults
+            var passedLessonDates = _dbContext.LessonResults
                 .Where(x =>
                     x.UserId == userId &&
                     x.TotalQuestions > 0 &&
                     x.Score * 100 >= x.TotalQuestions * passingScorePercent
                 )
                 .Select(x => x.CompletedAt.Date)
+                .ToList();
+
+            var sceneDates = _dbContext.SceneAttempts
+                .Where(x => x.UserId == userId && x.IsCompleted)
+                .Select(x => x.CompletedAt.Date)
+                .ToList();
+
+            var dates = passedLessonDates
+                .Concat(sceneDates)
                 .Distinct()
                 .OrderBy(x => x)
                 .ToList();

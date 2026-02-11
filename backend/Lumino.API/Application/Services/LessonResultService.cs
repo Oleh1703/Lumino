@@ -164,11 +164,21 @@ namespace Lumino.Api.Application.Services
 
         private int CalculateBestTotalScore(int userId)
         {
-            return _dbContext.LessonResults
+            int lessonsScore = _dbContext.LessonResults
                 .Where(x => x.UserId == userId)
                 .GroupBy(x => x.LessonId)
                 .Select(g => g.Max(x => x.Score))
                 .Sum();
+
+            int completedDistinctScenes = _dbContext.SceneAttempts
+                .Where(x => x.UserId == userId && x.IsCompleted)
+                .Select(x => x.SceneId)
+                .Distinct()
+                .Count();
+
+            int scenesScore = completedDistinctScenes * _learningSettings.SceneCompletionScore;
+
+            return lessonsScore + scenesScore;
         }
 
         private void AddLessonVocabularyIfNeeded(

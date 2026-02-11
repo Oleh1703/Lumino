@@ -28,6 +28,8 @@ namespace Lumino.Api.Application.Services
                 .FirstOrDefault(x => x.UserId == userId);
 
             int totalLessons = _dbContext.Lessons.Count();
+            int totalScenes = _dbContext.Scenes.Count();
+
             int passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
 
             int completedDistinctLessons = _dbContext.LessonResults
@@ -40,6 +42,12 @@ namespace Lumino.Api.Application.Services
                 .Distinct()
                 .Count();
 
+            int completedDistinctScenes = _dbContext.SceneAttempts
+                .Where(x => x.UserId == userId && x.IsCompleted)
+                .Select(x => x.SceneId)
+                .Distinct()
+                .Count();
+
             int completionPercent = 0;
 
             if (totalLessons > 0 && completedDistinctLessons > 0)
@@ -49,13 +57,22 @@ namespace Lumino.Api.Application.Services
 
             var nowUtc = _dateTimeProvider.UtcNow;
 
-            var studyDatesUtc = _dbContext.LessonResults
+            var passedLessonDatesUtc = _dbContext.LessonResults
                 .Where(x =>
                     x.UserId == userId &&
                     x.TotalQuestions > 0 &&
                     x.Score * 100 >= x.TotalQuestions * passingScorePercent
                 )
                 .Select(x => x.CompletedAt)
+                .ToList();
+
+            var completedSceneDatesUtc = _dbContext.SceneAttempts
+                .Where(x => x.UserId == userId && x.IsCompleted)
+                .Select(x => x.CompletedAt)
+                .ToList();
+
+            var studyDatesUtc = passedLessonDatesUtc
+                .Concat(completedSceneDatesUtc)
                 .ToList();
 
             var (currentStreak, lastStudyAt) = CalculateCurrentStreak(studyDatesUtc, nowUtc);
@@ -71,7 +88,9 @@ namespace Lumino.Api.Application.Services
                     CompletedDistinctLessons = completedDistinctLessons,
                     CompletionPercent = completionPercent,
                     CurrentStreakDays = currentStreak,
-                    LastStudyAt = lastStudyAt
+                    LastStudyAt = lastStudyAt,
+                    TotalScenes = totalScenes,
+                    CompletedDistinctScenes = completedDistinctScenes
                 };
             }
 
@@ -84,18 +103,20 @@ namespace Lumino.Api.Application.Services
                 CompletedDistinctLessons = completedDistinctLessons,
                 CompletionPercent = completionPercent,
                 CurrentStreakDays = currentStreak,
-                LastStudyAt = lastStudyAt
+                LastStudyAt = lastStudyAt,
+                TotalScenes = totalScenes,
+                CompletedDistinctScenes = completedDistinctScenes
             };
         }
 
-        private static (int streakDays, DateTime? lastStudyAt) CalculateCurrentStreak(List<DateTime> lessonCompletedAtUtc, DateTime nowUtc)
+        private static (int streakDays, DateTime? lastStudyAt) CalculateCurrentStreak(List<DateTime> studyCompletedAtUtc, DateTime nowUtc)
         {
-            if (lessonCompletedAtUtc == null || lessonCompletedAtUtc.Count == 0)
+            if (studyCompletedAtUtc == null || studyCompletedAtUtc.Count == 0)
             {
                 return (0, null);
             }
 
-            var dates = lessonCompletedAtUtc
+            var dates = studyCompletedAtUtc
                 .Select(x => x.Date)
                 .Distinct()
                 .OrderBy(x => x)
@@ -104,7 +125,6 @@ namespace Lumino.Api.Application.Services
             var lastDate = dates[^1];
             var today = nowUtc.Date;
 
-            // Якщо останнє навчання було раніше ніж вчора — поточний streak = 0
             if (lastDate < today.AddDays(-1))
             {
                 return (0, lastDate);
