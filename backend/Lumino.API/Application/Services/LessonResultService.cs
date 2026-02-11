@@ -4,6 +4,7 @@ using Lumino.Api.Application.Validators;
 using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Utils;
+using Microsoft.Extensions.Options;
 using System.Text.Json;
 using System.Collections.Generic;
 
@@ -15,17 +16,20 @@ namespace Lumino.Api.Application.Services
         private readonly IAchievementService _achievementService;
         private readonly IDateTimeProvider _dateTimeProvider;
         private readonly ISubmitLessonRequestValidator _submitLessonRequestValidator;
+        private readonly LearningSettings _learningSettings;
 
         public LessonResultService(
             LuminoDbContext dbContext,
             IAchievementService achievementService,
             IDateTimeProvider dateTimeProvider,
-            ISubmitLessonRequestValidator submitLessonRequestValidator)
+            ISubmitLessonRequestValidator submitLessonRequestValidator,
+            IOptions<LearningSettings> learningSettings)
         {
             _dbContext = dbContext;
             _achievementService = achievementService;
             _dateTimeProvider = dateTimeProvider;
             _submitLessonRequestValidator = submitLessonRequestValidator;
+            _learningSettings = learningSettings.Value;
         }
 
         public SubmitLessonResponse SubmitLesson(int userId, SubmitLessonRequest request)
@@ -65,10 +69,17 @@ namespace Lumino.Api.Application.Services
                 mistakeExerciseIds.Add(exercise.Id);
             }
 
-            var isPassed = exercises.Count > 0 && correct == exercises.Count;
+            var passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
+            var isPassed = LessonPassingRules.IsPassed(correct, exercises.Count, passingScorePercent);
 
+            // ✅ CompletedLessons збільшуємо лише при першому PASSED цього уроку
             var shouldIncrementCompletedLessons = isPassed &&
-                !_dbContext.LessonResults.Any(x => x.UserId == userId && x.LessonId == lesson.Id && x.TotalQuestions > 0 && x.Score == x.TotalQuestions);
+                !_dbContext.LessonResults.Any(x =>
+                    x.UserId == userId &&
+                    x.LessonId == lesson.Id &&
+                    x.TotalQuestions > 0 &&
+                    x.Score * 100 >= x.TotalQuestions * passingScorePercent
+                );
 
             var result = new LessonResult
             {

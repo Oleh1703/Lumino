@@ -2,6 +2,7 @@ using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Data;
 using Lumino.Api.Utils;
+using Microsoft.Extensions.Options;
 
 namespace Lumino.Api.Application.Services
 {
@@ -9,11 +10,16 @@ namespace Lumino.Api.Application.Services
     {
         private readonly LuminoDbContext _dbContext;
         private readonly IDateTimeProvider _dateTimeProvider;
+        private readonly LearningSettings _learningSettings;
 
-        public ProgressService(LuminoDbContext dbContext, IDateTimeProvider dateTimeProvider)
+        public ProgressService(
+            LuminoDbContext dbContext,
+            IDateTimeProvider dateTimeProvider,
+            IOptions<LearningSettings> learningSettings)
         {
             _dbContext = dbContext;
             _dateTimeProvider = dateTimeProvider;
+            _learningSettings = learningSettings.Value;
         }
 
         public UserProgressResponse GetMyProgress(int userId)
@@ -22,9 +28,14 @@ namespace Lumino.Api.Application.Services
                 .FirstOrDefault(x => x.UserId == userId);
 
             int totalLessons = _dbContext.Lessons.Count();
+            int passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
 
             int completedDistinctLessons = _dbContext.LessonResults
-                .Where(x => x.UserId == userId && x.TotalQuestions > 0 && x.Score == x.TotalQuestions)
+                .Where(x =>
+                    x.UserId == userId &&
+                    x.TotalQuestions > 0 &&
+                    x.Score * 100 >= x.TotalQuestions * passingScorePercent
+                )
                 .Select(x => x.LessonId)
                 .Distinct()
                 .Count();
@@ -39,7 +50,11 @@ namespace Lumino.Api.Application.Services
             var nowUtc = _dateTimeProvider.UtcNow;
 
             var studyDatesUtc = _dbContext.LessonResults
-                .Where(x => x.UserId == userId && x.TotalQuestions > 0 && x.Score == x.TotalQuestions)
+                .Where(x =>
+                    x.UserId == userId &&
+                    x.TotalQuestions > 0 &&
+                    x.Score * 100 >= x.TotalQuestions * passingScorePercent
+                )
                 .Select(x => x.CompletedAt)
                 .ToList();
 

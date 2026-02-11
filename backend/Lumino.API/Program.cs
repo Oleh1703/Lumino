@@ -68,6 +68,11 @@ namespace Lumino.Api
                 );
             });
 
+            // ✅ КРОК 2: конфіг навчання
+            builder.Services.Configure<LearningSettings>(
+                builder.Configuration.GetSection("Learning")
+            );
+
             builder.Services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
             builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
 

@@ -1,7 +1,9 @@
-﻿using Lumino.Api.Application.DTOs;
+﻿﻿using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Domain.Enums;
+using Lumino.Api.Utils;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Lumino.Tests;
@@ -50,7 +52,8 @@ public class LessonResultServiceTests
             dbContext,
             new FakeAchievementService(),
             new FakeDateTimeProvider(),
-            new FakeSubmitLessonValidator()
+            new FakeSubmitLessonValidator(),
+            Options.Create(new LearningSettings { PassingScorePercent = 80 })
         );
 
         var response = service.SubmitLesson(10, new SubmitLessonRequest

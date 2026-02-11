@@ -1,8 +1,10 @@
-﻿﻿using Lumino.Api.Application.DTOs;
+﻿﻿﻿using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Application.Validators;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Domain.Enums;
+using Lumino.Api.Utils;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Lumino.Tests.Integration;
@@ -51,7 +53,8 @@ public class LessonResultServiceIntegrationTests
             dbContext,
             new FakeAchievementService(),
             new FakeDateTimeProvider(),
-            new SubmitLessonRequestValidator()
+            new SubmitLessonRequestValidator(),
+            Options.Create(new LearningSettings { PassingScorePercent = 80 })
         );
 
         var response = service.SubmitLesson(10, new SubmitLessonRequest
@@ -85,7 +88,8 @@ public class LessonResultServiceIntegrationTests
             dbContext,
             new FakeAchievementService(),
             new FakeDateTimeProvider(),
-            new SubmitLessonRequestValidator()
+            new SubmitLessonRequestValidator(),
+            Options.Create(new LearningSettings { PassingScorePercent = 80 })
         );
 
         Assert.Throws<ArgumentException>(() =>
@@ -108,7 +112,8 @@ public class LessonResultServiceIntegrationTests
             dbContext,
             new FakeAchievementService(),
             new FakeDateTimeProvider(),
-            new SubmitLessonRequestValidator()
+            new SubmitLessonRequestValidator(),
+            Options.Create(new LearningSettings { PassingScorePercent = 80 })
         );
 
         Assert.Throws<KeyNotFoundException>(() =>
@@ -167,7 +172,8 @@ public class LessonResultServiceIntegrationTests
             dbContext,
             new FakeAchievementService(),
             new FakeDateTimeProvider(),
-            new SubmitLessonRequestValidator()
+            new SubmitLessonRequestValidator(),
+            Options.Create(new LearningSettings { PassingScorePercent = 80 })
         );
 
         var response = service.SubmitLesson(10, new SubmitLessonRequest
@@ -217,7 +223,8 @@ public class LessonResultServiceIntegrationTests
             dbContext,
             new FakeAchievementService(),
             new FakeDateTimeProvider(),
-            new SubmitLessonRequestValidator()
+            new SubmitLessonRequestValidator(),
+            Options.Create(new LearningSettings { PassingScorePercent = 80 })
         );
 
         var userId = 10;

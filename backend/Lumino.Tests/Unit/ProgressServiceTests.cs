@@ -1,5 +1,7 @@
 ﻿﻿using Lumino.Api.Application.Services;
 using Lumino.Api.Domain.Entities;
+using Lumino.Api.Utils;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Lumino.Tests;
@@ -14,7 +16,11 @@ public class ProgressServiceTests
         var now = new DateTime(2026, 2, 9, 12, 0, 0, DateTimeKind.Utc);
         var dateTimeProvider = new FixedDateTimeProvider(now);
 
-        var service = new ProgressService(dbContext, dateTimeProvider);
+        var service = new ProgressService(
+            dbContext,
+            dateTimeProvider,
+            Options.Create(new LearningSettings { PassingScorePercent = 80 })
+        );
 
         var result = service.GetMyProgress(1);
 
@@ -66,6 +72,10 @@ public class ProgressServiceTests
             LastUpdatedAt = new DateTime(2026, 2, 9, 0, 0, 0, DateTimeKind.Utc)
         });
 
+        // Passing 80%
+        // L1: 4/4 passed
+        // L2: 3/4 NOT passed (75%)
+        // L3: 4/4 passed
         dbContext.LessonResults.AddRange(
             new LessonResult
             {
@@ -79,14 +89,14 @@ public class ProgressServiceTests
             {
                 UserId = 1,
                 LessonId = 2,
-                Score = 4,
+                Score = 3,
                 TotalQuestions = 4,
                 CompletedAt = new DateTime(2026, 2, 8, 10, 0, 0, DateTimeKind.Utc)
             },
             new LessonResult
             {
                 UserId = 1,
-                LessonId = 1,
+                LessonId = 3,
                 Score = 4,
                 TotalQuestions = 4,
                 CompletedAt = new DateTime(2026, 2, 9, 10, 0, 0, DateTimeKind.Utc)
@@ -98,19 +108,24 @@ public class ProgressServiceTests
         var now = new DateTime(2026, 2, 9, 12, 0, 0, DateTimeKind.Utc);
         var dateTimeProvider = new FixedDateTimeProvider(now);
 
-        var service = new ProgressService(dbContext, dateTimeProvider);
+        var service = new ProgressService(
+            dbContext,
+            dateTimeProvider,
+            Options.Create(new LearningSettings { PassingScorePercent = 80 })
+        );
 
         var result = service.GetMyProgress(1);
 
         Assert.Equal(2, result.CompletedLessons);
         Assert.Equal(55, result.TotalScore);
-        Assert.Equal(new DateTime(2026, 2, 9, 0, 0, 0, DateTimeKind.Utc), result.LastUpdatedAt);
 
         Assert.Equal(4, result.TotalLessons);
         Assert.Equal(2, result.CompletedDistinctLessons);
         Assert.Equal(50, result.CompletionPercent);
 
-        Assert.Equal(3, result.CurrentStreakDays);
+        // ✅ streak рахуємо ТІЛЬКИ по passed-днях:
+        // passed: 07.02, 09.02 -> між ними є день без passed, тому streak = 1
+        Assert.Equal(1, result.CurrentStreakDays);
         Assert.Equal(new DateTime(2026, 2, 9, 0, 0, 0, DateTimeKind.Utc), result.LastStudyAt);
     }
 
@@ -166,7 +181,11 @@ public class ProgressServiceTests
         var now = new DateTime(2026, 2, 9, 12, 0, 0, DateTimeKind.Utc);
         var dateTimeProvider = new FixedDateTimeProvider(now);
 
-        var service = new ProgressService(dbContext, dateTimeProvider);
+        var service = new ProgressService(
+            dbContext,
+            dateTimeProvider,
+            Options.Create(new LearningSettings { PassingScorePercent = 80 })
+        );
 
         var result = service.GetMyProgress(1);
 

@@ -2,6 +2,7 @@ using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Utils;
+using Microsoft.Extensions.Options;
 
 namespace Lumino.Api.Application.Services
 {
@@ -9,11 +10,16 @@ namespace Lumino.Api.Application.Services
     {
         private readonly LuminoDbContext _dbContext;
         private readonly IDateTimeProvider _dateTimeProvider;
+        private readonly LearningSettings _learningSettings;
 
-        public AchievementService(LuminoDbContext dbContext, IDateTimeProvider dateTimeProvider)
+        public AchievementService(
+            LuminoDbContext dbContext,
+            IDateTimeProvider dateTimeProvider,
+            IOptions<LearningSettings> learningSettings)
         {
             _dbContext = dbContext;
             _dateTimeProvider = dateTimeProvider;
+            _learningSettings = learningSettings.Value;
         }
 
         public void CheckAndGrantAchievements(int userId, int lessonScore, int totalQuestions)
@@ -37,7 +43,14 @@ namespace Lumino.Api.Application.Services
 
         private void GrantFirstLesson(int userId)
         {
-            int lessonsCount = _dbContext.LessonResults.Count(x => x.UserId == userId && x.TotalQuestions > 0 && x.Score == x.TotalQuestions);
+            int passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
+
+            int lessonsCount = _dbContext.LessonResults.Count(x =>
+                x.UserId == userId &&
+                x.TotalQuestions > 0 &&
+                x.Score * 100 >= x.TotalQuestions * passingScorePercent
+            );
+
             if (lessonsCount < 1) return;
 
             var achievement = GetOrCreateAchievement(
@@ -50,7 +63,14 @@ namespace Lumino.Api.Application.Services
 
         private void GrantFiveLessons(int userId)
         {
-            int lessonsCount = _dbContext.LessonResults.Count(x => x.UserId == userId && x.TotalQuestions > 0 && x.Score == x.TotalQuestions);
+            int passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
+
+            int lessonsCount = _dbContext.LessonResults.Count(x =>
+                x.UserId == userId &&
+                x.TotalQuestions > 0 &&
+                x.Score * 100 >= x.TotalQuestions * passingScorePercent
+            );
+
             if (lessonsCount < 5) return;
 
             var achievement = GetOrCreateAchievement(
@@ -93,8 +113,14 @@ namespace Lumino.Api.Application.Services
 
         private void GrantStreakStarter(int userId)
         {
+            int passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
+
             var dates = _dbContext.LessonResults
-                .Where(x => x.UserId == userId && x.TotalQuestions > 0 && x.Score == x.TotalQuestions)
+                .Where(x =>
+                    x.UserId == userId &&
+                    x.TotalQuestions > 0 &&
+                    x.Score * 100 >= x.TotalQuestions * passingScorePercent
+                )
                 .Select(x => x.CompletedAt.Date)
                 .Distinct()
                 .OrderBy(x => x)
