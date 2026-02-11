@@ -68,7 +68,7 @@ namespace Lumino.Api
                 );
             });
 
-            // ✅ КРОК 2: конфіг навчання
+            // конфіг навчання
             builder.Services.Configure<LearningSettings>(
                 builder.Configuration.GetSection("Learning")
             );
@@ -99,6 +99,7 @@ namespace Lumino.Api
             builder.Services.AddScoped<IMediaService, MediaService>();
             builder.Services.AddScoped<IRefreshTokenCleanupService, RefreshTokenCleanupService>();
             builder.Services.AddScoped<IAdminUserService, AdminUserService>();
+            builder.Services.AddScoped<INextActivityService, NextActivityService>();
 
             // Swagger
             builder.Services.AddEndpointsApiExplorer();

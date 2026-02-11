@@ -1,0 +1,265 @@
+﻿using Lumino.Api.Application.Services;
+using Lumino.Api.Domain.Entities;
+using Lumino.Api.Utils;
+using Microsoft.Extensions.Options;
+using Xunit;
+
+namespace Lumino.Tests;
+
+public class NextActivityServiceTests
+{
+    [Fact]
+    public void GetNext_WhenHasDueVocabulary_ReturnsVocabularyReview()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.VocabularyItems.Add(new VocabularyItem
+        {
+            Id = 1,
+            Word = "hello",
+            Translation = "привіт",
+            Example = null
+        });
+
+        dbContext.UserVocabularies.Add(new UserVocabulary
+        {
+            Id = 10,
+            UserId = 5,
+            VocabularyItemId = 1,
+            AddedAt = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc),
+            LastReviewedAt = null,
+            NextReviewAt = new DateTime(2026, 2, 10, 0, 0, 0, DateTimeKind.Utc),
+            ReviewCount = 0
+        });
+
+        SeedLessons(dbContext);
+        SeedScenes(dbContext);
+
+        dbContext.SaveChanges();
+
+        var service = new NextActivityService(
+            dbContext,
+            new FixedDateTimeProvider(new DateTime(2026, 2, 11, 0, 0, 0, DateTimeKind.Utc)),
+            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneCompletionScore = 5 })
+        );
+
+        var next = service.GetNext(5);
+
+        Assert.NotNull(next);
+        Assert.Equal("VocabularyReview", next!.Type);
+        Assert.Equal(10, next.UserVocabularyId);
+        Assert.Equal(1, next.VocabularyItemId);
+    }
+
+    [Fact]
+    public void GetNext_WhenNoDueVocabulary_ReturnsNextUnpassedLesson()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        SeedLessons(dbContext);
+        SeedScenes(dbContext);
+
+        // Mark lesson 1 as passed
+        dbContext.LessonResults.Add(new LessonResult
+        {
+            Id = 1,
+            UserId = 5,
+            LessonId = 1,
+            Score = 8,
+            TotalQuestions = 10,
+            MistakesJson = "[]",
+            CompletedAt = new DateTime(2026, 2, 10, 0, 0, 0, DateTimeKind.Utc)
+        });
+
+        dbContext.SaveChanges();
+
+        var service = new NextActivityService(
+            dbContext,
+            new FixedDateTimeProvider(new DateTime(2026, 2, 11, 0, 0, 0, DateTimeKind.Utc)),
+            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneCompletionScore = 5 })
+        );
+
+        var next = service.GetNext(5);
+
+        Assert.NotNull(next);
+        Assert.Equal("Lesson", next!.Type);
+        Assert.Equal(2, next.LessonId);
+        Assert.Equal(1, next.TopicId);
+    }
+
+    [Fact]
+    public void GetNext_WhenAllLessonsPassed_ReturnsNextUncompletedScene()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        SeedLessons(dbContext);
+        SeedScenes(dbContext);
+
+        // Mark lesson 1 and lesson 2 as passed
+        dbContext.LessonResults.Add(new LessonResult
+        {
+            Id = 1,
+            UserId = 5,
+            LessonId = 1,
+            Score = 8,
+            TotalQuestions = 10,
+            MistakesJson = "[]",
+            CompletedAt = new DateTime(2026, 2, 10, 0, 0, 0, DateTimeKind.Utc)
+        });
+
+        dbContext.LessonResults.Add(new LessonResult
+        {
+            Id = 2,
+            UserId = 5,
+            LessonId = 2,
+            Score = 8,
+            TotalQuestions = 10,
+            MistakesJson = "[]",
+            CompletedAt = new DateTime(2026, 2, 10, 0, 0, 0, DateTimeKind.Utc)
+        });
+
+        // Mark scene 1 completed
+        dbContext.SceneAttempts.Add(new SceneAttempt
+        {
+            Id = 1,
+            UserId = 5,
+            SceneId = 1,
+            IsCompleted = true,
+            CompletedAt = new DateTime(2026, 2, 10, 0, 0, 0, DateTimeKind.Utc)
+        });
+
+        dbContext.SaveChanges();
+
+        var service = new NextActivityService(
+            dbContext,
+            new FixedDateTimeProvider(new DateTime(2026, 2, 11, 0, 0, 0, DateTimeKind.Utc)),
+            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneCompletionScore = 5 })
+        );
+
+        var next = service.GetNext(5);
+
+        Assert.NotNull(next);
+        Assert.Equal("Scene", next!.Type);
+        Assert.Equal(2, next.SceneId);
+    }
+
+    [Fact]
+    public void GetNext_WhenNothingToDo_ReturnsNull()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        SeedLessons(dbContext);
+        SeedScenes(dbContext);
+
+        // Mark lesson 1 and lesson 2 as passed
+        dbContext.LessonResults.Add(new LessonResult
+        {
+            Id = 1,
+            UserId = 5,
+            LessonId = 1,
+            Score = 8,
+            TotalQuestions = 10,
+            MistakesJson = "[]",
+            CompletedAt = new DateTime(2026, 2, 10, 0, 0, 0, DateTimeKind.Utc)
+        });
+
+        dbContext.LessonResults.Add(new LessonResult
+        {
+            Id = 2,
+            UserId = 5,
+            LessonId = 2,
+            Score = 8,
+            TotalQuestions = 10,
+            MistakesJson = "[]",
+            CompletedAt = new DateTime(2026, 2, 10, 0, 0, 0, DateTimeKind.Utc)
+        });
+
+        // Mark scenes 1 and 2 completed
+        dbContext.SceneAttempts.Add(new SceneAttempt
+        {
+            Id = 1,
+            UserId = 5,
+            SceneId = 1,
+            IsCompleted = true,
+            CompletedAt = new DateTime(2026, 2, 10, 0, 0, 0, DateTimeKind.Utc)
+        });
+
+        dbContext.SceneAttempts.Add(new SceneAttempt
+        {
+            Id = 2,
+            UserId = 5,
+            SceneId = 2,
+            IsCompleted = true,
+            CompletedAt = new DateTime(2026, 2, 10, 0, 0, 0, DateTimeKind.Utc)
+        });
+
+        dbContext.SaveChanges();
+
+        var service = new NextActivityService(
+            dbContext,
+            new FixedDateTimeProvider(new DateTime(2026, 2, 11, 0, 0, 0, DateTimeKind.Utc)),
+            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneCompletionScore = 5 })
+        );
+
+        var next = service.GetNext(5);
+
+        Assert.Null(next);
+    }
+
+    private static void SeedLessons(Lumino.Api.Data.LuminoDbContext dbContext)
+    {
+        dbContext.Courses.Add(new Course
+        {
+            Id = 1,
+            Title = "English A1",
+            Description = "Desc",
+            IsPublished = true
+        });
+
+        // Topic.Order важливий
+        dbContext.Topics.Add(new Topic
+        {
+            Id = 1,
+            CourseId = 1,
+            Title = "Basics",
+            Order = 1
+        });
+
+        dbContext.Lessons.Add(new Lesson
+        {
+            Id = 1,
+            TopicId = 1,
+            Title = "Lesson 1",
+            Theory = "T",
+            Order = 1
+        });
+
+        dbContext.Lessons.Add(new Lesson
+        {
+            Id = 2,
+            TopicId = 1,
+            Title = "Lesson 2",
+            Theory = "T",
+            Order = 2
+        });
+    }
+
+    private static void SeedScenes(Lumino.Api.Data.LuminoDbContext dbContext)
+    {
+        dbContext.Scenes.Add(new Scene
+        {
+            Id = 1,
+            Title = "Scene 1",
+            Description = "D",
+            SceneType = "dialog"
+        });
+
+        dbContext.Scenes.Add(new Scene
+        {
+            Id = 2,
+            Title = "Scene 2",
+            Description = "D",
+            SceneType = "dialog"
+        });
+    }
+}
