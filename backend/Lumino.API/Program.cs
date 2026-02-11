@@ -100,6 +100,7 @@ namespace Lumino.Api
             builder.Services.AddScoped<IRefreshTokenCleanupService, RefreshTokenCleanupService>();
             builder.Services.AddScoped<IAdminUserService, AdminUserService>();
             builder.Services.AddScoped<INextActivityService, NextActivityService>();
+            builder.Services.AddScoped<ILearningPathService, LearningPathService>();
 
             // Swagger
             builder.Services.AddEndpointsApiExplorer();
