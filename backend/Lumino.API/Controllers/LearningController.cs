@@ -1,0 +1,50 @@
+using Lumino.Api.Application.Interfaces;
+using Lumino.Api.Utils;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Lumino.Api.Controllers
+{
+    [ApiController]
+    [Route("api/learning")]
+    [Authorize]
+    public class LearningController : ControllerBase
+    {
+        private readonly ICourseProgressService _courseProgressService;
+
+        public LearningController(ICourseProgressService courseProgressService)
+        {
+            _courseProgressService = courseProgressService;
+        }
+
+        [HttpPost("courses/{courseId}/start")]
+        public IActionResult StartCourse(int courseId)
+        {
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
+            var result = _courseProgressService.StartCourse(userId, courseId);
+            return Ok(result);
+        }
+
+        [HttpGet("courses/active")]
+        public IActionResult GetMyActiveCourse()
+        {
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
+            var result = _courseProgressService.GetMyActiveCourse(userId);
+
+            if (result == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(result);
+        }
+
+        [HttpGet("courses/{courseId}/lessons/progress")]
+        public IActionResult GetMyLessonProgressByCourse(int courseId)
+        {
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
+            var result = _courseProgressService.GetMyLessonProgressByCourse(userId, courseId);
+            return Ok(result);
+        }
+    }
+}

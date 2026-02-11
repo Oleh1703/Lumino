@@ -23,7 +23,8 @@ namespace Lumino.Api.Data
         public DbSet<UserAchievement> UserAchievements => Set<UserAchievement>();
         public DbSet<Scene> Scenes => Set<Scene>();
         public DbSet<SceneAttempt> SceneAttempts => Set<SceneAttempt>();
-
+        public DbSet<UserCourse> UserCourses => Set<UserCourse>();
+        public DbSet<UserLessonProgress> UserLessonProgresses => Set<UserLessonProgress>();
         public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -158,6 +159,37 @@ namespace Lumino.Api.Data
                     .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasIndex(x => new { x.UserId, x.SceneId }).IsUnique();
+            });
+
+            modelBuilder.Entity<UserCourse>(entity =>
+            {
+                entity.HasOne<User>()
+                    .WithMany()
+                    .HasForeignKey(x => x.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne<Course>()
+                    .WithMany()
+                    .HasForeignKey(x => x.CourseId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(x => new { x.UserId, x.CourseId }).IsUnique();
+                entity.HasIndex(x => new { x.UserId, x.IsActive });
+            });
+
+            modelBuilder.Entity<UserLessonProgress>(entity =>
+            {
+                entity.HasOne<User>()
+                    .WithMany()
+                    .HasForeignKey(x => x.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne<Lesson>()
+                    .WithMany()
+                    .HasForeignKey(x => x.LessonId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(x => new { x.UserId, x.LessonId }).IsUnique();
             });
 
             modelBuilder.Entity<RefreshToken>(entity =>

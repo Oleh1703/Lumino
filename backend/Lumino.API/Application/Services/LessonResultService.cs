@@ -118,6 +118,9 @@ namespace Lumino.Api.Application.Services
             // автододавання слів у Vocabulary після Passed
             AddLessonVocabularyIfNeeded(userId, lesson, exercises, answers, mistakeExerciseIds, isPassed);
 
+            // ✅ КРОК 6.1: активний курс + прогрес уроків + unlock наступного (мінімально, без ламання)
+            UpdateCourseProgressAfterLesson(userId, lesson.Id, isPassed, correct);
+
             _achievementService.CheckAndGrantAchievements(userId, correct, exercises.Count);
 
             return new SubmitLessonResponse
@@ -266,6 +269,171 @@ namespace Lumino.Api.Application.Services
             }
 
             _dbContext.SaveChanges();
+        }
+
+        // курс визначаємо через Lesson -> Topic -> Course
+        private void UpdateCourseProgressAfterLesson(int userId, int lessonId, bool isPassed, int score)
+        {
+            var now = _dateTimeProvider.UtcNow;
+
+            var topicId = _dbContext.Lessons
+                .Where(x => x.Id == lessonId)
+                .Select(x => (int?)x.TopicId)
+                .FirstOrDefault();
+
+            if (topicId == null)
+            {
+                return;
+            }
+
+            var courseId = _dbContext.Topics
+                .Where(x => x.Id == topicId.Value)
+                .Select(x => (int?)x.CourseId)
+                .FirstOrDefault();
+
+            if (courseId == null)
+            {
+                return;
+            }
+
+            EnsureActiveCourse(userId, courseId.Value, lessonId, now);
+            UpsertLessonProgress(userId, lessonId, isPassed, score, now);
+
+            if (isPassed)
+            {
+                UnlockNextLesson(userId, courseId.Value, lessonId, now);
+            }
+
+            _dbContext.SaveChanges();
+        }
+
+        private void EnsureActiveCourse(int userId, int courseId, int lastLessonId, DateTime now)
+        {
+            var activeOther = _dbContext.UserCourses
+                .Where(x => x.UserId == userId && x.IsActive && x.CourseId != courseId)
+                .ToList();
+
+            foreach (var item in activeOther)
+            {
+                item.IsActive = false;
+                item.LastOpenedAt = now;
+            }
+
+            var userCourse = _dbContext.UserCourses
+                .FirstOrDefault(x => x.UserId == userId && x.CourseId == courseId);
+
+            if (userCourse == null)
+            {
+                userCourse = new UserCourse
+                {
+                    UserId = userId,
+                    CourseId = courseId,
+                    IsActive = true,
+                    LastLessonId = lastLessonId,
+                    StartedAt = now,
+                    LastOpenedAt = now
+                };
+
+                _dbContext.UserCourses.Add(userCourse);
+                return;
+            }
+
+            userCourse.IsActive = true;
+            userCourse.LastLessonId = lastLessonId;
+            userCourse.LastOpenedAt = now;
+
+            if (userCourse.StartedAt == default)
+            {
+                userCourse.StartedAt = now;
+            }
+        }
+
+        private void UpsertLessonProgress(int userId, int lessonId, bool isPassed, int score, DateTime now)
+        {
+            var progress = _dbContext.UserLessonProgresses
+                .FirstOrDefault(x => x.UserId == userId && x.LessonId == lessonId);
+
+            if (progress == null)
+            {
+                progress = new UserLessonProgress
+                {
+                    UserId = userId,
+                    LessonId = lessonId,
+                    IsUnlocked = true,
+                    IsCompleted = isPassed,
+                    BestScore = score,
+                    LastAttemptAt = now
+                };
+
+                _dbContext.UserLessonProgresses.Add(progress);
+                return;
+            }
+
+            if (!progress.IsUnlocked)
+            {
+                progress.IsUnlocked = true;
+            }
+
+            if (score > progress.BestScore)
+            {
+                progress.BestScore = score;
+            }
+
+            if (isPassed)
+            {
+                progress.IsCompleted = true;
+            }
+
+            progress.LastAttemptAt = now;
+        }
+
+        private void UnlockNextLesson(int userId, int courseId, int currentLessonId, DateTime now)
+        {
+            var orderedLessonIds =
+                (from t in _dbContext.Topics
+                 join l in _dbContext.Lessons on t.Id equals l.TopicId
+                 where t.CourseId == courseId
+                 orderby t.Order, l.Order
+                 select l.Id)
+                .ToList();
+
+            if (orderedLessonIds.Count == 0)
+            {
+                return;
+            }
+
+            int index = orderedLessonIds.IndexOf(currentLessonId);
+
+            if (index < 0 || index + 1 >= orderedLessonIds.Count)
+            {
+                return;
+            }
+
+            int nextLessonId = orderedLessonIds[index + 1];
+
+            var next = _dbContext.UserLessonProgresses
+                .FirstOrDefault(x => x.UserId == userId && x.LessonId == nextLessonId);
+
+            if (next == null)
+            {
+                next = new UserLessonProgress
+                {
+                    UserId = userId,
+                    LessonId = nextLessonId,
+                    IsUnlocked = true,
+                    IsCompleted = false,
+                    BestScore = 0,
+                    LastAttemptAt = now
+                };
+
+                _dbContext.UserLessonProgresses.Add(next);
+                return;
+            }
+
+            if (!next.IsUnlocked)
+            {
+                next.IsUnlocked = true;
+            }
         }
 
         private static List<(string Word, string Translation)> ExtractPairsFromTheory(string? theory)
