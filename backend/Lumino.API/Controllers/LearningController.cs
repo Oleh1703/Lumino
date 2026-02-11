@@ -11,10 +11,14 @@ namespace Lumino.Api.Controllers
     public class LearningController : ControllerBase
     {
         private readonly ICourseProgressService _courseProgressService;
+        private readonly INextActivityService _nextActivityService;
 
-        public LearningController(ICourseProgressService courseProgressService)
+        public LearningController(
+            ICourseProgressService courseProgressService,
+            INextActivityService nextActivityService)
         {
             _courseProgressService = courseProgressService;
+            _nextActivityService = nextActivityService;
         }
 
         [HttpPost("courses/{courseId}/start")]
@@ -45,6 +49,22 @@ namespace Lumino.Api.Controllers
             var userId = ClaimsUtils.GetUserIdOrThrow(User);
             var result = _courseProgressService.GetMyLessonProgressByCourse(userId, courseId);
             return Ok(result);
+        }
+
+        // alias до /api/next/me
+        [HttpGet("next")]
+        public IActionResult GetMyNext()
+        {
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
+
+            var next = _nextActivityService.GetNext(userId);
+
+            if (next == null)
+            {
+                return NoContent();
+            }
+
+            return Ok(next);
         }
     }
 }
