@@ -6,5 +6,8 @@ namespace Lumino.Api.Application.Interfaces
     public interface ILessonResultQueryService
     {
         List<LessonResultResponse> GetMyResults(int userId);
+
+        // деталі конкретної спроби
+        LessonResultDetailsResponse GetMyResultDetails(int userId, int resultId);
     }
 }

@@ -49,16 +49,28 @@ namespace Lumino.Api.Application.Services
 
             int correct = 0;
             var mistakeExerciseIds = new List<int>();
+            var answers = new List<LessonAnswerResultDto>();
 
             foreach (var exercise in exercises)
             {
                 var userAnswer = request.Answers
                     .FirstOrDefault(x => x.ExerciseId == exercise.Id);
 
-                var isCorrect = userAnswer != null &&
-                    !string.IsNullOrWhiteSpace(userAnswer.Answer) &&
-                    userAnswer.Answer.Trim().ToLower() ==
+                var userAnswerText = userAnswer != null
+                    ? (userAnswer.Answer ?? string.Empty)
+                    : string.Empty;
+
+                var isCorrect = !string.IsNullOrWhiteSpace(userAnswerText) &&
+                    userAnswerText.Trim().ToLower() ==
                     exercise.CorrectAnswer.Trim().ToLower();
+
+                answers.Add(new LessonAnswerResultDto
+                {
+                    ExerciseId = exercise.Id,
+                    UserAnswer = userAnswerText,
+                    CorrectAnswer = exercise.CorrectAnswer,
+                    IsCorrect = isCorrect
+                });
 
                 if (isCorrect)
                 {
@@ -81,13 +93,20 @@ namespace Lumino.Api.Application.Services
                     x.Score * 100 >= x.TotalQuestions * passingScorePercent
                 );
 
+            // зберігаємо деталізацію в MistakesJson (backward-compatible)
+            var detailsJson = new LessonResultDetailsJson
+            {
+                MistakeExerciseIds = mistakeExerciseIds,
+                Answers = answers
+            };
+
             var result = new LessonResult
             {
                 UserId = userId,
                 LessonId = lesson.Id,
                 Score = correct,
                 TotalQuestions = exercises.Count,
-                MistakesJson = JsonSerializer.Serialize(mistakeExerciseIds),
+                MistakesJson = JsonSerializer.Serialize(detailsJson),
                 CompletedAt = _dateTimeProvider.UtcNow
             };
 
@@ -102,7 +121,8 @@ namespace Lumino.Api.Application.Services
                 TotalExercises = exercises.Count,
                 CorrectAnswers = correct,
                 IsPassed = isPassed,
-                MistakeExerciseIds = mistakeExerciseIds
+                MistakeExerciseIds = mistakeExerciseIds,
+                Answers = answers
             };
         }
 

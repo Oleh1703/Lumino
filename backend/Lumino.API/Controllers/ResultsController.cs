@@ -24,5 +24,14 @@ namespace Lumino.Api.Controllers
             var result = _lessonResultQueryService.GetMyResults(userId);
             return Ok(result);
         }
+
+        // деталі конкретної спроби (включно з відповідями і правильними відповідями)
+        [HttpGet("me/{resultId}")]
+        public IActionResult GetMyResultDetails(int resultId)
+        {
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
+            var result = _lessonResultQueryService.GetMyResultDetails(userId, resultId);
+            return Ok(result);
+        }
     }
 }
