@@ -45,13 +45,17 @@ namespace Lumino.Api.Application.Services
         {
             int passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
 
-            int lessonsCount = _dbContext.LessonResults.Count(x =>
-                x.UserId == userId &&
-                x.TotalQuestions > 0 &&
-                x.Score * 100 >= x.TotalQuestions * passingScorePercent
-            );
+            int passedDistinctLessons = _dbContext.LessonResults
+                .Where(x =>
+                    x.UserId == userId &&
+                    x.TotalQuestions > 0 &&
+                    x.Score * 100 >= x.TotalQuestions * passingScorePercent
+                )
+                .Select(x => x.LessonId)
+                .Distinct()
+                .Count();
 
-            if (lessonsCount < 1) return;
+            if (passedDistinctLessons < 1) return;
 
             var achievement = GetOrCreateAchievement(
                 "First Lesson",
@@ -65,13 +69,18 @@ namespace Lumino.Api.Application.Services
         {
             int passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
 
-            int lessonsCount = _dbContext.LessonResults.Count(x =>
-                x.UserId == userId &&
-                x.TotalQuestions > 0 &&
-                x.Score * 100 >= x.TotalQuestions * passingScorePercent
-            );
+            // рахуємо по DISTINCT уроках (а не по кількості проходжень)
+            int passedDistinctLessons = _dbContext.LessonResults
+                .Where(x =>
+                    x.UserId == userId &&
+                    x.TotalQuestions > 0 &&
+                    x.Score * 100 >= x.TotalQuestions * passingScorePercent
+                )
+                .Select(x => x.LessonId)
+                .Distinct()
+                .Count();
 
-            if (lessonsCount < 5) return;
+            if (passedDistinctLessons < 5) return;
 
             var achievement = GetOrCreateAchievement(
                 "5 Lessons Completed",
@@ -95,7 +104,7 @@ namespace Lumino.Api.Application.Services
 
         private void GrantHundredXp(int userId)
         {
-            // 100 XP рахуємо по правилу "best per lesson"
+            // anti-farm XP (best per lesson)
             int bestTotalScore = _dbContext.LessonResults
                 .Where(x => x.UserId == userId)
                 .GroupBy(x => x.LessonId)
