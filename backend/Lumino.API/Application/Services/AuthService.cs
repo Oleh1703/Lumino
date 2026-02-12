@@ -86,7 +86,7 @@ namespace Lumino.Api.Application.Services
                 throw new UnauthorizedAccessException("Invalid credentials");
             }
 
-            // ✅ Auto-upgrade legacy SHA256 to PBKDF2
+            // Auto-upgrade legacy SHA256 to PBKDF2
             if (_passwordHasher.NeedsRehash(user.PasswordHash))
             {
                 user.PasswordHash = _passwordHasher.Hash(request.Password);
@@ -168,6 +168,9 @@ namespace Lumino.Api.Application.Services
             };
 
             _dbContext.RefreshTokens.Add(newEntity);
+
+            // Спочатку зберігаємо, щоб LimitActiveTokens працював по реальним даним
+            _dbContext.SaveChanges();
 
             LimitActiveTokens(user.Id);
 
@@ -294,8 +297,12 @@ namespace Lumino.Api.Application.Services
 
             _dbContext.RefreshTokens.Add(entity);
 
+            // Спочатку зберігаємо новий refresh token, щоб LimitActiveTokens бачив його у базі
+            _dbContext.SaveChanges();
+
             LimitActiveTokens(userId);
 
+            // Зберігаємо можливі revocations
             _dbContext.SaveChanges();
 
             return refreshToken;
