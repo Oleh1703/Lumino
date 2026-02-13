@@ -1,10 +1,11 @@
-﻿﻿﻿﻿using Lumino.Api.Application.DTOs;
+﻿﻿﻿﻿﻿using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Application.Validators;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Domain.Enums;
 using Lumino.Api.Utils;
 using Microsoft.Extensions.Options;
+using System.Text.Json;
 using Xunit;
 
 namespace Lumino.Tests.Integration;
@@ -77,6 +78,73 @@ public class LessonResultServiceIntegrationTests
         Assert.NotNull(progress);
         Assert.True(progress!.CompletedLessons >= 1);
         Assert.True(progress.TotalScore >= 2);
+    }
+
+    [Fact]
+    public void SubmitLesson_MatchExercise_ShouldEvaluateCorrectly()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Lessons.Add(new Lesson
+        {
+            Id = 1,
+            Title = "Lesson Match",
+            Theory = "Text",
+            TopicId = 1,
+            Order = 1
+        });
+
+        var correctPairs = new[]
+        {
+            new { left = "Hello", right = "Привіт" },
+            new { left = "Goodbye", right = "До побачення" }
+        };
+
+        var userPairs = new[]
+        {
+            new { left = "Goodbye", right = "До побачення" },
+            new { left = "Hello", right = "Привіт" }
+        };
+
+        dbContext.Exercises.Add(new Exercise
+        {
+            Id = 1,
+            LessonId = 1,
+            Type = ExerciseType.Match,
+            Question = "Match the pairs",
+            Data = JsonSerializer.Serialize(correctPairs),
+            CorrectAnswer = "{}",
+            Order = 1
+        });
+
+        dbContext.SaveChanges();
+
+        var service = new LessonResultService(
+            dbContext,
+            new FakeAchievementService(),
+            new FakeDateTimeProvider(),
+            new SubmitLessonRequestValidator(),
+            Options.Create(new LearningSettings { PassingScorePercent = 80 })
+        );
+
+        var response = service.SubmitLesson(10, new SubmitLessonRequest
+        {
+            LessonId = 1,
+            Answers = new List<SubmitExerciseAnswerRequest>
+            {
+                new SubmitExerciseAnswerRequest
+                {
+                    ExerciseId = 1,
+                    Answer = JsonSerializer.Serialize(userPairs)
+                }
+            }
+        });
+
+        Assert.Equal(1, response.TotalExercises);
+        Assert.Equal(1, response.CorrectAnswers);
+        Assert.True(response.IsPassed);
+        Assert.Single(response.Answers);
+        Assert.True(response.Answers[0].IsCorrect);
     }
 
     [Fact]

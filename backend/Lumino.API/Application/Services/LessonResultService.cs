@@ -3,6 +3,7 @@ using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Application.Validators;
 using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
+using Lumino.Api.Domain.Enums;
 using Lumino.Api.Utils;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
@@ -60,15 +61,17 @@ namespace Lumino.Api.Application.Services
                     ? (userAnswer.Answer ?? string.Empty)
                     : string.Empty;
 
-                var isCorrect = !string.IsNullOrWhiteSpace(userAnswerText) &&
-                    userAnswerText.Trim().ToLower() ==
-                    exercise.CorrectAnswer.Trim().ToLower();
+                var isCorrect = IsExerciseCorrect(exercise, userAnswerText);
+
+                var correctAnswerForResponse = exercise.Type == ExerciseType.Match
+                    ? (exercise.Data ?? string.Empty)
+                    : (exercise.CorrectAnswer ?? string.Empty);
 
                 answers.Add(new LessonAnswerResultDto
                 {
                     ExerciseId = exercise.Id,
                     UserAnswer = userAnswerText,
-                    CorrectAnswer = exercise.CorrectAnswer,
+                    CorrectAnswer = correctAnswerForResponse,
                     IsCorrect = isCorrect
                 });
 
@@ -118,7 +121,7 @@ namespace Lumino.Api.Application.Services
             // автододавання слів у Vocabulary після Passed
             AddLessonVocabularyIfNeeded(userId, lesson, exercises, answers, mistakeExerciseIds, isPassed);
 
-            // ✅ КРОК 6.1: активний курс + прогрес уроків + unlock наступного (мінімально, без ламання)
+            // активний курс + прогрес уроків + unlock наступногo
             UpdateCourseProgressAfterLesson(userId, lesson.Id, isPassed, correct);
 
             _achievementService.CheckAndGrantAchievements(userId, correct, exercises.Count);
@@ -131,6 +134,129 @@ namespace Lumino.Api.Application.Services
                 MistakeExerciseIds = mistakeExerciseIds,
                 Answers = answers
             };
+        }
+
+        private bool IsExerciseCorrect(Exercise exercise, string userAnswerText)
+        {
+            if (exercise == null)
+            {
+                return false;
+            }
+
+            userAnswerText = userAnswerText ?? string.Empty;
+
+            if (exercise.Type == ExerciseType.Match)
+            {
+                return IsMatchCorrect(exercise.Data, userAnswerText);
+            }
+
+            var correctAnswer = (exercise.CorrectAnswer ?? string.Empty);
+
+            return !string.IsNullOrWhiteSpace(userAnswerText) &&
+                Normalize(userAnswerText) == Normalize(correctAnswer);
+        }
+
+        private bool IsMatchCorrect(string dataJson, string userJson)
+        {
+            if (string.IsNullOrWhiteSpace(dataJson) || string.IsNullOrWhiteSpace(userJson))
+            {
+                return false;
+            }
+
+            List<MatchPair>? correctPairs;
+            List<MatchPair>? userPairs;
+
+            try
+            {
+                correctPairs = JsonSerializer.Deserialize<List<MatchPair>>(dataJson);
+                userPairs = JsonSerializer.Deserialize<List<MatchPair>>(userJson);
+            }
+            catch
+            {
+                return false;
+            }
+
+            if (correctPairs == null || userPairs == null)
+            {
+                return false;
+            }
+
+            if (correctPairs.Count == 0 || userPairs.Count == 0)
+            {
+                return false;
+            }
+
+            var correctMap = new Dictionary<string, string>();
+
+            foreach (var p in correctPairs)
+            {
+                var left = Normalize(p.left);
+                var right = Normalize(p.right);
+
+                if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right))
+                {
+                    continue;
+                }
+
+                if (!correctMap.ContainsKey(left))
+                {
+                    correctMap[left] = right;
+                }
+            }
+
+            var userMap = new Dictionary<string, string>();
+
+            foreach (var p in userPairs)
+            {
+                var left = Normalize(p.left);
+                var right = Normalize(p.right);
+
+                if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right))
+                {
+                    continue;
+                }
+
+                if (!userMap.ContainsKey(left))
+                {
+                    userMap[left] = right;
+                }
+            }
+
+            if (correctMap.Count == 0 || userMap.Count == 0)
+            {
+                return false;
+            }
+
+            if (userMap.Count != correctMap.Count)
+            {
+                return false;
+            }
+
+            foreach (var kv in correctMap)
+            {
+                if (!userMap.TryGetValue(kv.Key, out var userRight))
+                {
+                    return false;
+                }
+
+                if (userRight != kv.Value)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private class MatchPair
+        {
+            public string left { get; set; } = null!;
+            public string right { get; set; } = null!;
+        }
+
+        private static string Normalize(string value)
+        {
+            return (value ?? string.Empty).Trim().ToLower();
         }
 
         private void UpdateUserProgress(int userId, bool shouldIncrementCompletedLessons)
@@ -571,11 +697,6 @@ namespace Lumino.Api.Application.Services
             }
 
             return false;
-        }
-
-        private static string Normalize(string value)
-        {
-            return (value ?? string.Empty).Trim().ToLower();
         }
     }
 }
