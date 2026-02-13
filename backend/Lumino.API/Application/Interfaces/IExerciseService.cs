@@ -5,6 +5,6 @@ namespace Lumino.Api.Application.Interfaces
 {
     public interface IExerciseService
     {
-        List<ExerciseResponse> GetExercisesByLesson(int lessonId);
+        List<ExerciseResponse> GetExercisesByLesson(int userId, int lessonId);
     }
 }

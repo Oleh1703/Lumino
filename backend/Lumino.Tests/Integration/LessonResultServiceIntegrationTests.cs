@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿using Lumino.Api.Application.DTOs;
+﻿using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Application.Validators;
 using Lumino.Api.Domain.Entities;
@@ -12,6 +12,54 @@ namespace Lumino.Tests.Integration;
 
 public class LessonResultServiceIntegrationTests
 {
+    [Fact]
+    public void SubmitLesson_LockedLesson_ShouldThrow()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Lessons.Add(new Lesson
+        {
+            Id = 1,
+            Title = "Lesson 1",
+            Theory = "Text",
+            TopicId = 1,
+            Order = 1
+        });
+
+        dbContext.Exercises.Add(new Exercise
+        {
+            Id = 1,
+            LessonId = 1,
+            Type = ExerciseType.Input,
+            Question = "Q1",
+            Data = "",
+            CorrectAnswer = "hello",
+            Order = 1
+        });
+
+        dbContext.SaveChanges();
+
+        var service = new LessonResultService(
+            dbContext,
+            new FakeAchievementService(),
+            new FakeDateTimeProvider(),
+            new SubmitLessonRequestValidator(),
+            Options.Create(new LearningSettings { PassingScorePercent = 80 })
+        );
+
+        Assert.Throws<ForbiddenAccessException>(() =>
+        {
+            service.SubmitLesson(10, new SubmitLessonRequest
+            {
+                LessonId = 1,
+                Answers = new List<SubmitExerciseAnswerRequest>
+                {
+                    new SubmitExerciseAnswerRequest { ExerciseId = 1, Answer = "hello" }
+                }
+            });
+        });
+    }
+
     [Fact]
     public void SubmitLesson_ShouldCreateLessonResult_AndUpdateProgress()
     {
@@ -46,6 +94,16 @@ public class LessonResultServiceIntegrationTests
             Data = "",
             CorrectAnswer = "world",
             Order = 2
+        });
+
+        dbContext.UserLessonProgresses.Add(new UserLessonProgress
+        {
+            UserId = 10,
+            LessonId = 1,
+            IsUnlocked = true,
+            IsCompleted = false,
+            BestScore = 0,
+            LastAttemptAt = DateTime.UtcNow
         });
 
         dbContext.SaveChanges();
@@ -115,6 +173,16 @@ public class LessonResultServiceIntegrationTests
             Data = JsonSerializer.Serialize(correctPairs),
             CorrectAnswer = "{}",
             Order = 1
+        });
+
+        dbContext.UserLessonProgresses.Add(new UserLessonProgress
+        {
+            UserId = 10,
+            LessonId = 1,
+            IsUnlocked = true,
+            IsCompleted = false,
+            BestScore = 0,
+            LastAttemptAt = DateTime.UtcNow
         });
 
         dbContext.SaveChanges();
@@ -234,6 +302,16 @@ public class LessonResultServiceIntegrationTests
             Order = 2
         });
 
+        dbContext.UserLessonProgresses.Add(new UserLessonProgress
+        {
+            UserId = 10,
+            LessonId = 1,
+            IsUnlocked = true,
+            IsCompleted = false,
+            BestScore = 0,
+            LastAttemptAt = DateTime.UtcNow
+        });
+
         dbContext.SaveChanges();
 
         var service = new LessonResultService(
@@ -283,6 +361,16 @@ public class LessonResultServiceIntegrationTests
             Data = "",
             CorrectAnswer = "hello",
             Order = 1
+        });
+
+        dbContext.UserLessonProgresses.Add(new UserLessonProgress
+        {
+            UserId = 10,
+            LessonId = 1,
+            IsUnlocked = true,
+            IsCompleted = false,
+            BestScore = 0,
+            LastAttemptAt = DateTime.UtcNow
         });
 
         dbContext.SaveChanges();

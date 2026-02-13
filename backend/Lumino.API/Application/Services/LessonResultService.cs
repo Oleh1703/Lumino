@@ -44,6 +44,14 @@ namespace Lumino.Api.Application.Services
                 throw new KeyNotFoundException("Lesson not found");
             }
 
+            var progress = _dbContext.UserLessonProgresses
+                .FirstOrDefault(x => x.UserId == userId && x.LessonId == lesson.Id);
+
+            if (progress == null || !progress.IsUnlocked)
+            {
+                throw new ForbiddenAccessException("Lesson is locked");
+            }
+
             var exercises = _dbContext.Exercises
                 .Where(x => x.LessonId == lesson.Id)
                 .ToList();
@@ -121,7 +129,7 @@ namespace Lumino.Api.Application.Services
             // автододавання слів у Vocabulary після Passed
             AddLessonVocabularyIfNeeded(userId, lesson, exercises, answers, mistakeExerciseIds, isPassed);
 
-            // активний курс + прогрес уроків + unlock наступногo
+            // активний курс + прогрес уроків + unlock наступного
             UpdateCourseProgressAfterLesson(userId, lesson.Id, isPassed, correct);
 
             _achievementService.CheckAndGrantAchievements(userId, correct, exercises.Count);

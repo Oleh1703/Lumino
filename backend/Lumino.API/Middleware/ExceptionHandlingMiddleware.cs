@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using Lumino.Api.Utils;
 
 namespace Lumino.Api.Middleware
 {
@@ -68,6 +69,11 @@ namespace Lumino.Api.Middleware
 
         private static (int statusCode, string type, string message) MapException(Exception ex)
         {
+            if (ex is ForbiddenAccessException)
+            {
+                return ((int)HttpStatusCode.Forbidden, "forbidden", ex.Message);
+            }
+
             if (ex is UnauthorizedAccessException)
             {
                 return ((int)HttpStatusCode.Unauthorized, "unauthorized", ex.Message);

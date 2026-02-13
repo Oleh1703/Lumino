@@ -1,6 +1,7 @@
 using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Data;
+using Lumino.Api.Utils;
 
 namespace Lumino.Api.Application.Services
 {
@@ -13,7 +14,7 @@ namespace Lumino.Api.Application.Services
             _dbContext = dbContext;
         }
 
-        public List<ExerciseResponse> GetExercisesByLesson(int lessonId)
+        public List<ExerciseResponse> GetExercisesByLesson(int userId, int lessonId)
         {
             var lesson = _dbContext.Lessons.FirstOrDefault(x => x.Id == lessonId);
 
@@ -34,6 +35,14 @@ namespace Lumino.Api.Application.Services
             if (course == null)
             {
                 throw new KeyNotFoundException("Course not found");
+            }
+
+            var progress = _dbContext.UserLessonProgresses
+                .FirstOrDefault(x => x.UserId == userId && x.LessonId == lessonId);
+
+            if (progress == null || !progress.IsUnlocked)
+            {
+                throw new ForbiddenAccessException("Lesson is locked");
             }
 
             return _dbContext.Exercises

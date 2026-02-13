@@ -46,6 +46,17 @@ public class LessonResultServiceTests
             Order = 2
         });
 
+        // урок має бути unlocked для цього користувача
+        dbContext.UserLessonProgresses.Add(new UserLessonProgress
+        {
+            UserId = 10,
+            LessonId = 1,
+            IsUnlocked = true,
+            IsCompleted = false,
+            BestScore = 0,
+            LastAttemptAt = DateTime.UtcNow
+        });
+
         dbContext.SaveChanges();
 
         var service = new LessonResultService(
@@ -105,6 +116,17 @@ public class LessonResultServiceTests
             Data = "{}",
             CorrectAnswer = "дякую",
             Order = 2
+        });
+
+        // урок має бути unlocked для цього користувача
+        dbContext.UserLessonProgresses.Add(new UserLessonProgress
+        {
+            UserId = 10,
+            LessonId = 1,
+            IsUnlocked = true,
+            IsCompleted = false,
+            BestScore = 0,
+            LastAttemptAt = DateTime.UtcNow
         });
 
         dbContext.SaveChanges();
