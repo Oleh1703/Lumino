@@ -1,4 +1,4 @@
-﻿﻿using Lumino.Api.Application.Services;
+﻿using Lumino.Api.Application.Services;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Utils;
 using Microsoft.Extensions.Options;
@@ -85,6 +85,19 @@ public class NextActivityServiceTests
         Assert.Equal("Lesson", next!.Type);
         Assert.Equal(2, next.LessonId);
         Assert.Equal(1, next.TopicId);
+
+        // ✅ доробка №4: перевіряємо, що lesson 2 реально unlocked
+        var p1 = dbContext.UserLessonProgresses.FirstOrDefault(x => x.UserId == 5 && x.LessonId == 1);
+        var p2 = dbContext.UserLessonProgresses.FirstOrDefault(x => x.UserId == 5 && x.LessonId == 2);
+
+        Assert.NotNull(p1);
+        Assert.NotNull(p2);
+
+        Assert.True(p1!.IsUnlocked);
+        Assert.True(p1.IsCompleted);
+
+        Assert.True(p2!.IsUnlocked);
+        Assert.False(p2.IsCompleted);
     }
 
     [Fact]
@@ -310,6 +323,11 @@ public class NextActivityServiceTests
         Assert.Equal("Lesson", next!.Type);
         Assert.Equal(3, next.LessonId);
         Assert.Equal(2, next.TopicId);
+
+        // перевірка, що повернений урок unlocked
+        var p = dbContext.UserLessonProgresses.FirstOrDefault(x => x.UserId == 5 && x.LessonId == 3);
+        Assert.NotNull(p);
+        Assert.True(p!.IsUnlocked);
     }
 
     private static void SeedLessons(Lumino.Api.Data.LuminoDbContext dbContext)

@@ -1,6 +1,7 @@
 using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Data;
+using Lumino.Api.Domain.Entities;
 using Lumino.Api.Utils;
 using Microsoft.Extensions.Options;
 
@@ -84,6 +85,42 @@ namespace Lumino.Api.Application.Services
         {
             int passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
 
+            var activeCourse = _dbContext.UserCourses
+                .FirstOrDefault(x => x.UserId == userId && x.IsActive);
+
+            int? courseIdToUse = activeCourse?.CourseId;
+
+            if (courseIdToUse == null)
+            {
+                courseIdToUse = GetFirstPublishedCourseWithLessonsId();
+
+                if (courseIdToUse == null)
+                {
+                    return null;
+                }
+            }
+
+            // формуємо список уроків курсу в правильному порядку
+            var lessonsInCourse = (
+                from t in _dbContext.Topics
+                join l in _dbContext.Lessons on t.Id equals l.TopicId
+                join c in _dbContext.Courses on t.CourseId equals c.Id
+                where c.IsPublished && c.Id == courseIdToUse.Value
+                orderby t.Order, l.Order
+                select new CourseLessonInfo
+                {
+                    LessonId = l.Id,
+                    TopicId = t.Id,
+                    LessonTitle = l.Title
+                }
+            ).ToList();
+
+            if (lessonsInCourse.Count == 0)
+            {
+                return null;
+            }
+
+            // passed визначаємо по LessonResults (80%+)
             var passedLessonIds = _dbContext.LessonResults
                 .Where(x =>
                     x.UserId == userId &&
@@ -94,147 +131,171 @@ namespace Lumino.Api.Application.Services
                 .Distinct()
                 .ToList();
 
-            // якщо є активний курс — шукаємо next lesson в межах активного курсу,
-            // якщо активного курсу нема — fallback.
-            var activeCourse = _dbContext.UserCourses
-                .FirstOrDefault(x => x.UserId == userId && x.IsActive);
+            // перед вибором next уроку гарантуємо, що прогрес у БД синхронізований
+            EnsureUserLessonProgressForCourse(userId, courseIdToUse.Value, lessonsInCourse, passedLessonIds);
 
-            if (activeCourse != null)
+            var progressDict = _dbContext.UserLessonProgresses
+                .Where(x => x.UserId == userId)
+                .ToDictionary(x => x.LessonId, x => x);
+
+            // 1) якщо є активний курс і LastLessonId ще не пройдений — повертаємо його ТІЛЬКИ якщо unlocked
+            if (activeCourse != null && activeCourse.LastLessonId != null)
             {
-                var lessonsInCourse = (
-                    from t in _dbContext.Topics
-                    join l in _dbContext.Lessons on t.Id equals l.TopicId
-                    join c in _dbContext.Courses on t.CourseId equals c.Id
-                    where c.IsPublished && c.Id == activeCourse.CourseId
-                    orderby t.Order, l.Order
-                    select new
-                    {
-                        LessonId = l.Id,
-                        TopicId = t.Id,
-                        LessonTitle = l.Title
-                    }
-                ).ToList();
+                var lastId = activeCourse.LastLessonId.Value;
 
-                if (lessonsInCourse.Count > 0)
+                if (!passedLessonIds.Contains(lastId))
                 {
-                    var progressDict = _dbContext.UserLessonProgresses
-                        .Where(x => x.UserId == userId)
-                        .ToDictionary(x => x.LessonId, x => x);
-
-                    // 1) спробувати повернути LastLessonId (якщо він ще не пройдений)
-                    if (activeCourse.LastLessonId != null)
+                    if (progressDict.TryGetValue(lastId, out var lp) && lp.IsUnlocked)
                     {
-                        var lastId = activeCourse.LastLessonId.Value;
+                        var lastLesson = lessonsInCourse.FirstOrDefault(x => x.LessonId == lastId);
 
-                        if (!passedLessonIds.Contains(lastId))
+                        if (lastLesson != null)
                         {
-                            if (progressDict.TryGetValue(lastId, out var lp))
-                            {
-                                if (lp.IsUnlocked)
-                                {
-                                    var lastLesson = lessonsInCourse.FirstOrDefault(x => x.LessonId == lastId);
-
-                                    if (lastLesson != null)
-                                    {
-                                        return new NextActivityResponse
-                                        {
-                                            Type = "Lesson",
-                                            LessonId = lastLesson.LessonId,
-                                            TopicId = lastLesson.TopicId,
-                                            LessonTitle = lastLesson.LessonTitle
-                                        };
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                // якщо прогресу ще нема (дуже рідко), не ламаємось — просто віддамо як next в курсі
-                                var lastLesson = lessonsInCourse.FirstOrDefault(x => x.LessonId == lastId);
-
-                                if (lastLesson != null)
-                                {
-                                    return new NextActivityResponse
-                                    {
-                                        Type = "Lesson",
-                                        LessonId = lastLesson.LessonId,
-                                        TopicId = lastLesson.TopicId,
-                                        LessonTitle = lastLesson.LessonTitle
-                                    };
-                                }
-                            }
-                        }
-                    }
-
-                    // 2) перший unlocked і непройдений урок у рамках активного курсу
-                    foreach (var item in lessonsInCourse)
-                    {
-                        if (passedLessonIds.Contains(item.LessonId))
-                        {
-                            continue;
-                        }
-
-                        if (progressDict.TryGetValue(item.LessonId, out var p))
-                        {
-                            if (!p.IsUnlocked)
-                            {
-                                continue;
-                            }
-
                             return new NextActivityResponse
                             {
                                 Type = "Lesson",
-                                LessonId = item.LessonId,
-                                TopicId = item.TopicId,
-                                LessonTitle = item.LessonTitle
+                                LessonId = lastLesson.LessonId,
+                                TopicId = lastLesson.TopicId,
+                                LessonTitle = lastLesson.LessonTitle
                             };
                         }
-                    }
-
-                    // fallback в рамках активного курсу (якщо прогреси ще не створені/порожні)
-                    var firstNotPassed = lessonsInCourse
-                        .FirstOrDefault(x => !passedLessonIds.Contains(x.LessonId));
-
-                    if (firstNotPassed != null)
-                    {
-                        return new NextActivityResponse
-                        {
-                            Type = "Lesson",
-                            LessonId = firstNotPassed.LessonId,
-                            TopicId = firstNotPassed.TopicId,
-                            LessonTitle = firstNotPassed.LessonTitle
-                        };
                     }
                 }
             }
 
-            // fallback
-            var nextLesson =
-                (from l in _dbContext.Lessons
-                 join t in _dbContext.Topics on l.TopicId equals t.Id
-                 join c in _dbContext.Courses on t.CourseId equals c.Id
-                 where c.IsPublished
-                 orderby c.Id, t.Order, l.Order
-                 select new
-                 {
-                     LessonId = l.Id,
-                     TopicId = t.Id,
-                     LessonTitle = l.Title
-                 })
-                .AsEnumerable()
-                .FirstOrDefault(x => !passedLessonIds.Contains(x.LessonId));
-
-            if (nextLesson == null)
+            // 2) перший unlocked і непройдений урок у курсі
+            foreach (var item in lessonsInCourse)
             {
-                return null;
+                if (passedLessonIds.Contains(item.LessonId))
+                {
+                    continue;
+                }
+
+                if (progressDict.TryGetValue(item.LessonId, out var p) && p.IsUnlocked)
+                {
+                    return new NextActivityResponse
+                    {
+                        Type = "Lesson",
+                        LessonId = item.LessonId,
+                        TopicId = item.TopicId,
+                        LessonTitle = item.LessonTitle
+                    };
+                }
             }
 
-            return new NextActivityResponse
+            return null;
+        }
+
+        private int? GetFirstPublishedCourseWithLessonsId()
+        {
+            var courseId = (
+                from c in _dbContext.Courses
+                join t in _dbContext.Topics on c.Id equals t.CourseId
+                join l in _dbContext.Lessons on t.Id equals l.TopicId
+                where c.IsPublished
+                orderby c.Id
+                select (int?)c.Id
+            ).FirstOrDefault();
+
+            return courseId;
+        }
+
+        private void EnsureUserLessonProgressForCourse(
+            int userId,
+            int courseId,
+            List<CourseLessonInfo> orderedLessons,
+            List<int> passedLessonIds)
+        {
+            if (orderedLessons == null || orderedLessons.Count == 0)
             {
-                Type = "Lesson",
-                LessonId = nextLesson.LessonId,
-                TopicId = nextLesson.TopicId,
-                LessonTitle = nextLesson.LessonTitle
-            };
+                return;
+            }
+
+            var lessonIds = orderedLessons.Select(x => x.LessonId).ToList();
+
+            var existing = _dbContext.UserLessonProgresses
+                .Where(x => x.UserId == userId && lessonIds.Contains(x.LessonId))
+                .ToDictionary(x => x.LessonId, x => x);
+
+            // best score підтягнемо з LessonResults 
+            var bestScores = _dbContext.LessonResults
+                .Where(x => x.UserId == userId && lessonIds.Contains(x.LessonId))
+                .GroupBy(x => x.LessonId)
+                .Select(g => new
+                {
+                    LessonId = g.Key,
+                    BestScore = g.Max(x => x.Score)
+                })
+                .ToDictionary(x => x.LessonId, x => x.BestScore);
+
+            bool needSave = false;
+            bool previousCompleted = false;
+
+            for (int i = 0; i < orderedLessons.Count; i++)
+            {
+                int lessonId = orderedLessons[i].LessonId;
+
+                bool shouldBeUnlocked = i == 0 || previousCompleted;
+                bool isPassed = passedLessonIds.Contains(lessonId);
+
+                int bestScore = 0;
+
+                if (bestScores.TryGetValue(lessonId, out var bs))
+                {
+                    bestScore = bs;
+                }
+
+                if (!existing.TryGetValue(lessonId, out var p))
+                {
+                    p = new UserLessonProgress
+                    {
+                        UserId = userId,
+                        LessonId = lessonId,
+                        IsUnlocked = shouldBeUnlocked,
+                        IsCompleted = isPassed,
+                        BestScore = bestScore,
+                        LastAttemptAt = null
+                    };
+
+                    _dbContext.UserLessonProgresses.Add(p);
+                    existing[lessonId] = p;
+                    needSave = true;
+                }
+                else
+                {
+                    if (shouldBeUnlocked && !p.IsUnlocked)
+                    {
+                        p.IsUnlocked = true;
+                        needSave = true;
+                    }
+
+                    if (isPassed && !p.IsCompleted)
+                    {
+                        p.IsCompleted = true;
+                        needSave = true;
+                    }
+
+                    if (bestScore > p.BestScore)
+                    {
+                        p.BestScore = bestScore;
+                        needSave = true;
+                    }
+                }
+
+                previousCompleted = p.IsCompleted;
+            }
+
+            if (needSave)
+            {
+                _dbContext.SaveChanges();
+            }
+        }
+
+        private class CourseLessonInfo
+        {
+            public int LessonId { get; set; }
+            public int TopicId { get; set; }
+            public string LessonTitle { get; set; } = "";
         }
 
         private NextActivityResponse? GetNextScene(int userId)
