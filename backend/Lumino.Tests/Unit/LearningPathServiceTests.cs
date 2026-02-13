@@ -33,6 +33,19 @@ public class LearningPathServiceTests
 
         Assert.False(lessons[1].IsUnlocked);
         Assert.False(lessons[2].IsUnlocked);
+
+        var progress = dbContext.UserLessonProgresses
+            .Where(x => x.UserId == 1)
+            .OrderBy(x => x.LessonId)
+            .ToList();
+
+        Assert.Equal(3, progress.Count);
+
+        Assert.True(progress[0].IsUnlocked);
+        Assert.False(progress[0].IsCompleted);
+
+        Assert.False(progress[1].IsUnlocked);
+        Assert.False(progress[2].IsUnlocked);
     }
 
     [Fact]
@@ -70,6 +83,21 @@ public class LearningPathServiceTests
         Assert.False(lessons[1].IsPassed);
 
         Assert.False(lessons[2].IsUnlocked);
+
+        var progress = dbContext.UserLessonProgresses
+            .Where(x => x.UserId == 1)
+            .OrderBy(x => x.LessonId)
+            .ToList();
+
+        Assert.Equal(3, progress.Count);
+
+        Assert.True(progress[0].IsUnlocked);
+        Assert.True(progress[0].IsCompleted);
+
+        Assert.True(progress[1].IsUnlocked);
+        Assert.False(progress[1].IsCompleted);
+
+        Assert.False(progress[2].IsUnlocked);
     }
 
     private static void SeedCourse(Lumino.Api.Data.LuminoDbContext dbContext)

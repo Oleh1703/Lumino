@@ -1,6 +1,7 @@
 using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Data;
+using Lumino.Api.Domain.Entities;
 using Lumino.Api.Utils;
 
 namespace Lumino.Api.Application.Services
@@ -32,7 +33,7 @@ namespace Lumino.Api.Application.Services
             var bestResults = _dbContext.LessonResults
                 .Where(x => x.UserId == userId)
                 .GroupBy(x => x.LessonId)
-                .Select(g => new
+                .Select(g => new BestLessonResult
                 {
                     LessonId = g.Key,
                     BestScore = g.Max(x => x.Score),
@@ -45,7 +46,7 @@ namespace Lumino.Api.Application.Services
                  join l in _dbContext.Lessons on t.Id equals l.TopicId
                  where t.CourseId == course.Id
                  orderby t.Order, l.Order
-                 select new
+                 select new OrderedLessonInfo
                  {
                      TopicId = t.Id,
                      TopicTitle = t.Title,
@@ -56,38 +57,11 @@ namespace Lumino.Api.Application.Services
                  })
                 .ToList();
 
-            var lessonStates = new Dictionary<int, (bool IsUnlocked, bool IsPassed, int? BestScore, int? TotalQuestions, int? BestPercent)>();
+            EnsureUserLessonProgressIsInSync(userId, orderedLessons, bestResults, passingScorePercent);
 
-            bool previousPassed = true;
-
-            for (int i = 0; i < orderedLessons.Count; i++)
-            {
-                var lessonId = orderedLessons[i].LessonId;
-
-                bool isUnlocked = i == 0 || previousPassed;
-
-                int? bestScore = null;
-                int? totalQuestions = null;
-                int? bestPercent = null;
-
-                bool isPassed = false;
-
-                if (bestResults.TryGetValue(lessonId, out var best))
-                {
-                    bestScore = best.BestScore;
-                    totalQuestions = best.TotalQuestions;
-
-                    if (totalQuestions.HasValue && totalQuestions.Value > 0 && bestScore.HasValue)
-                    {
-                        bestPercent = (int)Math.Round(bestScore.Value * 100.0 / totalQuestions.Value);
-                        isPassed = bestScore.Value * 100 >= totalQuestions.Value * passingScorePercent;
-                    }
-                }
-
-                lessonStates[lessonId] = (isUnlocked, isPassed, bestScore, totalQuestions, bestPercent);
-
-                previousPassed = isPassed;
-            }
+            var progressDict = _dbContext.UserLessonProgresses
+                .Where(x => x.UserId == userId)
+                .ToDictionary(x => x.LessonId, x => x);
 
             var topics = orderedLessons
                 .GroupBy(x => new { x.TopicId, x.TopicTitle, x.TopicOrder })
@@ -101,18 +75,32 @@ namespace Lumino.Api.Application.Services
                         .OrderBy(x => x.LessonOrder)
                         .Select(x =>
                         {
-                            var st = lessonStates[x.LessonId];
+                            progressDict.TryGetValue(x.LessonId, out var p);
+
+                            int? totalQuestions = null;
+                            int? bestPercent = null;
+
+                            if (bestResults.TryGetValue(x.LessonId, out var best))
+                            {
+                                totalQuestions = best.TotalQuestions;
+
+                                if (totalQuestions.HasValue && totalQuestions.Value > 0)
+                                {
+                                    var scoreForPercent = p != null ? p.BestScore : best.BestScore;
+                                    bestPercent = (int)Math.Round(scoreForPercent * 100.0 / totalQuestions.Value);
+                                }
+                            }
 
                             return new LearningPathLessonResponse
                             {
                                 Id = x.LessonId,
                                 Title = x.LessonTitle,
                                 Order = x.LessonOrder,
-                                IsUnlocked = st.IsUnlocked,
-                                IsPassed = st.IsPassed,
-                                BestScore = st.BestScore,
-                                TotalQuestions = st.TotalQuestions,
-                                BestPercent = st.BestPercent
+                                IsUnlocked = p != null && p.IsUnlocked,
+                                IsPassed = p != null && p.IsCompleted,
+                                BestScore = p != null ? p.BestScore : null,
+                                TotalQuestions = totalQuestions,
+                                BestPercent = bestPercent
                             };
                         })
                         .ToList()
@@ -125,6 +113,110 @@ namespace Lumino.Api.Application.Services
                 CourseTitle = course.Title,
                 Topics = topics
             };
+        }
+
+        private void EnsureUserLessonProgressIsInSync(
+            int userId,
+            List<OrderedLessonInfo> orderedLessons,
+            Dictionary<int, BestLessonResult> bestResults,
+            int passingScorePercent)
+        {
+            if (orderedLessons == null || orderedLessons.Count == 0)
+            {
+                return;
+            }
+
+            var lessonIds = orderedLessons.Select(x => x.LessonId).ToList();
+
+            var existing = _dbContext.UserLessonProgresses
+                .Where(x => x.UserId == userId && lessonIds.Contains(x.LessonId))
+                .ToDictionary(x => x.LessonId, x => x);
+
+            bool needSave = false;
+            bool previousCompleted = false;
+
+            for (int i = 0; i < orderedLessons.Count; i++)
+            {
+                int lessonId = orderedLessons[i].LessonId;
+
+                int bestScore = 0;
+                int? totalQuestions = null;
+                bool passedFromResults = false;
+
+                if (bestResults.TryGetValue(lessonId, out var best))
+                {
+                    bestScore = best.BestScore;
+                    totalQuestions = best.TotalQuestions;
+
+                    if (totalQuestions.HasValue && totalQuestions.Value > 0)
+                    {
+                        passedFromResults = bestScore * 100 >= totalQuestions.Value * passingScorePercent;
+                    }
+                }
+
+                bool shouldBeUnlocked = i == 0 || previousCompleted;
+
+                if (!existing.TryGetValue(lessonId, out var p))
+                {
+                    p = new UserLessonProgress
+                    {
+                        UserId = userId,
+                        LessonId = lessonId,
+                        IsUnlocked = shouldBeUnlocked,
+                        IsCompleted = passedFromResults,
+                        BestScore = bestScore,
+                        LastAttemptAt = null
+                    };
+
+                    _dbContext.UserLessonProgresses.Add(p);
+                    existing[lessonId] = p;
+                    needSave = true;
+                }
+                else
+                {
+                    if (shouldBeUnlocked && !p.IsUnlocked)
+                    {
+                        p.IsUnlocked = true;
+                        needSave = true;
+                    }
+
+                    if (passedFromResults && !p.IsCompleted)
+                    {
+                        p.IsCompleted = true;
+                        needSave = true;
+                    }
+
+                    if (bestScore > p.BestScore)
+                    {
+                        p.BestScore = bestScore;
+                        needSave = true;
+                    }
+                }
+
+                previousCompleted = p.IsCompleted;
+            }
+
+            if (needSave)
+            {
+                _dbContext.SaveChanges();
+            }
+        }
+
+        private class OrderedLessonInfo
+        {
+            public int TopicId { get; set; }
+            public string TopicTitle { get; set; } = "";
+            public int TopicOrder { get; set; }
+            public int LessonId { get; set; }
+            public string LessonTitle { get; set; } = "";
+            public int LessonOrder { get; set; }
+        }
+
+        private class BestLessonResult
+        {
+            public int LessonId { get; set; }
+            public int BestScore { get; set; }
+            public int TotalQuestions { get; set; }
         }
     }
 }
