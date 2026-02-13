@@ -1,6 +1,7 @@
-﻿using Lumino.Api.Application.Services;
+﻿﻿using Lumino.Api.Application.Services;
 using Lumino.Api.Domain.Entities;
-using Lumino.Tests;
+using Lumino.Api.Utils;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Lumino.Tests;
@@ -15,7 +16,11 @@ public class CourseProgressServiceTests
         var now = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc);
         var dateTimeProvider = new FixedDateTimeProvider(now);
 
-        var service = new CourseProgressService(dbContext, dateTimeProvider);
+        var service = new CourseProgressService(
+            dbContext,
+            dateTimeProvider,
+            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneCompletionScore = 5 })
+        );
 
         Assert.Throws<KeyNotFoundException>(() =>
         {
@@ -81,7 +86,11 @@ public class CourseProgressServiceTests
         var now = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc);
         var dateTimeProvider = new FixedDateTimeProvider(now);
 
-        var service = new CourseProgressService(dbContext, dateTimeProvider);
+        var service = new CourseProgressService(
+            dbContext,
+            dateTimeProvider,
+            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneCompletionScore = 5 })
+        );
 
         var response = service.StartCourse(userId, course1.Id);
 
@@ -98,9 +107,14 @@ public class CourseProgressServiceTests
         Assert.False(deactivatedCourse2.IsActive);
         Assert.Equal(now, deactivatedCourse2.LastOpenedAt);
 
-        var progress = dbContext.UserLessonProgresses.First(x => x.UserId == userId && x.LessonId == c1_l1.Id);
-        Assert.True(progress.IsUnlocked);
-        Assert.Equal(now, progress.LastAttemptAt);
+        var progress1 = dbContext.UserLessonProgresses.First(x => x.UserId == userId && x.LessonId == c1_l1.Id);
+        Assert.True(progress1.IsUnlocked);
+        Assert.Equal(now, progress1.LastAttemptAt);
+
+        // прогрес має бути створений для всіх уроків курсу
+        var progress2 = dbContext.UserLessonProgresses.First(x => x.UserId == userId && x.LessonId == c1_l2.Id);
+        Assert.False(progress2.IsUnlocked);
+        Assert.False(progress2.IsCompleted);
     }
 
     [Fact]
@@ -111,7 +125,11 @@ public class CourseProgressServiceTests
         var now = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc);
         var dateTimeProvider = new FixedDateTimeProvider(now);
 
-        var service = new CourseProgressService(dbContext, dateTimeProvider);
+        var service = new CourseProgressService(
+            dbContext,
+            dateTimeProvider,
+            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneCompletionScore = 5 })
+        );
 
         var result = service.GetMyActiveCourse(userId: 1);
 
@@ -125,7 +143,13 @@ public class CourseProgressServiceTests
 
         var userId = 1;
 
-        var course = new Course { Title = "Course", Description = "Desc", IsPublished = true };
+        var course = new Course
+        {
+            Title = "Course",
+            Description = "Desc",
+            IsPublished = true
+        };
+
         dbContext.Courses.Add(course);
         dbContext.SaveChanges();
 
@@ -162,7 +186,12 @@ public class CourseProgressServiceTests
 
         var now = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc);
         var dateTimeProvider = new FixedDateTimeProvider(now);
-        var service = new CourseProgressService(dbContext, dateTimeProvider);
+
+        var service = new CourseProgressService(
+            dbContext,
+            dateTimeProvider,
+            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneCompletionScore = 5 })
+        );
 
         var list = service.GetMyLessonProgressByCourse(userId, course.Id);
 
