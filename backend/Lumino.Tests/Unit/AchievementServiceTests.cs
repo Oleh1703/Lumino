@@ -1,4 +1,4 @@
-﻿using Lumino.Api.Application.Services;
+﻿﻿using Lumino.Api.Application.Services;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Utils;
 using Microsoft.Extensions.Options;
@@ -51,11 +51,11 @@ public class AchievementServiceTests
 
         service.CheckAndGrantAchievements(userId, 4, 4);
 
-        // ✅ не має бути "5 Lessons Completed"
+        // не має бути "5 Lessons Completed"
         var five = dbContext.Achievements.FirstOrDefault(x => x.Title == "5 Lessons Completed");
         Assert.Null(five);
 
-        // ✅ але "First Lesson" може бути
+        // але "First Lesson" може бути
         var first = dbContext.Achievements.FirstOrDefault(x => x.Title == "First Lesson");
         Assert.NotNull(first);
     }
@@ -107,5 +107,94 @@ public class AchievementServiceTests
 
         var userFive = dbContext.UserAchievements.FirstOrDefault(x => x.UserId == userId && x.AchievementId == five!.Id);
         Assert.NotNull(userFive);
+    }
+
+    [Fact]
+    public void GrantHundredXp_ShouldGrant_WhenTotalScoreFromLessonsAndScenesReaches100()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        var userId = 10;
+
+        // уроки: best score = 10
+        dbContext.LessonResults.Add(new LessonResult
+        {
+            UserId = userId,
+            LessonId = 1,
+            Score = 10,
+            TotalQuestions = 10,
+            CompletedAt = new DateTime(2026, 2, 1, 10, 0, 0, DateTimeKind.Utc)
+        });
+
+        // сцени: 18 completed * 5 = 90 => 10 + 90 = 100
+        for (int i = 1; i <= 18; i++)
+        {
+            dbContext.SceneAttempts.Add(new SceneAttempt
+            {
+                UserId = userId,
+                SceneId = i,
+                IsCompleted = true,
+                CompletedAt = new DateTime(2026, 2, 2, 10, 0, 0, DateTimeKind.Utc)
+            });
+        }
+
+        dbContext.SaveChanges();
+
+        var service = new AchievementService(
+            dbContext,
+            new FixedDateTimeProvider(new DateTime(2026, 2, 2, 12, 0, 0, DateTimeKind.Utc)),
+            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneCompletionScore = 5 })
+        );
+
+        service.CheckAndGrantAchievements(userId, 10, 10);
+
+        var a = dbContext.Achievements.FirstOrDefault(x => x.Title == "100 XP");
+        Assert.NotNull(a);
+
+        var ua = dbContext.UserAchievements.FirstOrDefault(x => x.UserId == userId && x.AchievementId == a!.Id);
+        Assert.NotNull(ua);
+    }
+
+    [Fact]
+    public void GrantHundredXp_ShouldNotGrant_WhenTotalScoreLessThan100()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        var userId = 10;
+
+        // уроки: best score = 4
+        dbContext.LessonResults.Add(new LessonResult
+        {
+            UserId = userId,
+            LessonId = 1,
+            Score = 4,
+            TotalQuestions = 10,
+            CompletedAt = new DateTime(2026, 2, 1, 10, 0, 0, DateTimeKind.Utc)
+        });
+
+        // сцени: 19 completed * 5 = 95 => 4 + 95 = 99
+        for (int i = 1; i <= 19; i++)
+        {
+            dbContext.SceneAttempts.Add(new SceneAttempt
+            {
+                UserId = userId,
+                SceneId = i,
+                IsCompleted = true,
+                CompletedAt = new DateTime(2026, 2, 2, 10, 0, 0, DateTimeKind.Utc)
+            });
+        }
+
+        dbContext.SaveChanges();
+
+        var service = new AchievementService(
+            dbContext,
+            new FixedDateTimeProvider(new DateTime(2026, 2, 2, 12, 0, 0, DateTimeKind.Utc)),
+            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneCompletionScore = 5 })
+        );
+
+        service.CheckAndGrantAchievements(userId, 4, 10);
+
+        var a = dbContext.Achievements.FirstOrDefault(x => x.Title == "100 XP");
+        Assert.Null(a);
     }
 }

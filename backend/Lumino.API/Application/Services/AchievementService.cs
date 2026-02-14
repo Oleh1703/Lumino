@@ -115,13 +115,24 @@ namespace Lumino.Api.Application.Services
 
         private void GrantHundredXp(int userId)
         {
-            int bestTotalScore = _dbContext.LessonResults
+            // "100 XP" має відповідати реальному TotalScore (уроки + сцени)
+            int lessonsScore = _dbContext.LessonResults
                 .Where(x => x.UserId == userId)
                 .GroupBy(x => x.LessonId)
                 .Select(g => g.Max(x => x.Score))
                 .Sum();
 
-            if (bestTotalScore < 100) return;
+            int completedDistinctScenes = _dbContext.SceneAttempts
+                .Where(x => x.UserId == userId && x.IsCompleted)
+                .Select(x => x.SceneId)
+                .Distinct()
+                .Count();
+
+            int scenesScore = completedDistinctScenes * _learningSettings.SceneCompletionScore;
+
+            int totalScore = lessonsScore + scenesScore;
+
+            if (totalScore < 100) return;
 
             var achievement = GetOrCreateAchievement(
                 "100 XP",
