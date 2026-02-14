@@ -1,4 +1,5 @@
-﻿﻿using Lumino.Api.Application.Interfaces;
+﻿using Lumino.Api.Application.DTOs;
+using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Utils;
@@ -254,6 +255,143 @@ public class SceneServiceTests
         Assert.Single(list);
         Assert.Contains(1, list);
         Assert.DoesNotContain(2, list);
+    }
+
+    [Fact]
+    public void GetSceneContent_WhenLocked_ShouldReturnIsUnlockedFalse_AndNoSteps()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Users.Add(new User
+        {
+            Id = 1,
+            Email = "scenecontentlocked@mail.com",
+            PasswordHash = "hash",
+            CreatedAt = DateTime.UtcNow
+        });
+
+        // scene 2 -> requiredLessons = (2-1)*1 = 1
+        dbContext.Scenes.Add(new Scene
+        {
+            Id = 2,
+            Title = "Scene 2",
+            Description = "Desc",
+            SceneType = "intro",
+            BackgroundUrl = "bg",
+            AudioUrl = "audio"
+        });
+
+        dbContext.SceneSteps.Add(new SceneStep
+        {
+            Id = 1,
+            SceneId = 2,
+            Order = 1,
+            Speaker = "A",
+            Text = "Hello",
+            StepType = "Line",
+            MediaUrl = null,
+            ChoicesJson = null
+        });
+
+        dbContext.SaveChanges();
+
+        var now = new DateTime(2026, 2, 12, 16, 0, 0, DateTimeKind.Utc);
+
+        var service = new SceneService(
+            dbContext,
+            new FixedDateTimeProvider(now),
+            new FakeAchievementService(),
+            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1 })
+        );
+
+        var result = service.GetSceneContent(userId: 1, sceneId: 2);
+
+        Assert.NotNull(result);
+        Assert.Equal(2, result!.Id);
+        Assert.False(result.IsUnlocked);
+        Assert.Empty(result.Steps);
+        Assert.Equal("bg", result.BackgroundUrl);
+        Assert.Equal("audio", result.AudioUrl);
+    }
+
+    [Fact]
+    public void GetSceneContent_WhenUnlocked_ShouldReturnStepsOrdered()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Users.Add(new User
+        {
+            Id = 1,
+            Email = "scenecontent@mail.com",
+            PasswordHash = "hash",
+            CreatedAt = DateTime.UtcNow
+        });
+
+        dbContext.Scenes.Add(new Scene
+        {
+            Id = 2,
+            Title = "Scene 2",
+            Description = "Desc",
+            SceneType = "intro",
+            BackgroundUrl = "bg",
+            AudioUrl = "audio"
+        });
+
+        // щоб Scene 2 була unlocked: треба 1 passed lesson (80%+)
+        dbContext.LessonResults.Add(new LessonResult
+        {
+            Id = 1,
+            UserId = 1,
+            LessonId = 100,
+            Score = 8,
+            TotalQuestions = 10,
+            CompletedAt = DateTime.UtcNow
+        });
+
+        dbContext.SceneSteps.Add(new SceneStep
+        {
+            Id = 1,
+            SceneId = 2,
+            Order = 2,
+            Speaker = "B",
+            Text = "Second",
+            StepType = "Line",
+            MediaUrl = null,
+            ChoicesJson = null
+        });
+
+        dbContext.SceneSteps.Add(new SceneStep
+        {
+            Id = 2,
+            SceneId = 2,
+            Order = 1,
+            Speaker = "A",
+            Text = "First",
+            StepType = "Line",
+            MediaUrl = null,
+            ChoicesJson = null
+        });
+
+        dbContext.SaveChanges();
+
+        var now = new DateTime(2026, 2, 12, 17, 0, 0, DateTimeKind.Utc);
+
+        var service = new SceneService(
+            dbContext,
+            new FixedDateTimeProvider(now),
+            new FakeAchievementService(),
+            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1 })
+        );
+
+        var result = service.GetSceneContent(userId: 1, sceneId: 2);
+
+        Assert.NotNull(result);
+        Assert.True(result!.IsUnlocked);
+        Assert.Equal(2, result.Steps.Count);
+        Assert.Equal(1, result.Steps[0].Order);
+        Assert.Equal("First", result.Steps[0].Text);
+        Assert.Equal(2, result.Steps[1].Order);
+        Assert.Equal("Second", result.Steps[1].Text);
     }
 
     private class CountingAchievementService : IAchievementService

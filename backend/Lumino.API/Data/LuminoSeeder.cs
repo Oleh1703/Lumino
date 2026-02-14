@@ -143,37 +143,49 @@ namespace Lumino.Api.Data
                 {
                     Title = "Cafe order",
                     Description = "Order a coffee in a cafe",
-                    SceneType = "Dialog"
+                    SceneType = "Dialog",
+                    BackgroundUrl = null,
+                    AudioUrl = null
                 },
                 new Scene
                 {
                     Title = "Airport check-in",
                     Description = "Check in for your flight",
-                    SceneType = "Dialog"
+                    SceneType = "Dialog",
+                    BackgroundUrl = null,
+                    AudioUrl = null
                 },
                 new Scene
                 {
                     Title = "Hotel booking",
                     Description = "Book a room at a hotel reception",
-                    SceneType = "Dialog"
+                    SceneType = "Dialog",
+                    BackgroundUrl = null,
+                    AudioUrl = null
                 },
                 new Scene
                 {
                     Title = "Asking directions",
                     Description = "Ask how to get to a place in the city",
-                    SceneType = "Dialog"
+                    SceneType = "Dialog",
+                    BackgroundUrl = null,
+                    AudioUrl = null
                 },
                 new Scene
                 {
                     Title = "Shopping",
                     Description = "Buy something in a store and ask the price",
-                    SceneType = "Dialog"
+                    SceneType = "Dialog",
+                    BackgroundUrl = null,
+                    AudioUrl = null
                 },
                 new Scene
                 {
                     Title = "Small talk",
                     Description = "Introduce yourself and keep a short conversation",
-                    SceneType = "Dialog"
+                    SceneType = "Dialog",
+                    BackgroundUrl = null,
+                    AudioUrl = null
                 }
             };
 
@@ -198,6 +210,138 @@ namespace Lumino.Api.Data
                 if (fromDb.SceneType != item.SceneType)
                 {
                     fromDb.SceneType = item.SceneType;
+                }
+
+                // медіа не перетираємо null-ами (щоб адмінські зміни не зникали)
+                if (!string.IsNullOrWhiteSpace(item.BackgroundUrl) && fromDb.BackgroundUrl != item.BackgroundUrl)
+                {
+                    fromDb.BackgroundUrl = item.BackgroundUrl;
+                }
+
+                if (!string.IsNullOrWhiteSpace(item.AudioUrl) && fromDb.AudioUrl != item.AudioUrl)
+                {
+                    fromDb.AudioUrl = item.AudioUrl;
+                }
+            }
+
+            dbContext.SaveChanges();
+
+            var sceneMap = dbContext.Scenes
+                .ToList()
+                .GroupBy(x => x.Title)
+                .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+
+            var stepsBySceneTitle = new Dictionary<string, List<SceneStepSeed>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Cafe order"] = new List<SceneStepSeed>
+                {
+                    new SceneStepSeed(1, "Barista", "Hello! What would you like?", "Line"),
+                    new SceneStepSeed(2, "You", "Hi! I'd like a coffee, please.", "Line"),
+                    new SceneStepSeed(3, "Barista", "Sure. Small or large?", "Line"),
+                    new SceneStepSeed(4, "You", "Small, please.", "Line"),
+                    new SceneStepSeed(5, "Barista", "Anything else?", "Line"),
+                    new SceneStepSeed(6, "You", "No, thank you.", "Line"),
+                    new SceneStepSeed(7, "Barista", "Great. That will be $3.", "Line")
+                },
+                ["Airport check-in"] = new List<SceneStepSeed>
+                {
+                    new SceneStepSeed(1, "Agent", "Good morning. Can I see your passport?", "Line"),
+                    new SceneStepSeed(2, "You", "Yes, here it is.", "Line"),
+                    new SceneStepSeed(3, "Agent", "Do you have any bags to check in?", "Line"),
+                    new SceneStepSeed(4, "You", "Yes, one bag.", "Line"),
+                    new SceneStepSeed(5, "Agent", "Thank you. Your gate is A12.", "Line"),
+                    new SceneStepSeed(6, "You", "Thanks!", "Line")
+                },
+                ["Hotel booking"] = new List<SceneStepSeed>
+                {
+                    new SceneStepSeed(1, "Reception", "Hello! How can I help you?", "Line"),
+                    new SceneStepSeed(2, "You", "Hi! I'd like to book a room.", "Line"),
+                    new SceneStepSeed(3, "Reception", "How many nights?", "Line"),
+                    new SceneStepSeed(4, "You", "Two nights, please.", "Line"),
+                    new SceneStepSeed(5, "Reception", "Great. May I have your name?", "Line"),
+                    new SceneStepSeed(6, "You", "My name is Alex.", "Line")
+                },
+                ["Asking directions"] = new List<SceneStepSeed>
+                {
+                    new SceneStepSeed(1, "You", "Excuse me, where is the station?", "Line"),
+                    new SceneStepSeed(2, "Person", "Go straight and turn left.", "Line"),
+                    new SceneStepSeed(3, "You", "Is it far from here?", "Line"),
+                    new SceneStepSeed(4, "Person", "No, it's about 5 minutes.", "Line"),
+                    new SceneStepSeed(5, "You", "Thank you!", "Line")
+                },
+                ["Shopping"] = new List<SceneStepSeed>
+                {
+                    new SceneStepSeed(1, "You", "Hello! How much is this?", "Line"),
+                    new SceneStepSeed(2, "Cashier", "It is $10.", "Line"),
+                    new SceneStepSeed(3, "You", "Can I pay by card?", "Line"),
+                    new SceneStepSeed(4, "Cashier", "Yes, of course.", "Line"),
+                    new SceneStepSeed(5, "You", "Thank you.", "Line")
+                },
+                ["Small talk"] = new List<SceneStepSeed>
+                {
+                    new SceneStepSeed(1, "You", "Hi! My name is Alex.", "Line"),
+                    new SceneStepSeed(2, "Person", "Nice to meet you, Alex! I'm Kate.", "Line"),
+                    new SceneStepSeed(3, "You", "How are you today?", "Line"),
+                    new SceneStepSeed(4, "Person", "I'm fine, thanks. And you?", "Line"),
+                    new SceneStepSeed(5, "You", "I'm fine too.", "Line")
+                }
+            };
+
+            foreach (var kv in stepsBySceneTitle)
+            {
+                if (!sceneMap.TryGetValue(kv.Key, out var scene))
+                {
+                    continue;
+                }
+
+                var existing = dbContext.SceneSteps
+                    .Where(x => x.SceneId == scene.Id)
+                    .ToList()
+                    .GroupBy(x => x.Order)
+                    .ToDictionary(x => x.Key, x => x.First());
+
+                foreach (var seed in kv.Value)
+                {
+                    if (!existing.TryGetValue(seed.Order, out var step))
+                    {
+                        dbContext.SceneSteps.Add(new SceneStep
+                        {
+                            SceneId = scene.Id,
+                            Order = seed.Order,
+                            Speaker = seed.Speaker,
+                            Text = seed.Text,
+                            StepType = seed.StepType,
+                            MediaUrl = seed.MediaUrl,
+                            ChoicesJson = seed.ChoicesJson
+                        });
+
+                        continue;
+                    }
+
+                    if (step.Speaker != seed.Speaker)
+                    {
+                        step.Speaker = seed.Speaker;
+                    }
+
+                    if (step.Text != seed.Text)
+                    {
+                        step.Text = seed.Text;
+                    }
+
+                    if (step.StepType != seed.StepType)
+                    {
+                        step.StepType = seed.StepType;
+                    }
+
+                    if (step.MediaUrl != seed.MediaUrl)
+                    {
+                        step.MediaUrl = seed.MediaUrl;
+                    }
+
+                    if (step.ChoicesJson != seed.ChoicesJson)
+                    {
+                        step.ChoicesJson = seed.ChoicesJson;
+                    }
                 }
             }
 
@@ -684,6 +828,14 @@ namespace Lumino.Api.Data
             public string left { get; set; } = null!;
             public string right { get; set; } = null!;
         }
+
+        private record SceneStepSeed(
+            int Order,
+            string Speaker,
+            string Text,
+            string StepType,
+            string? MediaUrl = null,
+            string? ChoicesJson = null);
 
         private record TopicSeed(string Title, int Order);
 

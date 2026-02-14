@@ -34,6 +34,17 @@ namespace Lumino.Api.Controllers
             return Ok(result);
         }
 
+        // повний контент сцени (кроки), якщо unlocked
+        [HttpGet("{id}/content")]
+        [Authorize]
+        public IActionResult GetContent(int id)
+        {
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
+
+            var result = _sceneService.GetSceneContent(userId, id);
+            return Ok(result);
+        }
+
         [HttpPost("complete")]
         [Authorize]
         public IActionResult Complete(MarkSceneCompletedRequest request)

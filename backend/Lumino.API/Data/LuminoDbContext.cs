@@ -22,6 +22,7 @@ namespace Lumino.Api.Data
         public DbSet<Achievement> Achievements => Set<Achievement>();
         public DbSet<UserAchievement> UserAchievements => Set<UserAchievement>();
         public DbSet<Scene> Scenes => Set<Scene>();
+        public DbSet<SceneStep> SceneSteps => Set<SceneStep>();
         public DbSet<SceneAttempt> SceneAttempts => Set<SceneAttempt>();
         public DbSet<UserCourse> UserCourses => Set<UserCourse>();
         public DbSet<UserLessonProgress> UserLessonProgresses => Set<UserLessonProgress>();
@@ -144,6 +145,20 @@ namespace Lumino.Api.Data
                 entity.Property(x => x.Title).IsRequired();
                 entity.Property(x => x.Description).IsRequired();
                 entity.Property(x => x.SceneType).IsRequired();
+            });
+
+            modelBuilder.Entity<SceneStep>(entity =>
+            {
+                entity.Property(x => x.Speaker).IsRequired();
+                entity.Property(x => x.Text).IsRequired();
+                entity.Property(x => x.StepType).IsRequired();
+
+                entity.HasOne<Scene>()
+                    .WithMany()
+                    .HasForeignKey(x => x.SceneId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(x => new { x.SceneId, x.Order }).IsUnique();
             });
 
             modelBuilder.Entity<SceneAttempt>(entity =>

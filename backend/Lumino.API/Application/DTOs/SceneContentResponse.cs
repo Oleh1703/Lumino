@@ -1,6 +1,6 @@
 namespace Lumino.Api.Application.DTOs
 {
-    public class SceneDetailsResponse
+    public class SceneContentResponse
     {
         public int Id { get; set; }
 
@@ -21,5 +21,7 @@ namespace Lumino.Api.Application.DTOs
         public int PassedLessons { get; set; }
 
         public int RequiredPassedLessons { get; set; }
+
+        public List<SceneStepResponse> Steps { get; set; } = new();
     }
 }

@@ -8,6 +8,8 @@ namespace Lumino.Api.Application.Interfaces
 
         SceneDetailsResponse GetSceneDetails(int userId, int sceneId);
 
+        SceneContentResponse GetSceneContent(int userId, int sceneId);
+
         void CreateScene(SceneResponse request);
 
         void UpdateScene(int id, SceneResponse request);

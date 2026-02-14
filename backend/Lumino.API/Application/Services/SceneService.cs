@@ -35,7 +35,9 @@ namespace Lumino.Api.Application.Services
                     Id = x.Id,
                     Title = x.Title,
                     Description = x.Description,
-                    SceneType = x.SceneType
+                    SceneType = x.SceneType,
+                    BackgroundUrl = x.BackgroundUrl,
+                    AudioUrl = x.AudioUrl
                 })
                 .ToList();
         }
@@ -63,10 +65,65 @@ namespace Lumino.Api.Application.Services
                 Title = scene.Title,
                 Description = scene.Description,
                 SceneType = scene.SceneType,
+                BackgroundUrl = scene.BackgroundUrl,
+                AudioUrl = scene.AudioUrl,
                 IsCompleted = isCompleted,
                 IsUnlocked = isUnlocked,
                 PassedLessons = passedLessons,
                 RequiredPassedLessons = required
+            };
+        }
+
+        public SceneContentResponse GetSceneContent(int userId, int sceneId)
+        {
+            var scene = _dbContext.Scenes.FirstOrDefault(x => x.Id == sceneId);
+
+            if (scene == null)
+            {
+                throw new KeyNotFoundException("Scene not found");
+            }
+
+            var passedLessons = GetPassedDistinctLessonsCount(userId);
+
+            var required = SceneUnlockRules.GetRequiredPassedLessons(sceneId, _learningSettings.SceneUnlockEveryLessons);
+            var isUnlocked = SceneUnlockRules.IsUnlocked(sceneId, passedLessons, _learningSettings.SceneUnlockEveryLessons);
+
+            var isCompleted = _dbContext.SceneAttempts
+                .Any(x => x.UserId == userId && x.SceneId == sceneId && x.IsCompleted);
+
+            var steps = new List<SceneStepResponse>();
+
+            if (isUnlocked)
+            {
+                steps = _dbContext.SceneSteps
+                    .Where(x => x.SceneId == sceneId)
+                    .OrderBy(x => x.Order)
+                    .Select(x => new SceneStepResponse
+                    {
+                        Id = x.Id,
+                        Order = x.Order,
+                        Speaker = x.Speaker,
+                        Text = x.Text,
+                        StepType = x.StepType,
+                        MediaUrl = x.MediaUrl,
+                        ChoicesJson = x.ChoicesJson
+                    })
+                    .ToList();
+            }
+
+            return new SceneContentResponse
+            {
+                Id = scene.Id,
+                Title = scene.Title,
+                Description = scene.Description,
+                SceneType = scene.SceneType,
+                BackgroundUrl = scene.BackgroundUrl,
+                AudioUrl = scene.AudioUrl,
+                IsCompleted = isCompleted,
+                IsUnlocked = isUnlocked,
+                PassedLessons = passedLessons,
+                RequiredPassedLessons = required,
+                Steps = steps
             };
         }
 
@@ -81,7 +138,9 @@ namespace Lumino.Api.Application.Services
             {
                 Title = request.Title,
                 Description = request.Description,
-                SceneType = request.SceneType
+                SceneType = request.SceneType,
+                BackgroundUrl = request.BackgroundUrl,
+                AudioUrl = request.AudioUrl
             };
 
             _dbContext.Scenes.Add(scene);
@@ -105,6 +164,8 @@ namespace Lumino.Api.Application.Services
             scene.Title = request.Title;
             scene.Description = request.Description;
             scene.SceneType = request.SceneType;
+            scene.BackgroundUrl = request.BackgroundUrl;
+            scene.AudioUrl = request.AudioUrl;
 
             _dbContext.SaveChanges();
         }
