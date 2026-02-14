@@ -129,7 +129,7 @@ namespace Lumino.Api.Application.Services
             // автододавання слів у Vocabulary після Passed
             AddLessonVocabularyIfNeeded(userId, lesson, exercises, answers, mistakeExerciseIds, isPassed);
 
-            // активний курс + прогрес уроків + unlock наступного
+            // активний курс + прогрес уроків + unlock наступного + перенос LastLessonId
             UpdateCourseProgressAfterLesson(userId, lesson.Id, isPassed, correct);
 
             _achievementService.CheckAndGrantAchievements(userId, correct, exercises.Count);
@@ -430,18 +430,28 @@ namespace Lumino.Api.Application.Services
                 return;
             }
 
-            EnsureActiveCourse(userId, courseId.Value, lessonId, now);
+            var userCourse = EnsureActiveCourse(userId, courseId.Value, lessonId, now);
+
             UpsertLessonProgress(userId, lessonId, isPassed, score, now);
+
+            int? nextLessonId = null;
 
             if (isPassed)
             {
-                UnlockNextLesson(userId, courseId.Value, lessonId, now);
+                nextLessonId = UnlockNextLesson(userId, courseId.Value, lessonId, now);
+
+                // після Passed переносимо "де продовжувати" на наступний урок
+                if (userCourse != null && nextLessonId != null)
+                {
+                    userCourse.LastLessonId = nextLessonId.Value;
+                    userCourse.LastOpenedAt = now;
+                }
             }
 
             _dbContext.SaveChanges();
         }
 
-        private void EnsureActiveCourse(int userId, int courseId, int lastLessonId, DateTime now)
+        private UserCourse? EnsureActiveCourse(int userId, int courseId, int lastLessonId, DateTime now)
         {
             var activeOther = _dbContext.UserCourses
                 .Where(x => x.UserId == userId && x.IsActive && x.CourseId != courseId)
@@ -469,7 +479,7 @@ namespace Lumino.Api.Application.Services
                 };
 
                 _dbContext.UserCourses.Add(userCourse);
-                return;
+                return userCourse;
             }
 
             userCourse.IsActive = true;
@@ -480,6 +490,8 @@ namespace Lumino.Api.Application.Services
             {
                 userCourse.StartedAt = now;
             }
+
+            return userCourse;
         }
 
         private void UpsertLessonProgress(int userId, int lessonId, bool isPassed, int score, DateTime now)
@@ -521,7 +533,7 @@ namespace Lumino.Api.Application.Services
             progress.LastAttemptAt = now;
         }
 
-        private void UnlockNextLesson(int userId, int courseId, int currentLessonId, DateTime now)
+        private int? UnlockNextLesson(int userId, int courseId, int currentLessonId, DateTime now)
         {
             var orderedLessonIds =
                 (from t in _dbContext.Topics
@@ -533,14 +545,14 @@ namespace Lumino.Api.Application.Services
 
             if (orderedLessonIds.Count == 0)
             {
-                return;
+                return null;
             }
 
             int index = orderedLessonIds.IndexOf(currentLessonId);
 
             if (index < 0 || index + 1 >= orderedLessonIds.Count)
             {
-                return;
+                return null;
             }
 
             int nextLessonId = orderedLessonIds[index + 1];
@@ -561,13 +573,20 @@ namespace Lumino.Api.Application.Services
                 };
 
                 _dbContext.UserLessonProgresses.Add(next);
-                return;
+                return nextLessonId;
             }
 
             if (!next.IsUnlocked)
             {
                 next.IsUnlocked = true;
+
+                if (next.LastAttemptAt == null)
+                {
+                    next.LastAttemptAt = now;
+                }
             }
+
+            return nextLessonId;
         }
 
         private static List<(string Word, string Translation)> ExtractPairsFromTheory(string? theory)

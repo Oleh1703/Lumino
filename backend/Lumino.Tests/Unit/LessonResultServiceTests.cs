@@ -1,4 +1,4 @@
-﻿using Lumino.Api.Application.DTOs;
+﻿﻿using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Domain.Enums;
@@ -170,5 +170,99 @@ public class LessonResultServiceTests
 
         // без помилок — повторення завтра
         Assert.All(userWords, x => Assert.Equal(now.AddDays(1), x.NextReviewAt));
+    }
+
+    [Fact]
+    public void SubmitLesson_WhenPassed_ShouldUnlockNextLesson_AndMoveActiveCourseLastLessonId()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Courses.Add(new Course
+        {
+            Id = 1,
+            Title = "English A1",
+            Description = "Desc",
+            IsPublished = true
+        });
+
+        dbContext.Topics.Add(new Topic
+        {
+            Id = 1,
+            CourseId = 1,
+            Title = "Basics",
+            Order = 1
+        });
+
+        dbContext.Lessons.Add(new Lesson
+        {
+            Id = 1,
+            TopicId = 1,
+            Title = "Lesson 1",
+            Theory = "T",
+            Order = 1
+        });
+
+        dbContext.Lessons.Add(new Lesson
+        {
+            Id = 2,
+            TopicId = 1,
+            Title = "Lesson 2",
+            Theory = "T",
+            Order = 2
+        });
+
+        dbContext.Exercises.Add(new Exercise
+        {
+            Id = 1,
+            LessonId = 1,
+            Type = ExerciseType.Input,
+            Question = "Q1",
+            Data = "",
+            CorrectAnswer = "ok",
+            Order = 1
+        });
+
+        dbContext.UserLessonProgresses.Add(new UserLessonProgress
+        {
+            UserId = 10,
+            LessonId = 1,
+            IsUnlocked = true,
+            IsCompleted = false,
+            BestScore = 0,
+            LastAttemptAt = DateTime.UtcNow
+        });
+
+        dbContext.SaveChanges();
+
+        var now = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc);
+
+        var service = new LessonResultService(
+            dbContext,
+            new FakeAchievementService(),
+            new FixedDateTimeProvider(now),
+            new FakeSubmitLessonValidator(),
+            Options.Create(new LearningSettings { PassingScorePercent = 80 })
+        );
+
+        var response = service.SubmitLesson(10, new SubmitLessonRequest
+        {
+            LessonId = 1,
+            Answers = new List<SubmitExerciseAnswerRequest>
+            {
+                new SubmitExerciseAnswerRequest { ExerciseId = 1, Answer = "ok" }
+            }
+        });
+
+        Assert.True(response.IsPassed);
+
+        var p1 = dbContext.UserLessonProgresses.First(x => x.UserId == 10 && x.LessonId == 1);
+        Assert.True(p1.IsCompleted);
+
+        var p2 = dbContext.UserLessonProgresses.First(x => x.UserId == 10 && x.LessonId == 2);
+        Assert.True(p2.IsUnlocked);
+
+        var activeCourse = dbContext.UserCourses.First(x => x.UserId == 10 && x.CourseId == 1);
+        Assert.True(activeCourse.IsActive);
+        Assert.Equal(2, activeCourse.LastLessonId);
     }
 }
