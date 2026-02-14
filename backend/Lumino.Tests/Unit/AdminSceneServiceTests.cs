@@ -194,16 +194,32 @@ public class AdminSceneServiceTests
     }
 
     [Fact]
-    public void Delete_RemovesScene()
+    public void Delete_RemovesScene_Steps_AndAttempts()
     {
         var dbContext = TestDbContextFactory.Create();
+        SeedUser(dbContext, userId: 1);
+        SeedUser(dbContext, userId: 2);
         SeedScene(dbContext, sceneId: 1);
+
+        dbContext.SceneSteps.AddRange(
+            new SceneStep { Id = 1, SceneId = 1, Order = 1, Speaker = "A", Text = "T1", StepType = "Text" },
+            new SceneStep { Id = 2, SceneId = 1, Order = 2, Speaker = "B", Text = "T2", StepType = "Text" }
+        );
+
+        dbContext.SceneAttempts.AddRange(
+            new SceneAttempt { Id = 1, UserId = 1, SceneId = 1, IsCompleted = true, CompletedAt = DateTime.UtcNow },
+            new SceneAttempt { Id = 2, UserId = 2, SceneId = 1, IsCompleted = false, CompletedAt = DateTime.UtcNow }
+        );
+
+        dbContext.SaveChanges();
 
         var service = new AdminSceneService(dbContext);
 
         service.Delete(1);
 
         Assert.False(dbContext.Scenes.Any(x => x.Id == 1));
+        Assert.False(dbContext.SceneSteps.Any(x => x.SceneId == 1));
+        Assert.False(dbContext.SceneAttempts.Any(x => x.SceneId == 1));
     }
 
     [Fact]
@@ -267,6 +283,20 @@ public class AdminSceneServiceTests
         var service = new AdminSceneService(dbContext);
 
         Assert.Throws<KeyNotFoundException>(() => service.DeleteStep(1, 999));
+    }
+
+    private static void SeedUser(Lumino.Api.Data.LuminoDbContext dbContext, int userId)
+    {
+        dbContext.Users.Add(new User
+        {
+            Id = userId,
+            Email = $"user{userId}@test.com",
+            PasswordHash = "hash",
+            Role = Lumino.Api.Domain.Enums.Role.User,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        dbContext.SaveChanges();
     }
 
     private static void SeedScene(Lumino.Api.Data.LuminoDbContext dbContext, int sceneId)

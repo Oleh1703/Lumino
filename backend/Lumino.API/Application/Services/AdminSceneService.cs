@@ -129,6 +129,19 @@ namespace Lumino.Api.Application.Services
                 throw new KeyNotFoundException("Scene not found");
             }
 
+            var steps = _dbContext.SceneSteps.Where(x => x.SceneId == id).ToList();
+            var attempts = _dbContext.SceneAttempts.Where(x => x.SceneId == id).ToList();
+
+            if (steps.Count > 0)
+            {
+                _dbContext.SceneSteps.RemoveRange(steps);
+            }
+
+            if (attempts.Count > 0)
+            {
+                _dbContext.SceneAttempts.RemoveRange(attempts);
+            }
+
             _dbContext.Scenes.Remove(scene);
             _dbContext.SaveChanges();
         }
