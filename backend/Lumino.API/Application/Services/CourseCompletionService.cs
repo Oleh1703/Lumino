@@ -69,19 +69,64 @@ namespace Lumino.Api.Application.Services
                 percent = (int)Math.Round((double)completedLessons * 100 / totalLessons);
             }
 
+            // --- scenes ---
+            int scenesTotal = 0;
+            int scenesCompleted = 0;
+            int scenesPercent = 0;
+            bool scenesIncluded = false;
+
+            var allSceneIds = _dbContext.Scenes
+                .Select(x => x.Id)
+                .OrderBy(x => x)
+                .ToList();
+
+            if (allSceneIds.Count > 0)
+            {
+                // беремо тільки ті сцени, які можуть бути відкриті при поточній кількості пройдених уроків
+                var unlockedSceneIds = allSceneIds
+                    .Where(id => SceneUnlockRules.IsUnlocked(id, completedLessons, _learningSettings.SceneUnlockEveryLessons))
+                    .ToList();
+
+                scenesTotal = unlockedSceneIds.Count;
+
+                if (scenesTotal > 0)
+                {
+                    scenesIncluded = true;
+
+                    scenesCompleted = _dbContext.SceneAttempts
+                        .Where(x => x.UserId == userId && x.IsCompleted && unlockedSceneIds.Contains(x.SceneId))
+                        .Select(x => x.SceneId)
+                        .Distinct()
+                        .Count();
+
+                    scenesPercent = (int)Math.Round((double)scenesCompleted * 100 / scenesTotal);
+
+                    if (scenesPercent > 100)
+                    {
+                        scenesPercent = 100;
+                    }
+                }
+            }
+
             var userCourse = _dbContext.UserCourses
                 .FirstOrDefault(x => x.UserId == userId && x.CourseId == courseId);
 
             string status;
 
-            if (completedLessons == 0 && userCourse == null)
+            // NotStarted: немає активності (ані старту, ані пройдених уроків/сцен)
+            if (completedLessons == 0 && userCourse == null && scenesCompleted == 0)
             {
                 status = "NotStarted";
             }
-            else if (completedLessons >= totalLessons)
+            else if (completedLessons >= totalLessons && (!scenesIncluded || scenesCompleted >= scenesTotal))
             {
                 status = "Completed";
                 percent = 100;
+
+                if (scenesIncluded)
+                {
+                    scenesPercent = 100;
+                }
             }
             else
             {
@@ -99,7 +144,11 @@ namespace Lumino.Api.Application.Services
                 CompletionPercent = percent,
                 NextLessonId = nextLessonId,
                 RemainingLessonIds = remaining,
-                ScenesIncluded = false
+
+                ScenesIncluded = scenesIncluded,
+                ScenesTotal = scenesTotal,
+                ScenesCompleted = scenesCompleted,
+                ScenesCompletionPercent = scenesPercent
             };
         }
     }

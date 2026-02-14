@@ -1,4 +1,4 @@
-﻿﻿using Lumino.Api.Application.Services;
+﻿using Lumino.Api.Application.Services;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Utils;
 using Microsoft.Extensions.Options;
@@ -60,6 +60,9 @@ public class CourseCompletionServiceTests
         Assert.Equal(1, result.NextLessonId);
         Assert.Equal(3, result.RemainingLessonIds.Count);
         Assert.False(result.ScenesIncluded);
+        Assert.Equal(0, result.ScenesTotal);
+        Assert.Equal(0, result.ScenesCompleted);
+        Assert.Equal(0, result.ScenesCompletionPercent);
     }
 
     [Fact]
