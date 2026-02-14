@@ -1,4 +1,4 @@
-﻿using Lumino.Api.Application.Interfaces;
+﻿﻿using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Utils;
@@ -60,7 +60,8 @@ public class SceneServiceTests
 
         var settings = Options.Create(new LearningSettings
         {
-            SceneCompletionScore = 5
+            SceneCompletionScore = 5,
+            SceneUnlockEveryLessons = 1
         });
 
         var service = new SceneService(dbContext, dateTimeProvider, achievementService, settings);
@@ -88,6 +89,45 @@ public class SceneServiceTests
     }
 
     [Fact]
+    public void MarkCompleted_WhenSceneLocked_ShouldThrow()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Users.Add(new User
+        {
+            Id = 1,
+            Email = "locked@mail.com",
+            PasswordHash = "hash",
+            CreatedAt = DateTime.UtcNow
+        });
+
+        // scene 2 -> requiredLessons = (2-1)*1 = 1
+        dbContext.Scenes.Add(new Scene
+        {
+            Id = 2,
+            Title = "Scene 2",
+            Description = "Desc",
+            SceneType = "intro"
+        });
+
+        dbContext.SaveChanges();
+
+        var now = new DateTime(2026, 2, 12, 11, 0, 0, DateTimeKind.Utc);
+
+        var service = new SceneService(
+            dbContext,
+            new FixedDateTimeProvider(now),
+            new FakeAchievementService(),
+            Options.Create(new LearningSettings { SceneCompletionScore = 5, SceneUnlockEveryLessons = 1 })
+        );
+
+        Assert.Throws<ForbiddenAccessException>(() =>
+        {
+            service.MarkCompleted(userId: 1, sceneId: 2);
+        });
+    }
+
+    [Fact]
     public void MarkCompleted_SecondTime_ShouldBeIdempotent_AndNotIncreaseScoreAgain()
     {
         var dbContext = TestDbContextFactory.Create();
@@ -108,6 +148,17 @@ public class SceneServiceTests
             SceneType = "intro"
         });
 
+        // щоб Scene 2 була unlocked: треба 1 passed lesson (80%+)
+        dbContext.LessonResults.Add(new LessonResult
+        {
+            Id = 1,
+            UserId = 1,
+            LessonId = 100,
+            Score = 8,
+            TotalQuestions = 10,
+            CompletedAt = DateTime.UtcNow
+        });
+
         dbContext.SaveChanges();
 
         var now = new DateTime(2026, 2, 12, 12, 0, 0, DateTimeKind.Utc);
@@ -117,7 +168,9 @@ public class SceneServiceTests
 
         var settings = Options.Create(new LearningSettings
         {
-            SceneCompletionScore = 5
+            PassingScorePercent = 80,
+            SceneCompletionScore = 5,
+            SceneUnlockEveryLessons = 1
         });
 
         var service = new SceneService(dbContext, dateTimeProvider, achievementService, settings);

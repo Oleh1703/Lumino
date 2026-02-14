@@ -40,6 +40,36 @@ namespace Lumino.Api.Application.Services
                 .ToList();
         }
 
+        public SceneDetailsResponse GetSceneDetails(int userId, int sceneId)
+        {
+            var scene = _dbContext.Scenes.FirstOrDefault(x => x.Id == sceneId);
+
+            if (scene == null)
+            {
+                throw new KeyNotFoundException("Scene not found");
+            }
+
+            var passedLessons = GetPassedDistinctLessonsCount(userId);
+
+            var required = SceneUnlockRules.GetRequiredPassedLessons(sceneId, _learningSettings.SceneUnlockEveryLessons);
+            var isUnlocked = SceneUnlockRules.IsUnlocked(sceneId, passedLessons, _learningSettings.SceneUnlockEveryLessons);
+
+            var isCompleted = _dbContext.SceneAttempts
+                .Any(x => x.UserId == userId && x.SceneId == sceneId && x.IsCompleted);
+
+            return new SceneDetailsResponse
+            {
+                Id = scene.Id,
+                Title = scene.Title,
+                Description = scene.Description,
+                SceneType = scene.SceneType,
+                IsCompleted = isCompleted,
+                IsUnlocked = isUnlocked,
+                PassedLessons = passedLessons,
+                RequiredPassedLessons = required
+            };
+        }
+
         public void CreateScene(SceneResponse request)
         {
             if (request == null)
@@ -94,6 +124,21 @@ namespace Lumino.Api.Application.Services
 
         public void MarkCompleted(int userId, int sceneId)
         {
+            var scene = _dbContext.Scenes.FirstOrDefault(x => x.Id == sceneId);
+
+            if (scene == null)
+            {
+                throw new KeyNotFoundException("Scene not found");
+            }
+
+            // заборона “закрити” сцену, якщо вона ще locked
+            var passedLessons = GetPassedDistinctLessonsCount(userId);
+
+            if (!SceneUnlockRules.IsUnlocked(sceneId, passedLessons, _learningSettings.SceneUnlockEveryLessons))
+            {
+                throw new ForbiddenAccessException("Scene is locked");
+            }
+
             var exists = _dbContext.SceneAttempts
                 .Any(x => x.UserId == userId && x.SceneId == sceneId);
 
@@ -120,6 +165,18 @@ namespace Lumino.Api.Application.Services
                 .Where(x => x.UserId == userId && x.IsCompleted)
                 .Select(x => x.SceneId)
                 .ToList();
+        }
+
+        private int GetPassedDistinctLessonsCount(int userId)
+        {
+            int passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
+
+            return _dbContext.LessonResults
+                .Where(x => x.UserId == userId && x.TotalQuestions > 0)
+                .Where(x => x.Score * 100 >= x.TotalQuestions * passingScorePercent)
+                .Select(x => x.LessonId)
+                .Distinct()
+                .Count();
         }
 
         private void UpdateUserProgressAfterScene(int userId)

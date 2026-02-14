@@ -306,10 +306,24 @@ namespace Lumino.Api.Application.Services
                 .Distinct()
                 .ToList();
 
+            // unlock-rule для сцен: залежить від кількості passed уроків
+            int passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
+
+            int passedLessons = _dbContext.LessonResults
+                .Where(x => x.UserId == userId && x.TotalQuestions > 0)
+                .Where(x => x.Score * 100 >= x.TotalQuestions * passingScorePercent)
+                .Select(x => x.LessonId)
+                .Distinct()
+                .Count();
+
+            var unlockEvery = SceneUnlockRules.NormalizeUnlockEveryLessons(_learningSettings.SceneUnlockEveryLessons);
+
             var scene = _dbContext.Scenes
                 .OrderBy(x => x.Id)
                 .AsEnumerable()
-                .FirstOrDefault(x => !completedSceneIds.Contains(x.Id));
+                .FirstOrDefault(x =>
+                    !completedSceneIds.Contains(x.Id) &&
+                    SceneUnlockRules.IsUnlocked(x.Id, passedLessons, unlockEvery));
 
             if (scene == null)
             {

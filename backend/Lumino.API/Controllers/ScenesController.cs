@@ -23,6 +23,17 @@ namespace Lumino.Api.Controllers
             return Ok(_sceneService.GetAllScenes());
         }
 
+        // деталі сцени (locked/completed)
+        [HttpGet("{id}")]
+        [Authorize]
+        public IActionResult GetById(int id)
+        {
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
+
+            var result = _sceneService.GetSceneDetails(userId, id);
+            return Ok(result);
+        }
+
         [HttpPost("complete")]
         [Authorize]
         public IActionResult Complete(MarkSceneCompletedRequest request)
