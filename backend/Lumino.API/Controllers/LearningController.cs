@@ -12,13 +12,16 @@ namespace Lumino.Api.Controllers
     {
         private readonly ICourseProgressService _courseProgressService;
         private readonly INextActivityService _nextActivityService;
+        private readonly ICourseCompletionService _courseCompletionService;
 
         public LearningController(
             ICourseProgressService courseProgressService,
-            INextActivityService nextActivityService)
+            INextActivityService nextActivityService,
+            ICourseCompletionService courseCompletionService)
         {
             _courseProgressService = courseProgressService;
             _nextActivityService = nextActivityService;
+            _courseCompletionService = courseCompletionService;
         }
 
         [HttpPost("courses/{courseId}/start")]
@@ -48,6 +51,15 @@ namespace Lumino.Api.Controllers
         {
             var userId = ClaimsUtils.GetUserIdOrThrow(User);
             var result = _courseProgressService.GetMyLessonProgressByCourse(userId, courseId);
+            return Ok(result);
+        }
+
+        // completion курсу (по уроках)
+        [HttpGet("courses/{courseId}/completion/me")]
+        public IActionResult GetMyCourseCompletion(int courseId)
+        {
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
+            var result = _courseCompletionService.GetMyCourseCompletion(userId, courseId);
             return Ok(result);
         }
 
