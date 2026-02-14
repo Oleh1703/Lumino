@@ -1,5 +1,6 @@
-﻿using Lumino.Api.Application.DTOs;
+﻿﻿using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Services;
+using Lumino.Api.Utils;
 using Xunit;
 
 namespace Lumino.Tests;
@@ -10,9 +11,9 @@ public class VocabularyServiceTests
     public void AddWord_ShouldCreateVocabularyItem_AndUserVocabulary()
     {
         var dbContext = TestDbContextFactory.Create();
-        var service = new VocabularyService(dbContext);
 
-        var before = DateTime.UtcNow;
+        var now = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc);
+        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now));
 
         service.AddWord(userId: 1, new AddVocabularyRequest
         {
@@ -33,16 +34,19 @@ public class VocabularyServiceTests
         Assert.Equal(1, userWords[0].UserId);
         Assert.Equal(items[0].Id, userWords[0].VocabularyItemId);
 
-        // NextReviewAt = now (має бути дуже близько)
-        Assert.True(userWords[0].NextReviewAt >= before.AddSeconds(-1));
-        Assert.True(userWords[0].NextReviewAt <= DateTime.UtcNow.AddSeconds(1));
+        Assert.Equal(now, userWords[0].AddedAt);
+        Assert.Equal(now, userWords[0].NextReviewAt);
+        Assert.Null(userWords[0].LastReviewedAt);
+        Assert.Equal(0, userWords[0].ReviewCount);
     }
 
     [Fact]
     public void AddWord_WhenAlreadyAdded_ShouldNotDuplicateUserVocabulary()
     {
         var dbContext = TestDbContextFactory.Create();
-        var service = new VocabularyService(dbContext);
+
+        var now = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc);
+        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now));
 
         service.AddWord(userId: 1, new AddVocabularyRequest
         {
@@ -64,7 +68,9 @@ public class VocabularyServiceTests
     public void GetDueVocabulary_AfterAdd_ShouldReturnWord()
     {
         var dbContext = TestDbContextFactory.Create();
-        var service = new VocabularyService(dbContext);
+
+        var now = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc);
+        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now));
 
         service.AddWord(userId: 1, new AddVocabularyRequest
         {
@@ -82,7 +88,9 @@ public class VocabularyServiceTests
     public void ReviewWord_Correct_ShouldIncreaseReviewCount_AndSetNextReviewAt()
     {
         var dbContext = TestDbContextFactory.Create();
-        var service = new VocabularyService(dbContext);
+
+        var now = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc);
+        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now));
 
         service.AddWord(userId: 1, new AddVocabularyRequest
         {
@@ -100,13 +108,9 @@ public class VocabularyServiceTests
         Assert.Equal(1, response.ReviewCount);
         Assert.NotNull(response.LastReviewedAt);
 
-        var last = response.LastReviewedAt!.Value;
+        Assert.Equal(now, response.LastReviewedAt!.Value);
+        Assert.Equal(now.AddDays(1), response.NextReviewAt);
 
-        // reviewCount=1 => +1 day
-        Assert.True(response.NextReviewAt >= last.AddHours(23));
-        Assert.True(response.NextReviewAt <= last.AddHours(25));
-
-        // Після correct review, слово зазвичай вже НЕ due
         var due = service.GetDueVocabulary(userId: 1);
         Assert.Empty(due);
     }
@@ -115,7 +119,9 @@ public class VocabularyServiceTests
     public void ReviewWord_Wrong_ShouldResetReviewCount_AndSetNextReviewAt12h()
     {
         var dbContext = TestDbContextFactory.Create();
-        var service = new VocabularyService(dbContext);
+
+        var now = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc);
+        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now));
 
         service.AddWord(userId: 1, new AddVocabularyRequest
         {
@@ -125,7 +131,6 @@ public class VocabularyServiceTests
 
         var entity = dbContext.UserVocabularies.First();
 
-        // Спочатку зробимо correct, щоб reviewCount став 1
         service.ReviewWord(userId: 1, userVocabularyId: entity.Id, new ReviewVocabularyRequest
         {
             IsCorrect = true
@@ -139,17 +144,17 @@ public class VocabularyServiceTests
         Assert.Equal(0, response.ReviewCount);
         Assert.NotNull(response.LastReviewedAt);
 
-        var last = response.LastReviewedAt!.Value;
-
-        Assert.True(response.NextReviewAt >= last.AddHours(11));
-        Assert.True(response.NextReviewAt <= last.AddHours(13));
+        Assert.Equal(now, response.LastReviewedAt!.Value);
+        Assert.Equal(now.AddHours(12), response.NextReviewAt);
     }
 
     [Fact]
     public void ReviewWord_NotFound_ShouldThrow()
     {
         var dbContext = TestDbContextFactory.Create();
-        var service = new VocabularyService(dbContext);
+
+        var now = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc);
+        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now));
 
         Assert.Throws<KeyNotFoundException>(() =>
         {
@@ -164,7 +169,9 @@ public class VocabularyServiceTests
     public void DeleteWord_NotFound_ShouldThrow()
     {
         var dbContext = TestDbContextFactory.Create();
-        var service = new VocabularyService(dbContext);
+
+        var now = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc);
+        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now));
 
         Assert.Throws<KeyNotFoundException>(() =>
         {

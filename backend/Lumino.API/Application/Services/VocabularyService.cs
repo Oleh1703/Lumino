@@ -2,6 +2,7 @@ using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
+using Lumino.Api.Utils;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -12,10 +13,12 @@ namespace Lumino.Api.Application.Services
     public class VocabularyService : IVocabularyService
     {
         private readonly LuminoDbContext _dbContext;
+        private readonly IDateTimeProvider _dateTimeProvider;
 
-        public VocabularyService(LuminoDbContext dbContext)
+        public VocabularyService(LuminoDbContext dbContext, IDateTimeProvider dateTimeProvider)
         {
             _dbContext = dbContext;
+            _dateTimeProvider = dateTimeProvider;
         }
 
         public List<VocabularyResponse> GetMyVocabulary(int userId)
@@ -43,7 +46,7 @@ namespace Lumino.Api.Application.Services
 
         public List<VocabularyResponse> GetDueVocabulary(int userId)
         {
-            var now = DateTime.UtcNow;
+            var now = _dateTimeProvider.UtcNow;
 
             var query =
                 from uv in _dbContext.UserVocabularies
@@ -68,7 +71,7 @@ namespace Lumino.Api.Application.Services
 
         public VocabularyResponse? GetNextReview(int userId)
         {
-            var now = DateTime.UtcNow;
+            var now = _dateTimeProvider.UtcNow;
 
             var entity =
                 _dbContext.UserVocabularies
@@ -142,7 +145,7 @@ namespace Lumino.Api.Application.Services
                 return;
             }
 
-            var now = DateTime.UtcNow;
+            var now = _dateTimeProvider.UtcNow;
 
             var userWord = new UserVocabulary
             {
@@ -173,7 +176,7 @@ namespace Lumino.Api.Application.Services
                 throw new KeyNotFoundException("Vocabulary word not found");
             }
 
-            var now = DateTime.UtcNow;
+            var now = _dateTimeProvider.UtcNow;
 
             entity.LastReviewedAt = now;
 
