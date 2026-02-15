@@ -301,21 +301,32 @@ namespace Lumino.Api.Application.Services
 
         private int CalculateBestTotalScore(int userId)
         {
-            int lessonsScore = _dbContext.LessonResults
+            var results = _dbContext.LessonResults
                 .Where(x => x.UserId == userId)
-                .GroupBy(x => x.LessonId)
-                .Select(g => g.Max(x => x.Score))
-                .Sum();
+                .ToList();
 
-            int completedDistinctScenes = _dbContext.SceneAttempts
-                .Where(x => x.UserId == userId && x.IsCompleted)
-                .Select(x => x.SceneId)
-                .Distinct()
-                .Count();
+            if (results.Count == 0)
+            {
+                return 0;
+            }
 
-            int scenesScore = completedDistinctScenes * _learningSettings.SceneCompletionScore;
+            var bestByLesson = new Dictionary<int, int>();
 
-            return lessonsScore + scenesScore;
+            foreach (var r in results)
+            {
+                if (!bestByLesson.ContainsKey(r.LessonId))
+                {
+                    bestByLesson[r.LessonId] = r.Score;
+                    continue;
+                }
+
+                if (r.Score > bestByLesson[r.LessonId])
+                {
+                    bestByLesson[r.LessonId] = r.Score;
+                }
+            }
+
+            return bestByLesson.Values.Sum();
         }
 
         private void AddLessonVocabularyIfNeeded(
@@ -333,8 +344,33 @@ namespace Lumino.Api.Application.Services
 
             var now = _dateTimeProvider.UtcNow;
 
-            var theoryPairs = ExtractPairsFromTheory(lesson.Theory);
-            var mistakePairs = ExtractPairsFromMistakes(exercises, answers, mistakeExerciseIds);
+            var lessonVocabItemIds = _dbContext.LessonVocabularies
+                .Where(x => x.LessonId == lesson.Id)
+                .Select(x => x.VocabularyItemId)
+                .Distinct()
+                .ToList();
+
+            var theoryPairs = lessonVocabItemIds.Count > 0
+                ? _dbContext.VocabularyItems
+                    .Where(x => lessonVocabItemIds.Contains(x.Id))
+                    .ToList()
+                    .Select(x => (x.Word, x.Translation))
+                    .ToList()
+                : ExtractPairsFromTheory(lesson.Theory);
+
+            var mistakeExerciseVocabItemIds = _dbContext.ExerciseVocabularies
+                .Where(x => mistakeExerciseIds.Contains(x.ExerciseId))
+                .Select(x => x.VocabularyItemId)
+                .Distinct()
+                .ToList();
+
+            var mistakePairs = mistakeExerciseVocabItemIds.Count > 0
+                ? _dbContext.VocabularyItems
+                    .Where(x => mistakeExerciseVocabItemIds.Contains(x.Id))
+                    .ToList()
+                    .Select(x => (x.Word, x.Translation))
+                    .ToList()
+                : ExtractPairsFromMistakes(exercises, answers, mistakeExerciseIds);
 
             var allPairs = theoryPairs
                 .Concat(mistakePairs)

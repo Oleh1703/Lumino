@@ -22,6 +22,8 @@ namespace Lumino.Api.Data
             SeedScenes(dbContext);
             SeedVocabulary(dbContext);
             SeedDemoContentEnglishOnly(dbContext);
+
+            SeedVocabularyLinks(dbContext);
         }
 
         private static void SeedAdmin(LuminoDbContext dbContext)
@@ -212,7 +214,6 @@ namespace Lumino.Api.Data
                     fromDb.SceneType = item.SceneType;
                 }
 
-                // медіа не перетираємо null-ами (щоб адмінські зміни не зникали)
                 if (!string.IsNullOrWhiteSpace(item.BackgroundUrl) && fromDb.BackgroundUrl != item.BackgroundUrl)
                 {
                     fromDb.BackgroundUrl = item.BackgroundUrl;
@@ -235,57 +236,52 @@ namespace Lumino.Api.Data
             {
                 ["Cafe order"] = new List<SceneStepSeed>
                 {
-                    new SceneStepSeed(1, "Barista", "Hello! What would you like?", "Line"),
-                    new SceneStepSeed(2, "You", "Hi! I'd like a coffee, please.", "Line"),
-                    new SceneStepSeed(3, "Barista", "Sure. Small or large?", "Line"),
-                    new SceneStepSeed(4, "You", "Small, please.", "Line"),
-                    new SceneStepSeed(5, "Barista", "Anything else?", "Line"),
-                    new SceneStepSeed(6, "You", "No, thank you.", "Line"),
-                    new SceneStepSeed(7, "Barista", "Great. That will be $3.", "Line")
+                    new SceneStepSeed(1, "Barista", "Hi! What would you like?", "Line", null, null),
+                    new SceneStepSeed(2, "You", "I'd like a coffee, please.", "Line", null, null),
+                    new SceneStepSeed(3, "Barista", "Sure. Anything else?", "Line", null, null),
+                    new SceneStepSeed(4, "You", "No, that's all. Thank you!", "Line", null, null)
                 },
                 ["Airport check-in"] = new List<SceneStepSeed>
                 {
-                    new SceneStepSeed(1, "Agent", "Good morning. Can I see your passport?", "Line"),
-                    new SceneStepSeed(2, "You", "Yes, here it is.", "Line"),
-                    new SceneStepSeed(3, "Agent", "Do you have any bags to check in?", "Line"),
-                    new SceneStepSeed(4, "You", "Yes, one bag.", "Line"),
-                    new SceneStepSeed(5, "Agent", "Thank you. Your gate is A12.", "Line"),
-                    new SceneStepSeed(6, "You", "Thanks!", "Line")
+                    new SceneStepSeed(1, "Staff", "Hello. Can I see your passport?", "Line", null, null),
+                    new SceneStepSeed(2, "You", "Yes, here you go.", "Line", null, null),
+                    new SceneStepSeed(3, "Staff", "Do you have any luggage?", "Line", null, null),
+                    new SceneStepSeed(4, "You", "Just a small bag.", "Line", null, null)
                 },
                 ["Hotel booking"] = new List<SceneStepSeed>
                 {
-                    new SceneStepSeed(1, "Reception", "Hello! How can I help you?", "Line"),
-                    new SceneStepSeed(2, "You", "Hi! I'd like to book a room.", "Line"),
-                    new SceneStepSeed(3, "Reception", "How many nights?", "Line"),
-                    new SceneStepSeed(4, "You", "Two nights, please.", "Line"),
-                    new SceneStepSeed(5, "Reception", "Great. May I have your name?", "Line"),
-                    new SceneStepSeed(6, "You", "My name is Alex.", "Line")
+                    new SceneStepSeed(1, "Receptionist", "Hello! Do you have a reservation?", "Line", null, null),
+                    new SceneStepSeed(2, "You", "Yes, it's under my name.", "Line", null, null),
+                    new SceneStepSeed(3, "Receptionist", "Great. Here is your key.", "Line", null, null),
+                    new SceneStepSeed(4, "You", "Thank you!", "Line", null, null)
                 },
                 ["Asking directions"] = new List<SceneStepSeed>
                 {
-                    new SceneStepSeed(1, "You", "Excuse me, where is the station?", "Line"),
-                    new SceneStepSeed(2, "Person", "Go straight and turn left.", "Line"),
-                    new SceneStepSeed(3, "You", "Is it far from here?", "Line"),
-                    new SceneStepSeed(4, "Person", "No, it's about 5 minutes.", "Line"),
-                    new SceneStepSeed(5, "You", "Thank you!", "Line")
+                    new SceneStepSeed(1, "You", "Excuse me, where is the station?", "Line", null, null),
+                    new SceneStepSeed(2, "Person", "Go straight and turn left.", "Line", null, null),
+                    new SceneStepSeed(3, "You", "Thanks a lot!", "Line", null, null),
+                    new SceneStepSeed(4, "Person", "You're welcome.", "Line", null, null)
                 },
                 ["Shopping"] = new List<SceneStepSeed>
                 {
-                    new SceneStepSeed(1, "You", "Hello! How much is this?", "Line"),
-                    new SceneStepSeed(2, "Cashier", "It is $10.", "Line"),
-                    new SceneStepSeed(3, "You", "Can I pay by card?", "Line"),
-                    new SceneStepSeed(4, "Cashier", "Yes, of course.", "Line"),
-                    new SceneStepSeed(5, "You", "Thank you.", "Line")
+                    new SceneStepSeed(1, "You", "How much is this?", "Line", null, null),
+                    new SceneStepSeed(2, "Seller", "It's ten dollars.", "Line", null, null),
+                    new SceneStepSeed(3, "You", "That's cheap! I'll take it.", "Line", null, null),
+                    new SceneStepSeed(4, "Seller", "Great choice!", "Line", null, null)
                 },
                 ["Small talk"] = new List<SceneStepSeed>
                 {
-                    new SceneStepSeed(1, "You", "Hi! My name is Alex.", "Line"),
-                    new SceneStepSeed(2, "Person", "Nice to meet you, Alex! I'm Kate.", "Line"),
-                    new SceneStepSeed(3, "You", "How are you today?", "Line"),
-                    new SceneStepSeed(4, "Person", "I'm fine, thanks. And you?", "Line"),
-                    new SceneStepSeed(5, "You", "I'm fine too.", "Line")
+                    new SceneStepSeed(1, "You", "Hi! My name is Alex.", "Line", null, null),
+                    new SceneStepSeed(2, "Person", "Nice to meet you, Alex!", "Line", null, null),
+                    new SceneStepSeed(3, "You", "Nice to meet you too.", "Line", null, null),
+                    new SceneStepSeed(4, "Person", "How are you?", "Line", null, null)
                 }
             };
+
+            var fromStepsList = dbContext.SceneSteps.ToList();
+            var fromStepsMap = fromStepsList
+                .GroupBy(x => $"{x.SceneId}:{x.Order}")
+                .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
 
             foreach (var kv in stepsBySceneTitle)
             {
@@ -294,53 +290,49 @@ namespace Lumino.Api.Data
                     continue;
                 }
 
-                var existing = dbContext.SceneSteps
-                    .Where(x => x.SceneId == scene.Id)
-                    .ToList()
-                    .GroupBy(x => x.Order)
-                    .ToDictionary(x => x.Key, x => x.First());
-
-                foreach (var seed in kv.Value)
+                foreach (var step in kv.Value)
                 {
-                    if (!existing.TryGetValue(seed.Order, out var step))
+                    var key = $"{scene.Id}:{step.Order}";
+
+                    if (!fromStepsMap.TryGetValue(key, out var fromDb))
                     {
                         dbContext.SceneSteps.Add(new SceneStep
                         {
                             SceneId = scene.Id,
-                            Order = seed.Order,
-                            Speaker = seed.Speaker,
-                            Text = seed.Text,
-                            StepType = seed.StepType,
-                            MediaUrl = seed.MediaUrl,
-                            ChoicesJson = seed.ChoicesJson
+                            Order = step.Order,
+                            Speaker = step.Speaker,
+                            Text = step.Text,
+                            StepType = step.StepType,
+                            MediaUrl = step.MediaUrl,
+                            ChoicesJson = step.ChoicesJson
                         });
 
                         continue;
                     }
 
-                    if (step.Speaker != seed.Speaker)
+                    if (fromDb.Speaker != step.Speaker)
                     {
-                        step.Speaker = seed.Speaker;
+                        fromDb.Speaker = step.Speaker;
                     }
 
-                    if (step.Text != seed.Text)
+                    if (fromDb.Text != step.Text)
                     {
-                        step.Text = seed.Text;
+                        fromDb.Text = step.Text;
                     }
 
-                    if (step.StepType != seed.StepType)
+                    if (fromDb.StepType != step.StepType)
                     {
-                        step.StepType = seed.StepType;
+                        fromDb.StepType = step.StepType;
                     }
 
-                    if (step.MediaUrl != seed.MediaUrl)
+                    if (!string.IsNullOrWhiteSpace(step.MediaUrl) && fromDb.MediaUrl != step.MediaUrl)
                     {
-                        step.MediaUrl = seed.MediaUrl;
+                        fromDb.MediaUrl = step.MediaUrl;
                     }
 
-                    if (step.ChoicesJson != seed.ChoicesJson)
+                    if (!string.IsNullOrWhiteSpace(step.ChoicesJson) && fromDb.ChoicesJson != step.ChoicesJson)
                     {
-                        step.ChoicesJson = seed.ChoicesJson;
+                        fromDb.ChoicesJson = step.ChoicesJson;
                     }
                 }
             }
@@ -617,6 +609,267 @@ namespace Lumino.Api.Data
                     ("expensive", "дорогий")
                 ), "{}", 5)
             });
+        }
+
+        private static void SeedVocabularyLinks(LuminoDbContext dbContext)
+        {
+            SeedLessonVocabularyLinks(dbContext);
+            SeedExerciseVocabularyLinks(dbContext);
+        }
+
+        private static void SeedLessonVocabularyLinks(LuminoDbContext dbContext)
+        {
+            var lessons = dbContext.Lessons.ToList();
+
+            var vocabList = dbContext.VocabularyItems.ToList();
+            var vocabMap = vocabList
+                .GroupBy(x => NormalizeWord(x.Word))
+                .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+
+            foreach (var lesson in lessons)
+            {
+                if (string.IsNullOrWhiteSpace(lesson.Theory))
+                {
+                    continue;
+                }
+
+                var lines = lesson.Theory
+                    .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(x => x.Trim())
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .ToList();
+
+                foreach (var line in lines)
+                {
+                    if (!line.Contains('='))
+                    {
+                        continue;
+                    }
+
+                    var parts = line.Split('=', 2);
+                    if (parts.Length != 2)
+                    {
+                        continue;
+                    }
+
+                    var word = NormalizeWord(parts[0]);
+                    var translation = NormalizeWord(parts[1]);
+
+                    if (string.IsNullOrWhiteSpace(word) || string.IsNullOrWhiteSpace(translation))
+                    {
+                        continue;
+                    }
+
+                    var item = EnsureVocabularyItem(dbContext, vocabMap, word, translation);
+
+                    var exists = dbContext.LessonVocabularies
+                        .Any(x => x.LessonId == lesson.Id && x.VocabularyItemId == item.Id);
+
+                    if (exists)
+                    {
+                        continue;
+                    }
+
+                    dbContext.LessonVocabularies.Add(new LessonVocabulary
+                    {
+                        LessonId = lesson.Id,
+                        VocabularyItemId = item.Id
+                    });
+                }
+            }
+
+            dbContext.SaveChanges();
+        }
+
+        private static void SeedExerciseVocabularyLinks(LuminoDbContext dbContext)
+        {
+            var exercises = dbContext.Exercises.ToList();
+
+            var vocabList = dbContext.VocabularyItems.ToList();
+            var vocabMap = vocabList
+                .GroupBy(x => NormalizeWord(x.Word))
+                .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+
+            foreach (var exercise in exercises)
+            {
+                if (exercise.Type == ExerciseType.Match)
+                {
+                    SeedMatchExerciseVocabularyLinks(dbContext, vocabMap, exercise);
+                    continue;
+                }
+
+                if (TryExtractPairFromQuestion(exercise.Question, exercise.CorrectAnswer, out var pair))
+                {
+                    UpsertExerciseVocabularyLink(dbContext, vocabMap, exercise.Id, pair.Word, pair.Translation);
+                }
+            }
+
+            dbContext.SaveChanges();
+        }
+
+        private static void SeedMatchExerciseVocabularyLinks(
+            LuminoDbContext dbContext,
+            Dictionary<string, VocabularyItem> vocabMap,
+            Exercise exercise)
+        {
+            if (string.IsNullOrWhiteSpace(exercise.Data))
+            {
+                return;
+            }
+
+            List<MatchPair>? pairs;
+
+            try
+            {
+                pairs = JsonSerializer.Deserialize<List<MatchPair>>(exercise.Data);
+            }
+            catch
+            {
+                return;
+            }
+
+            if (pairs == null || pairs.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var p in pairs)
+            {
+                var word = NormalizeWord(p.left);
+                var translation = NormalizeWord(p.right);
+
+                if (string.IsNullOrWhiteSpace(word) || string.IsNullOrWhiteSpace(translation))
+                {
+                    continue;
+                }
+
+                UpsertExerciseVocabularyLink(dbContext, vocabMap, exercise.Id, word, translation);
+            }
+        }
+
+        private static void UpsertExerciseVocabularyLink(
+            LuminoDbContext dbContext,
+            Dictionary<string, VocabularyItem> vocabMap,
+            int exerciseId,
+            string word,
+            string translation)
+        {
+            var item = EnsureVocabularyItem(dbContext, vocabMap, word, translation);
+
+            var exists = dbContext.ExerciseVocabularies
+                .Any(x => x.ExerciseId == exerciseId && x.VocabularyItemId == item.Id);
+
+            if (exists)
+            {
+                return;
+            }
+
+            dbContext.ExerciseVocabularies.Add(new ExerciseVocabulary
+            {
+                ExerciseId = exerciseId,
+                VocabularyItemId = item.Id
+            });
+        }
+
+        private static VocabularyItem EnsureVocabularyItem(
+            LuminoDbContext dbContext,
+            Dictionary<string, VocabularyItem> vocabMap,
+            string word,
+            string translation)
+        {
+            if (!vocabMap.TryGetValue(word, out var item))
+            {
+                item = dbContext.VocabularyItems.FirstOrDefault(x => NormalizeWord(x.Word) == word);
+
+                if (item == null)
+                {
+                    item = new VocabularyItem
+                    {
+                        Word = word,
+                        Translation = translation,
+                        Example = null
+                    };
+
+                    dbContext.VocabularyItems.Add(item);
+                    dbContext.SaveChanges();
+
+                    vocabMap[word] = item;
+
+                    return item;
+                }
+
+                vocabMap[word] = item;
+            }
+
+            if (!string.Equals(NormalizeWord(item.Translation), translation, StringComparison.OrdinalIgnoreCase))
+            {
+                item.Translation = translation;
+                dbContext.SaveChanges();
+            }
+
+            return item;
+        }
+
+        private static bool TryExtractPairFromQuestion(string question, string correctAnswer, out (string Word, string Translation) pair)
+        {
+            pair = default;
+
+            question = question ?? string.Empty;
+            correctAnswer = correctAnswer ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(question) || string.IsNullOrWhiteSpace(correctAnswer))
+            {
+                return false;
+            }
+
+            var q = question.Trim();
+
+            if (q.Contains("= ?"))
+            {
+                var beforeEq = q.Split('=')[0].Trim();
+
+                var word = NormalizeWord(beforeEq);
+                var translation = NormalizeWord(correctAnswer);
+
+                if (string.IsNullOrWhiteSpace(word) || string.IsNullOrWhiteSpace(translation))
+                {
+                    return false;
+                }
+
+                pair = (word, translation);
+                return true;
+            }
+
+            if (q.StartsWith("Write", StringComparison.OrdinalIgnoreCase) && q.Contains(':'))
+            {
+                var idx = q.IndexOf(':');
+                var part = q.Substring(idx + 1).Trim();
+
+                if (string.IsNullOrWhiteSpace(part))
+                {
+                    return false;
+                }
+
+                var isEnglish = q.Contains("Write English", StringComparison.OrdinalIgnoreCase);
+
+                var word = isEnglish ? NormalizeWord(correctAnswer) : NormalizeWord(part);
+                var translation = isEnglish ? NormalizeWord(part) : NormalizeWord(correctAnswer);
+
+                if (string.IsNullOrWhiteSpace(word) || string.IsNullOrWhiteSpace(translation))
+                {
+                    return false;
+                }
+
+                pair = (word, translation);
+                return true;
+            }
+
+            return false;
+        }
+
+        private static string NormalizeWord(string value)
+        {
+            return (value ?? string.Empty).Trim().ToLowerInvariant();
         }
 
         private static Course EnsureCourse(LuminoDbContext dbContext, string title, string description, bool isPublished)

@@ -19,6 +19,8 @@ namespace Lumino.Api.Data
         public DbSet<UserProgress> UserProgresses => Set<UserProgress>();
         public DbSet<VocabularyItem> VocabularyItems => Set<VocabularyItem>();
         public DbSet<UserVocabulary> UserVocabularies => Set<UserVocabulary>();
+        public DbSet<LessonVocabulary> LessonVocabularies => Set<LessonVocabulary>();
+        public DbSet<ExerciseVocabulary> ExerciseVocabularies => Set<ExerciseVocabulary>();
         public DbSet<Achievement> Achievements => Set<Achievement>();
         public DbSet<UserAchievement> UserAchievements => Set<UserAchievement>();
         public DbSet<Scene> Scenes => Set<Scene>();
@@ -123,6 +125,41 @@ namespace Lumino.Api.Data
                     .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasIndex(x => new { x.UserId, x.VocabularyItemId }).IsUnique();
+            });
+
+
+            modelBuilder.Entity<LessonVocabulary>(entity =>
+            {
+                entity.HasOne<Lesson>()
+                    .WithMany()
+                    .HasForeignKey(x => x.LessonId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne<VocabularyItem>()
+                    .WithMany()
+                    .HasForeignKey(x => x.VocabularyItemId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(x => new { x.LessonId, x.VocabularyItemId }).IsUnique();
+                entity.HasIndex(x => x.LessonId);
+                entity.HasIndex(x => x.VocabularyItemId);
+            });
+
+            modelBuilder.Entity<ExerciseVocabulary>(entity =>
+            {
+                entity.HasOne<Exercise>()
+                    .WithMany()
+                    .HasForeignKey(x => x.ExerciseId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne<VocabularyItem>()
+                    .WithMany()
+                    .HasForeignKey(x => x.VocabularyItemId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(x => new { x.ExerciseId, x.VocabularyItemId }).IsUnique();
+                entity.HasIndex(x => x.ExerciseId);
+                entity.HasIndex(x => x.VocabularyItemId);
             });
 
             modelBuilder.Entity<UserAchievement>(entity =>
