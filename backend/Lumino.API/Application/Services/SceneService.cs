@@ -1,9 +1,11 @@
 using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Interfaces;
+using Lumino.Api.Application.Validators;
 using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Utils;
 using Microsoft.Extensions.Options;
+using System.Text.Json;
 
 namespace Lumino.Api.Application.Services
 {
@@ -12,6 +14,7 @@ namespace Lumino.Api.Application.Services
         private readonly LuminoDbContext _dbContext;
         private readonly IDateTimeProvider _dateTimeProvider;
         private readonly IAchievementService _achievementService;
+        private readonly ISubmitSceneRequestValidator _submitSceneRequestValidator;
         private readonly LearningSettings _learningSettings;
 
         public SceneService(
@@ -19,11 +22,27 @@ namespace Lumino.Api.Application.Services
             IDateTimeProvider dateTimeProvider,
             IAchievementService achievementService,
             IOptions<LearningSettings> learningSettings)
+            : this(
+                dbContext,
+                dateTimeProvider,
+                achievementService,
+                learningSettings,
+                new SubmitSceneRequestValidator())
+        {
+        }
+
+        public SceneService(
+            LuminoDbContext dbContext,
+            IDateTimeProvider dateTimeProvider,
+            IAchievementService achievementService,
+            IOptions<LearningSettings> learningSettings,
+            ISubmitSceneRequestValidator submitSceneRequestValidator)
         {
             _dbContext = dbContext;
             _dateTimeProvider = dateTimeProvider;
             _achievementService = achievementService;
             _learningSettings = learningSettings.Value;
+            _submitSceneRequestValidator = submitSceneRequestValidator;
         }
 
         public List<SceneResponse> GetAllScenes()
@@ -127,6 +146,125 @@ namespace Lumino.Api.Application.Services
             };
         }
 
+        public SubmitSceneResponse SubmitScene(int userId, int sceneId, SubmitSceneRequest request)
+        {
+            _submitSceneRequestValidator.Validate(request);
+
+            var scene = _dbContext.Scenes.FirstOrDefault(x => x.Id == sceneId);
+
+            if (scene == null)
+            {
+                throw new KeyNotFoundException("Scene not found");
+            }
+
+            var passedLessons = GetPassedDistinctLessonsCount(userId);
+
+            if (!SceneUnlockRules.IsUnlocked(sceneId, passedLessons, _learningSettings.SceneUnlockEveryLessons))
+            {
+                throw new ForbiddenAccessException("Scene is locked");
+            }
+
+            var steps = _dbContext.SceneSteps
+                .Where(x => x.SceneId == sceneId)
+                .OrderBy(x => x.Order)
+                .ToList();
+
+            var questionSteps = steps
+                .Where(x => !string.IsNullOrWhiteSpace(x.ChoicesJson))
+                .ToList();
+
+            int totalQuestions = questionSteps.Count;
+
+            // якщо в сцені немає choices (тільки діалоги/контент) — submit завершує сцену як “пройдено”
+            if (totalQuestions == 0)
+            {
+                EnsureCompletedAttempt(userId, sceneId, score: 0, totalQuestions: 0, detailsJson: null);
+                return new SubmitSceneResponse
+                {
+                    SceneId = sceneId,
+                    TotalQuestions = 0,
+                    CorrectAnswers = 0,
+                    IsCompleted = true
+                };
+            }
+
+            var answersMap = new Dictionary<int, string>();
+
+            foreach (var a in request.Answers)
+            {
+                if (!answersMap.ContainsKey(a.StepId))
+                {
+                    answersMap.Add(a.StepId, a.Answer);
+                    continue;
+                }
+
+                throw new ArgumentException("Duplicate StepId in answers");
+            }
+
+            var details = new SceneAttemptDetailsJson();
+            int correct = 0;
+
+            foreach (var step in questionSteps)
+            {
+                var correctAnswer = TryGetCorrectAnswerFromChoices(step.ChoicesJson!);
+
+                if (string.IsNullOrWhiteSpace(correctAnswer))
+                {
+                    // якщо адмін поклав choicesJson без “правильної відповіді” — вважаємо крок некоректним
+                    throw new ArgumentException($"Scene step {step.Id} has invalid ChoicesJson");
+                }
+
+                answersMap.TryGetValue(step.Id, out string? userAnswer);
+                userAnswer ??= string.Empty;
+
+                bool isCorrect = IsAnswerCorrect(userAnswer, correctAnswer);
+
+                if (isCorrect)
+                {
+                    correct++;
+                }
+                else
+                {
+                    details.MistakeStepIds.Add(step.Id);
+                }
+
+                details.Answers.Add(new SceneStepAnswerResultDto
+                {
+                    StepId = step.Id,
+                    UserAnswer = userAnswer,
+                    CorrectAnswer = correctAnswer,
+                    IsCorrect = isCorrect
+                });
+            }
+
+            bool isCompleted = correct == totalQuestions;
+
+            var detailsJson = JsonSerializer.Serialize(details, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                WriteIndented = false
+            });
+
+            EnsureCompletedAttempt(
+                userId,
+                sceneId,
+                score: correct,
+                totalQuestions: totalQuestions,
+                detailsJson: detailsJson,
+                markCompleted: isCompleted
+            );
+
+            return new SubmitSceneResponse
+            {
+                SceneId = sceneId,
+                TotalQuestions = totalQuestions,
+                CorrectAnswers = correct,
+                IsCompleted = isCompleted,
+                MistakeStepIds = details.MistakeStepIds,
+                Answers = details.Answers
+            };
+        }
+
         public void MarkCompleted(int userId, int sceneId)
         {
             var scene = _dbContext.Scenes.FirstOrDefault(x => x.Id == sceneId);
@@ -154,7 +292,10 @@ namespace Lumino.Api.Application.Services
                 UserId = userId,
                 SceneId = sceneId,
                 IsCompleted = true,
-                CompletedAt = _dateTimeProvider.UtcNow
+                CompletedAt = _dateTimeProvider.UtcNow,
+                Score = 0,
+                TotalQuestions = 0,
+                DetailsJson = null
             });
 
             _dbContext.SaveChanges();
@@ -184,6 +325,181 @@ namespace Lumino.Api.Application.Services
                 .Count();
         }
 
+        private void EnsureCompletedAttempt(int userId, int sceneId, int score, int totalQuestions, string? detailsJson, bool markCompleted = true)
+        {
+            var now = _dateTimeProvider.UtcNow;
+
+            var attempt = _dbContext.SceneAttempts
+                .FirstOrDefault(x => x.UserId == userId && x.SceneId == sceneId);
+
+            // якщо вже пройдено — idempotent (не перераховуємо прогрес/ачівки)
+            if (attempt != null && attempt.IsCompleted)
+            {
+                return;
+            }
+
+            bool wasCompleted = attempt != null && attempt.IsCompleted;
+
+            if (attempt == null)
+            {
+                attempt = new SceneAttempt
+                {
+                    UserId = userId,
+                    SceneId = sceneId,
+                    IsCompleted = false,
+                    CompletedAt = now,
+                    Score = 0,
+                    TotalQuestions = 0,
+                    DetailsJson = null
+                };
+
+                _dbContext.SceneAttempts.Add(attempt);
+            }
+
+            attempt.Score = score;
+            attempt.TotalQuestions = totalQuestions;
+            attempt.DetailsJson = detailsJson;
+
+            if (markCompleted)
+            {
+                attempt.IsCompleted = true;
+                attempt.CompletedAt = now;
+            }
+
+            _dbContext.SaveChanges();
+
+            if (markCompleted && !wasCompleted)
+            {
+                UpdateUserProgressAfterScene(userId);
+                _achievementService.CheckAndGrantSceneAchievements(userId);
+            }
+        }
+
+        private static bool IsAnswerCorrect(string userAnswer, string correctAnswer)
+        {
+            return NormalizeAnswer(userAnswer) == NormalizeAnswer(correctAnswer);
+        }
+
+        private static string NormalizeAnswer(string value)
+        {
+            return (value ?? "")
+                .Trim()
+                .ToLowerInvariant();
+        }
+
+        private static string? TryGetCorrectAnswerFromChoices(string choicesJson)
+        {
+            if (string.IsNullOrWhiteSpace(choicesJson))
+            {
+                return null;
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(choicesJson);
+
+                if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                {
+                    string? firstString = null;
+
+                    foreach (var item in doc.RootElement.EnumerateArray())
+                    {
+                        if (item.ValueKind == JsonValueKind.String)
+                        {
+                            if (firstString == null)
+                            {
+                                firstString = item.GetString();
+                            }
+
+                            continue;
+                        }
+
+                        if (item.ValueKind == JsonValueKind.Object)
+                        {
+                            bool isCorrect = TryGetBool(item, "isCorrect")
+                                || TryGetBool(item, "IsCorrect")
+                                || TryGetBool(item, "correct")
+                                || TryGetBool(item, "Correct");
+
+                            if (isCorrect)
+                            {
+                                var text = TryGetString(item, "text")
+                                    ?? TryGetString(item, "Text")
+                                    ?? TryGetString(item, "value")
+                                    ?? TryGetString(item, "Value")
+                                    ?? TryGetString(item, "answer")
+                                    ?? TryGetString(item, "Answer");
+
+                                if (!string.IsNullOrWhiteSpace(text))
+                                {
+                                    return text;
+                                }
+                            }
+                        }
+                    }
+
+                    // fallback: якщо choicesJson = ["A","B","C"] — беремо перший як “правильний”
+                    return firstString;
+                }
+
+                if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                {
+                    var correctAnswer = TryGetString(doc.RootElement, "correctAnswer")
+                        ?? TryGetString(doc.RootElement, "CorrectAnswer");
+
+                    if (!string.IsNullOrWhiteSpace(correctAnswer))
+                    {
+                        return correctAnswer;
+                    }
+
+                    if (doc.RootElement.TryGetProperty("choices", out var choices) && choices.ValueKind == JsonValueKind.Array)
+                    {
+                        var json = choices.GetRawText();
+                        return TryGetCorrectAnswerFromChoices(json);
+                    }
+                }
+
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static bool TryGetBool(JsonElement obj, string propName)
+        {
+            if (!obj.TryGetProperty(propName, out var prop))
+            {
+                return false;
+            }
+
+            if (prop.ValueKind == JsonValueKind.True) return true;
+            if (prop.ValueKind == JsonValueKind.False) return false;
+
+            if (prop.ValueKind == JsonValueKind.String && bool.TryParse(prop.GetString(), out bool b))
+            {
+                return b;
+            }
+
+            return false;
+        }
+
+        private static string? TryGetString(JsonElement obj, string propName)
+        {
+            if (!obj.TryGetProperty(propName, out var prop))
+            {
+                return null;
+            }
+
+            if (prop.ValueKind == JsonValueKind.String)
+            {
+                return prop.GetString();
+            }
+
+            return null;
+        }
+
         private void UpdateUserProgressAfterScene(int userId)
         {
             var now = _dateTimeProvider.UtcNow;
@@ -191,7 +507,8 @@ namespace Lumino.Api.Application.Services
             var progress = _dbContext.UserProgresses
                 .FirstOrDefault(x => x.UserId == userId);
 
-            int lessonsScore = _dbContext.LessonResults
+            int lessonsScore = _dbContext
+                .LessonResults
                 .Where(x => x.UserId == userId)
                 .GroupBy(x => x.LessonId)
                 .Select(g => g.Max(x => x.Score))

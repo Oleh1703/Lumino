@@ -11,5 +11,11 @@ namespace Lumino.Api.Domain.Entities
         public bool IsCompleted { get; set; }
 
         public DateTime CompletedAt { get; set; }
+
+        public int Score { get; set; }
+
+        public int TotalQuestions { get; set; }
+
+        public string? DetailsJson { get; set; }
     }
 }

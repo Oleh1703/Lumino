@@ -12,6 +12,8 @@ namespace Lumino.Api.Application.Interfaces
 
         void MarkCompleted(int userId, int sceneId);
 
+        SubmitSceneResponse SubmitScene(int userId, int sceneId, SubmitSceneRequest request);
+
         List<int> GetCompletedScenes(int userId);
     }
 }

@@ -45,6 +45,17 @@ namespace Lumino.Api.Controllers
             return Ok(result);
         }
 
+        // submit сцени (перевірка choices, score, mistakes)
+        [HttpPost("{id}/submit")]
+        [Authorize]
+        public IActionResult Submit(int id, [FromBody] SubmitSceneRequest request)
+        {
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
+
+            var result = _sceneService.SubmitScene(userId, id, request);
+            return Ok(result);
+        }
+
         [HttpPost("complete")]
         [Authorize]
         public IActionResult Complete(MarkSceneCompletedRequest request)
