@@ -223,6 +223,69 @@ public class AdminSceneServiceTests
     }
 
     [Fact]
+    public void GetSteps_WhenSceneNotFound_Throws()
+    {
+        var dbContext = TestDbContextFactory.Create();
+        var service = new AdminSceneService(dbContext);
+
+        Assert.Throws<KeyNotFoundException>(() => service.GetSteps(999));
+    }
+
+    [Fact]
+    public void GetSteps_ReturnsOrderedByOrder()
+    {
+        var dbContext = TestDbContextFactory.Create();
+        SeedScene(dbContext, sceneId: 1);
+
+        dbContext.SceneSteps.AddRange(
+            new SceneStep { Id = 1, SceneId = 1, Order = 3, Speaker = "A", Text = "T3", StepType = "Text" },
+            new SceneStep { Id = 2, SceneId = 1, Order = 1, Speaker = "B", Text = "T1", StepType = "Text" },
+            new SceneStep { Id = 3, SceneId = 1, Order = 2, Speaker = "C", Text = "T2", StepType = "Text" }
+        );
+
+        dbContext.SaveChanges();
+
+        var service = new AdminSceneService(dbContext);
+
+        var result = service.GetSteps(1);
+
+        Assert.Equal(3, result.Count);
+        Assert.Equal(1, result[0].Order);
+        Assert.Equal(2, result[1].Order);
+        Assert.Equal(3, result[2].Order);
+    }
+
+    [Fact]
+    public void AddStep_AddsStep()
+    {
+        var dbContext = TestDbContextFactory.Create();
+        SeedScene(dbContext, sceneId: 1);
+
+        var service = new AdminSceneService(dbContext);
+
+        var result = service.AddStep(1, new CreateSceneStepRequest
+        {
+            Order = 1,
+            Speaker = "NPC",
+            Text = "Hello",
+            StepType = "Text",
+            MediaUrl = "m1",
+            ChoicesJson = "[\"A\"]"
+        });
+
+        Assert.True(result.Id > 0);
+        Assert.Equal(1, result.SceneId);
+        Assert.Equal(1, result.Order);
+        Assert.Equal("NPC", result.Speaker);
+
+        var saved = dbContext.SceneSteps.FirstOrDefault(x => x.Id == result.Id);
+        Assert.NotNull(saved);
+        Assert.Equal(1, saved!.SceneId);
+        Assert.Equal(1, saved.Order);
+        Assert.Equal("NPC", saved.Speaker);
+    }
+
+    [Fact]
     public void AddStep_WhenOrderAlreadyExists_Throws()
     {
         var dbContext = TestDbContextFactory.Create();
@@ -255,6 +318,46 @@ public class AdminSceneServiceTests
     }
 
     [Fact]
+    public void UpdateStep_UpdatesStep()
+    {
+        var dbContext = TestDbContextFactory.Create();
+        SeedScene(dbContext, sceneId: 1);
+
+        dbContext.SceneSteps.Add(new SceneStep
+        {
+            Id = 1,
+            SceneId = 1,
+            Order = 1,
+            Speaker = "Old",
+            Text = "Old text",
+            StepType = "Text"
+        });
+
+        dbContext.SaveChanges();
+
+        var service = new AdminSceneService(dbContext);
+
+        service.UpdateStep(1, 1, new UpdateSceneStepRequest
+        {
+            Order = 2,
+            Speaker = "New",
+            Text = "New text",
+            StepType = "Text",
+            MediaUrl = "m2",
+            ChoicesJson = "[\"B\"]"
+        });
+
+        var updated = dbContext.SceneSteps.FirstOrDefault(x => x.Id == 1);
+        Assert.NotNull(updated);
+
+        Assert.Equal(2, updated!.Order);
+        Assert.Equal("New", updated.Speaker);
+        Assert.Equal("New text", updated.Text);
+        Assert.Equal("m2", updated.MediaUrl);
+        Assert.Equal("[\"B\"]", updated.ChoicesJson);
+    }
+
+    [Fact]
     public void UpdateStep_WhenNotFound_Throws()
     {
         var dbContext = TestDbContextFactory.Create();
@@ -272,6 +375,31 @@ public class AdminSceneServiceTests
                 StepType = "Text"
             });
         });
+    }
+
+    [Fact]
+    public void DeleteStep_RemovesStep()
+    {
+        var dbContext = TestDbContextFactory.Create();
+        SeedScene(dbContext, sceneId: 1);
+
+        dbContext.SceneSteps.Add(new SceneStep
+        {
+            Id = 1,
+            SceneId = 1,
+            Order = 1,
+            Speaker = "A",
+            Text = "T",
+            StepType = "Text"
+        });
+
+        dbContext.SaveChanges();
+
+        var service = new AdminSceneService(dbContext);
+
+        service.DeleteStep(1, 1);
+
+        Assert.False(dbContext.SceneSteps.Any(x => x.Id == 1 && x.SceneId == 1));
     }
 
     [Fact]

@@ -127,62 +127,6 @@ namespace Lumino.Api.Application.Services
             };
         }
 
-        public void CreateScene(SceneResponse request)
-        {
-            if (request == null)
-            {
-                throw new ArgumentException("Request is required");
-            }
-
-            var scene = new Scene
-            {
-                Title = request.Title,
-                Description = request.Description,
-                SceneType = request.SceneType,
-                BackgroundUrl = request.BackgroundUrl,
-                AudioUrl = request.AudioUrl
-            };
-
-            _dbContext.Scenes.Add(scene);
-            _dbContext.SaveChanges();
-        }
-
-        public void UpdateScene(int id, SceneResponse request)
-        {
-            if (request == null)
-            {
-                throw new ArgumentException("Request is required");
-            }
-
-            var scene = _dbContext.Scenes.FirstOrDefault(x => x.Id == id);
-
-            if (scene == null)
-            {
-                throw new KeyNotFoundException("Scene not found");
-            }
-
-            scene.Title = request.Title;
-            scene.Description = request.Description;
-            scene.SceneType = request.SceneType;
-            scene.BackgroundUrl = request.BackgroundUrl;
-            scene.AudioUrl = request.AudioUrl;
-
-            _dbContext.SaveChanges();
-        }
-
-        public void DeleteScene(int id)
-        {
-            var scene = _dbContext.Scenes.FirstOrDefault(x => x.Id == id);
-
-            if (scene == null)
-            {
-                throw new KeyNotFoundException("Scene not found");
-            }
-
-            _dbContext.Scenes.Remove(scene);
-            _dbContext.SaveChanges();
-        }
-
         public void MarkCompleted(int userId, int sceneId)
         {
             var scene = _dbContext.Scenes.FirstOrDefault(x => x.Id == sceneId);

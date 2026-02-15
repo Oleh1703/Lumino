@@ -10,12 +10,6 @@ namespace Lumino.Api.Application.Interfaces
 
         SceneContentResponse GetSceneContent(int userId, int sceneId);
 
-        void CreateScene(SceneResponse request);
-
-        void UpdateScene(int id, SceneResponse request);
-
-        void DeleteScene(int id);
-
         void MarkCompleted(int userId, int sceneId);
 
         List<int> GetCompletedScenes(int userId);
