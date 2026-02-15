@@ -148,7 +148,8 @@ namespace Lumino.Api.Data
                     Description = "Order a coffee in a cafe",
                     SceneType = "Dialog",
                     BackgroundUrl = null,
-                    AudioUrl = null
+                    AudioUrl = null,
+                    Order = 1
                 },
                 new Scene
                 {
@@ -156,7 +157,8 @@ namespace Lumino.Api.Data
                     Description = "Check in for your flight",
                     SceneType = "Dialog",
                     BackgroundUrl = null,
-                    AudioUrl = null
+                    AudioUrl = null,
+                    Order = 2
                 },
                 new Scene
                 {
@@ -164,7 +166,8 @@ namespace Lumino.Api.Data
                     Description = "Book a room at a hotel reception",
                     SceneType = "Dialog",
                     BackgroundUrl = null,
-                    AudioUrl = null
+                    AudioUrl = null,
+                    Order = 3
                 },
                 new Scene
                 {
@@ -172,7 +175,8 @@ namespace Lumino.Api.Data
                     Description = "Ask how to get to a place in the city",
                     SceneType = "Dialog",
                     BackgroundUrl = null,
-                    AudioUrl = null
+                    AudioUrl = null,
+                    Order = 4
                 },
                 new Scene
                 {
@@ -180,7 +184,8 @@ namespace Lumino.Api.Data
                     Description = "Buy something in a store and ask the price",
                     SceneType = "Dialog",
                     BackgroundUrl = null,
-                    AudioUrl = null
+                    AudioUrl = null,
+                    Order = 5
                 },
                 new Scene
                 {
@@ -188,7 +193,8 @@ namespace Lumino.Api.Data
                     Description = "Introduce yourself and keep a short conversation",
                     SceneType = "Dialog",
                     BackgroundUrl = null,
-                    AudioUrl = null
+                    AudioUrl = null,
+                    Order = 6
                 }
             };
 
@@ -224,6 +230,11 @@ namespace Lumino.Api.Data
                 {
                     fromDb.AudioUrl = item.AudioUrl;
                 }
+                if (item.Order > 0 && fromDb.Order != item.Order)
+                {
+                    fromDb.Order = item.Order;
+                }
+
             }
 
             dbContext.SaveChanges();

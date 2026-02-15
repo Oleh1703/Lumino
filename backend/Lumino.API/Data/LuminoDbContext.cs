@@ -189,6 +189,9 @@ namespace Lumino.Api.Data
                     .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasIndex(x => x.CourseId);
+
+                // NEW: stable scene ordering (Order > 0), fallback to Id when Order == 0 in services.
+                entity.HasIndex(x => new { x.CourseId, x.Order });
             });
 
             modelBuilder.Entity<SceneStep>(entity =>

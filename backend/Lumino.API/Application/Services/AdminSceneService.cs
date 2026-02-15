@@ -17,10 +17,14 @@ namespace Lumino.Api.Application.Services
         public List<AdminSceneResponse> GetAll()
         {
             return _dbContext.Scenes
-                .OrderBy(x => x.Id)
+                .AsEnumerable()
+                .OrderBy(x => x.Order > 0 ? x.Order : x.Id)
+                .ThenBy(x => x.Id)
                 .Select(x => new AdminSceneResponse
                 {
                     Id = x.Id,
+                    CourseId = x.CourseId,
+                    Order = x.Order,
                     Title = x.Title,
                     Description = x.Description,
                     SceneType = x.SceneType,
@@ -44,6 +48,8 @@ namespace Lumino.Api.Application.Services
             return new AdminSceneDetailsResponse
             {
                 Id = scene.Id,
+                CourseId = scene.CourseId,
+                Order = scene.Order,
                 Title = scene.Title,
                 Description = scene.Description,
                 SceneType = scene.SceneType,

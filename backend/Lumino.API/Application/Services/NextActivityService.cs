@@ -357,11 +357,12 @@ namespace Lumino.Api.Application.Services
             }
 
             var scene = scenesQuery
-                .OrderBy(x => x.Id)
                 .AsEnumerable()
+                .OrderBy(x => x.Order > 0 ? x.Order : x.Id)
+                .ThenBy(x => x.Id)
                 .FirstOrDefault(x =>
                     !completedSceneIds.Contains(x.Id) &&
-                    SceneUnlockRules.IsUnlocked(x.Id, passedLessons, unlockEvery));
+                    SceneUnlockRules.IsUnlocked(x.Order > 0 ? x.Order : x.Id, passedLessons, unlockEvery));
 
             if (scene == null)
             {
