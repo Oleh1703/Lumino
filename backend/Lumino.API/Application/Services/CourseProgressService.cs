@@ -63,6 +63,10 @@ namespace Lumino.Api.Application.Services
                     UserId = userId,
                     CourseId = courseId,
                     IsActive = true,
+
+                    IsCompleted = false,
+                    CompletedAt = null,
+
                     StartedAt = now,
                     LastLessonId = firstLessonId,
                     LastOpenedAt = now

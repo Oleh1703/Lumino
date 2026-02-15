@@ -1,21 +1,26 @@
 using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Data;
+using Lumino.Api.Domain.Entities;
 using Lumino.Api.Utils;
 using Microsoft.Extensions.Options;
+using System;
 
 namespace Lumino.Api.Application.Services
 {
     public class CourseCompletionService : ICourseCompletionService
     {
         private readonly LuminoDbContext _dbContext;
+        private readonly IDateTimeProvider _dateTimeProvider;
         private readonly LearningSettings _learningSettings;
 
         public CourseCompletionService(
             LuminoDbContext dbContext,
+            IDateTimeProvider dateTimeProvider,
             IOptions<LearningSettings> learningSettings)
         {
             _dbContext = dbContext;
+            _dateTimeProvider = dateTimeProvider;
             _learningSettings = learningSettings.Value;
         }
 
@@ -82,7 +87,6 @@ namespace Lumino.Api.Application.Services
 
             if (allSceneIds.Count > 0)
             {
-                // беремо тільки ті сцени, які можуть бути відкриті при поточній кількості пройдених уроків
                 var unlockedSceneIds = allSceneIds
                     .Where(id => SceneUnlockRules.IsUnlocked(id, completedLessons, _learningSettings.SceneUnlockEveryLessons))
                     .ToList();
@@ -111,14 +115,15 @@ namespace Lumino.Api.Application.Services
             var userCourse = _dbContext.UserCourses
                 .FirstOrDefault(x => x.UserId == userId && x.CourseId == courseId);
 
+            bool isCompletedState = userCourse != null && userCourse.IsCompleted;
+
             string status;
 
-            // NotStarted: немає активності (ані старту, ані пройдених уроків/сцен)
-            if (completedLessons == 0 && userCourse == null && scenesCompleted == 0)
+            if (!isCompletedState && completedLessons == 0 && userCourse == null && scenesCompleted == 0)
             {
                 status = "NotStarted";
             }
-            else if (completedLessons >= totalLessons && (!scenesIncluded || scenesCompleted >= scenesTotal))
+            else if (isCompletedState || (completedLessons >= totalLessons && (!scenesIncluded || scenesCompleted >= scenesTotal)))
             {
                 status = "Completed";
                 percent = 100;
@@ -127,6 +132,11 @@ namespace Lumino.Api.Application.Services
                 {
                     scenesPercent = 100;
                 }
+
+                EnsureCompletedState(userId, courseId, userCourse);
+
+                userCourse = _dbContext.UserCourses.FirstOrDefault(x => x.UserId == userId && x.CourseId == courseId);
+                isCompletedState = userCourse != null && userCourse.IsCompleted;
             }
             else
             {
@@ -139,6 +149,10 @@ namespace Lumino.Api.Application.Services
             {
                 CourseId = courseId,
                 Status = status,
+
+                IsCompleted = isCompletedState,
+                CompletedAt = userCourse?.CompletedAt,
+
                 TotalLessons = totalLessons,
                 CompletedLessons = completedLessons,
                 CompletionPercent = percent,
@@ -150,6 +164,40 @@ namespace Lumino.Api.Application.Services
                 ScenesCompleted = scenesCompleted,
                 ScenesCompletionPercent = scenesPercent
             };
+        }
+
+        private void EnsureCompletedState(int userId, int courseId, UserCourse? userCourse)
+        {
+            if (userCourse != null && userCourse.IsCompleted)
+            {
+                return;
+            }
+
+            var now = _dateTimeProvider.UtcNow;
+
+            if (userCourse == null)
+            {
+                userCourse = new UserCourse
+                {
+                    UserId = userId,
+                    CourseId = courseId,
+                    IsActive = false,
+                    IsCompleted = true,
+                    CompletedAt = now,
+                    LastLessonId = null,
+                    StartedAt = now,
+                    LastOpenedAt = now
+                };
+
+                _dbContext.UserCourses.Add(userCourse);
+                _dbContext.SaveChanges();
+                return;
+            }
+
+            userCourse.IsCompleted = true;
+            userCourse.CompletedAt = now;
+
+            _dbContext.SaveChanges();
         }
     }
 }

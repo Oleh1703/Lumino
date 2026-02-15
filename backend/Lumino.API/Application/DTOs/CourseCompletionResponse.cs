@@ -8,6 +8,10 @@ namespace Lumino.Api.Application.DTOs
 
         public string Status { get; set; } = null!; // NotStarted / InProgress / Completed
 
+        public bool IsCompleted { get; set; }
+
+        public DateTime? CompletedAt { get; set; }
+
         public int TotalLessons { get; set; }
 
         public int CompletedLessons { get; set; }

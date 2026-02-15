@@ -13,8 +13,11 @@ public class CourseCompletionServiceTests
     {
         var dbContext = TestDbContextFactory.Create();
 
+        var now = new DateTime(2026, 2, 15, 10, 0, 0, DateTimeKind.Utc);
+
         var service = new CourseCompletionService(
             dbContext,
+            new FixedDateTimeProvider(now),
             Options.Create(new LearningSettings { PassingScorePercent = 80, SceneCompletionScore = 5 })
         );
 
@@ -45,8 +48,11 @@ public class CourseCompletionServiceTests
 
         dbContext.SaveChanges();
 
+        var now = new DateTime(2026, 2, 15, 10, 0, 0, DateTimeKind.Utc);
+
         var service = new CourseCompletionService(
             dbContext,
+            new FixedDateTimeProvider(now),
             Options.Create(new LearningSettings { PassingScorePercent = 80, SceneCompletionScore = 5 })
         );
 
@@ -54,11 +60,16 @@ public class CourseCompletionServiceTests
 
         Assert.Equal(course.Id, result.CourseId);
         Assert.Equal("NotStarted", result.Status);
+
+        Assert.False(result.IsCompleted);
+        Assert.Null(result.CompletedAt);
+
         Assert.Equal(3, result.TotalLessons);
         Assert.Equal(0, result.CompletedLessons);
         Assert.Equal(0, result.CompletionPercent);
         Assert.Equal(1, result.NextLessonId);
         Assert.Equal(3, result.RemainingLessonIds.Count);
+
         Assert.False(result.ScenesIncluded);
         Assert.Equal(0, result.ScenesTotal);
         Assert.Equal(0, result.ScenesCompleted);
@@ -110,14 +121,21 @@ public class CourseCompletionServiceTests
 
         dbContext.SaveChanges();
 
+        var now = new DateTime(2026, 2, 15, 10, 0, 0, DateTimeKind.Utc);
+
         var service = new CourseCompletionService(
             dbContext,
+            new FixedDateTimeProvider(now),
             Options.Create(new LearningSettings { PassingScorePercent = 80, SceneCompletionScore = 5 })
         );
 
         var result = service.GetMyCourseCompletion(userId: userId, courseId: course.Id);
 
         Assert.Equal("InProgress", result.Status);
+
+        Assert.False(result.IsCompleted);
+        Assert.Null(result.CompletedAt);
+
         Assert.Equal(4, result.TotalLessons);
         Assert.Equal(1, result.CompletedLessons);
         Assert.Equal(25, result.CompletionPercent);
@@ -126,7 +144,7 @@ public class CourseCompletionServiceTests
     }
 
     [Fact]
-    public void GetMyCourseCompletion_WhenCompleted_ShouldReturnCompleted()
+    public void GetMyCourseCompletion_WhenCompleted_ShouldReturnCompleted_AndPersistState()
     {
         var dbContext = TestDbContextFactory.Create();
 
@@ -155,18 +173,31 @@ public class CourseCompletionServiceTests
 
         dbContext.SaveChanges();
 
+        var now = new DateTime(2026, 2, 15, 10, 0, 0, DateTimeKind.Utc);
+
         var service = new CourseCompletionService(
             dbContext,
+            new FixedDateTimeProvider(now),
             Options.Create(new LearningSettings { PassingScorePercent = 80, SceneCompletionScore = 5 })
         );
 
         var result = service.GetMyCourseCompletion(userId: userId, courseId: course.Id);
 
         Assert.Equal("Completed", result.Status);
+
+        Assert.True(result.IsCompleted);
+        Assert.NotNull(result.CompletedAt);
+        Assert.Equal(now, result.CompletedAt);
+
         Assert.Equal(3, result.TotalLessons);
         Assert.Equal(3, result.CompletedLessons);
         Assert.Equal(100, result.CompletionPercent);
         Assert.Null(result.NextLessonId);
         Assert.Empty(result.RemainingLessonIds);
+
+        var userCourse = dbContext.UserCourses.FirstOrDefault(x => x.UserId == userId && x.CourseId == course.Id);
+        Assert.NotNull(userCourse);
+        Assert.True(userCourse!.IsCompleted);
+        Assert.Equal(now, userCourse.CompletedAt);
     }
 }
