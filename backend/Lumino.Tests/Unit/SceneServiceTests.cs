@@ -1,4 +1,4 @@
-﻿﻿using Lumino.Api.Application.DTOs;
+﻿using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Domain.Entities;
@@ -621,7 +621,100 @@ public class SceneServiceTests
         Assert.Equal(0, achievementService.SceneChecksCount);
     }
 
+    
     [Fact]
+    public void GetSceneMistakes_WhenHasMistakes_ShouldReturnOnlyMistakeSteps()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Users.Add(new User
+        {
+            Id = 1,
+            Email = "mistakes@mail.com",
+            PasswordHash = "hash",
+            CreatedAt = DateTime.UtcNow
+        });
+
+        dbContext.Scenes.Add(new Scene
+        {
+            Id = 1,
+            Title = "Scene 1",
+            Description = "Desc",
+            SceneType = "intro"
+        });
+
+        dbContext.SceneSteps.Add(new SceneStep
+        {
+            Id = 1,
+            SceneId = 1,
+            Order = 1,
+            Speaker = "A",
+            Text = "Choose",
+            StepType = "Choice",
+            MediaUrl = null,
+            ChoicesJson = "[{\"text\":\"Cat\",\"isCorrect\":true},{\"text\":\"Dog\",\"isCorrect\":false}]"
+        });
+
+        dbContext.SceneSteps.Add(new SceneStep
+        {
+            Id = 2,
+            SceneId = 1,
+            Order = 2,
+            Speaker = "B",
+            Text = "Type the destination",
+            StepType = "Input",
+            MediaUrl = null,
+            ChoicesJson = "{\"correctAnswer\":\"Paris\",\"acceptableAnswers\":[\"to paris\"]}"
+        });
+
+        dbContext.SaveChanges();
+
+        var now = new DateTime(2026, 2, 12, 19, 0, 0, DateTimeKind.Utc);
+        var dateTimeProvider = new FixedDateTimeProvider(now);
+
+        var achievementService = new CountingAchievementService();
+
+        var service = new SceneService(
+            dbContext,
+            dateTimeProvider,
+            achievementService,
+            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1, SceneCompletionScore = 5 })
+        );
+
+        // робимо спробу з 1 помилкою (Input)
+        var submit = service.SubmitScene(
+            userId: 1,
+            sceneId: 1,
+            request: new SubmitSceneRequest
+            {
+                Answers = new List<SubmitSceneAnswerRequest>
+                {
+                    new SubmitSceneAnswerRequest { StepId = 1, Answer = "Cat" },
+                    new SubmitSceneAnswerRequest { StepId = 2, Answer = "London" }
+                }
+            }
+        );
+
+        Assert.NotNull(submit);
+        Assert.False(submit.IsCompleted);
+        Assert.Single(submit.MistakeStepIds);
+        Assert.Contains(2, submit.MistakeStepIds);
+
+        var mistakes = service.GetSceneMistakes(userId: 1, sceneId: 1);
+
+        Assert.NotNull(mistakes);
+        Assert.Equal(1, mistakes.SceneId);
+        Assert.Equal(1, mistakes.TotalMistakes);
+        Assert.Single(mistakes.MistakeStepIds);
+        Assert.Contains(2, mistakes.MistakeStepIds);
+
+        Assert.Single(mistakes.Steps);
+        Assert.Equal(2, mistakes.Steps[0].Id);
+        Assert.Equal(2, mistakes.Steps[0].Order);
+        Assert.Equal("Input", mistakes.Steps[0].StepType);
+    }
+
+[Fact]
     public void SubmitScene_WhenAnswerIsWrong_ShouldNotCompleteScene_AndReturnMistake()
     {
         var dbContext = TestDbContextFactory.Create();

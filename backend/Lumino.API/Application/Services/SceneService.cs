@@ -146,6 +146,89 @@ namespace Lumino.Api.Application.Services
             };
         }
 
+        public SceneMistakesResponse GetSceneMistakes(int userId, int sceneId)
+        {
+            var scene = _dbContext.Scenes.FirstOrDefault(x => x.Id == sceneId);
+
+            if (scene == null)
+            {
+                throw new KeyNotFoundException("Scene not found");
+            }
+
+            var passedLessons = GetPassedDistinctLessonsCount(userId);
+
+            if (!SceneUnlockRules.IsUnlocked(sceneId, passedLessons, _learningSettings.SceneUnlockEveryLessons))
+            {
+                throw new ForbiddenAccessException("Scene is locked");
+            }
+
+            var attempt = _dbContext.SceneAttempts
+                .FirstOrDefault(x => x.UserId == userId && x.SceneId == sceneId);
+
+            if (attempt == null || string.IsNullOrWhiteSpace(attempt.DetailsJson))
+            {
+                return new SceneMistakesResponse
+                {
+                    SceneId = sceneId,
+                    TotalMistakes = 0,
+                    MistakeStepIds = new List<int>(),
+                    Steps = new List<SceneStepResponse>()
+                };
+            }
+
+            SceneAttemptDetailsJson? details;
+
+            try
+            {
+                details = JsonSerializer.Deserialize<SceneAttemptDetailsJson>(attempt.DetailsJson, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+            }
+            catch
+            {
+                details = null;
+            }
+
+            if (details == null || details.MistakeStepIds == null || details.MistakeStepIds.Count == 0)
+            {
+                return new SceneMistakesResponse
+                {
+                    SceneId = sceneId,
+                    TotalMistakes = 0,
+                    MistakeStepIds = new List<int>(),
+                    Steps = new List<SceneStepResponse>()
+                };
+            }
+
+            var mistakeIds = details.MistakeStepIds
+                .Distinct()
+                .ToList();
+
+            var steps = _dbContext.SceneSteps
+                .Where(x => mistakeIds.Contains(x.Id))
+                .OrderBy(x => x.Order)
+                .Select(x => new SceneStepResponse
+                {
+                    Id = x.Id,
+                    Order = x.Order,
+                    Speaker = x.Speaker,
+                    Text = x.Text,
+                    StepType = x.StepType,
+                    MediaUrl = x.MediaUrl,
+                    ChoicesJson = x.ChoicesJson
+                })
+                .ToList();
+
+            return new SceneMistakesResponse
+            {
+                SceneId = sceneId,
+                TotalMistakes = mistakeIds.Count,
+                MistakeStepIds = mistakeIds,
+                Steps = steps
+            };
+        }
+
         public SubmitSceneResponse SubmitScene(int userId, int sceneId, SubmitSceneRequest request)
         {
             _submitSceneRequestValidator.Validate(request);

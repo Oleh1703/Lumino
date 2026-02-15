@@ -45,6 +45,17 @@ namespace Lumino.Api.Controllers
             return Ok(result);
         }
 
+        // помилки останньої спроби (кроки для повторення)
+        [HttpGet("{id}/mistakes")]
+        [Authorize]
+        public IActionResult GetMistakes(int id)
+        {
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
+
+            var result = _sceneService.GetSceneMistakes(userId, id);
+            return Ok(result);
+        }
+
         // submit сцени (перевірка choices, score, mistakes)
         [HttpPost("{id}/submit")]
         [Authorize]

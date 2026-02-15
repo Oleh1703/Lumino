@@ -14,6 +14,9 @@ namespace Lumino.Api.Application.Interfaces
 
         SubmitSceneResponse SubmitScene(int userId, int sceneId, SubmitSceneRequest request);
 
+        SceneMistakesResponse GetSceneMistakes(int userId, int sceneId);
+
         List<int> GetCompletedScenes(int userId);
     }
 }
+
