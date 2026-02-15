@@ -206,18 +206,20 @@ namespace Lumino.Api.Application.Services
 
             foreach (var step in questionSteps)
             {
-                var correctAnswer = TryGetCorrectAnswerFromChoices(step.ChoicesJson!);
+                var correctAnswers = TryGetCorrectAnswersFromChoicesJson(step.StepType, step.ChoicesJson!);
 
-                if (string.IsNullOrWhiteSpace(correctAnswer))
+                if (correctAnswers == null || correctAnswers.Count == 0)
                 {
                     // якщо адмін поклав choicesJson без “правильної відповіді” — вважаємо крок некоректним
                     throw new ArgumentException($"Scene step {step.Id} has invalid ChoicesJson");
                 }
 
+                var correctAnswer = correctAnswers[0];
+
                 answersMap.TryGetValue(step.Id, out string? userAnswer);
                 userAnswer ??= string.Empty;
 
-                bool isCorrect = IsAnswerCorrect(userAnswer, correctAnswer);
+                bool isCorrect = correctAnswers.Any(x => IsAnswerCorrect(userAnswer, x));
 
                 if (isCorrect)
                 {
@@ -387,6 +389,107 @@ namespace Lumino.Api.Application.Services
                 .ToLowerInvariant();
         }
 
+        private static List<string>? TryGetCorrectAnswersFromChoicesJson(string stepType, string choicesJson)
+        {
+            if (string.IsNullOrWhiteSpace(choicesJson))
+            {
+                return null;
+            }
+
+            // строго підтримуємо 2 формати:
+            // 1) Choice: [{"text":"...","isCorrect":true}, ...]
+            // 2) Input: {"correctAnswer":"...","acceptableAnswers":["...","..."]}
+
+            try
+            {
+                using var doc = JsonDocument.Parse(choicesJson);
+
+                if (string.Equals(stepType, "Input", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (doc.RootElement.ValueKind != JsonValueKind.Object)
+                    {
+                        return null;
+                    }
+
+                    var list = new List<string>();
+
+                    var correctAnswer = TryGetString(doc.RootElement, "correctAnswer")
+                        ?? TryGetString(doc.RootElement, "CorrectAnswer");
+
+                    if (!string.IsNullOrWhiteSpace(correctAnswer))
+                    {
+                        list.Add(correctAnswer);
+                    }
+
+                    if (doc.RootElement.TryGetProperty("acceptableAnswers", out var acceptable)
+                        && acceptable.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var item in acceptable.EnumerateArray())
+                        {
+                            if (item.ValueKind != JsonValueKind.String) continue;
+
+                            var val = item.GetString();
+                            if (string.IsNullOrWhiteSpace(val)) continue;
+
+                            list.Add(val);
+                        }
+                    }
+
+                    return list.Count > 0 ? list : null;
+                }
+
+                if (string.Equals(stepType, "Choice", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (doc.RootElement.ValueKind != JsonValueKind.Array)
+                    {
+                        return null;
+                    }
+
+                    var list = new List<string>();
+
+                    foreach (var item in doc.RootElement.EnumerateArray())
+                    {
+                        if (item.ValueKind != JsonValueKind.Object) continue;
+
+                        bool isCorrect = TryGetBool(item, "isCorrect")
+                            || TryGetBool(item, "IsCorrect")
+                            || TryGetBool(item, "correct")
+                            || TryGetBool(item, "Correct");
+
+                        if (!isCorrect) continue;
+
+                        var text = TryGetString(item, "text")
+                            ?? TryGetString(item, "Text")
+                            ?? TryGetString(item, "value")
+                            ?? TryGetString(item, "Value")
+                            ?? TryGetString(item, "answer")
+                            ?? TryGetString(item, "Answer");
+
+                        if (!string.IsNullOrWhiteSpace(text))
+                        {
+                            list.Add(text);
+                        }
+                    }
+
+                    return list.Count > 0 ? list : null;
+                }
+
+                // fallback: старий формат (щоб не зламати вже наявний контент)
+                var one = TryGetCorrectAnswerFromChoices(choicesJson);
+
+                if (!string.IsNullOrWhiteSpace(one))
+                {
+                    return new List<string> { one };
+                }
+
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         private static string? TryGetCorrectAnswerFromChoices(string choicesJson)
         {
             if (string.IsNullOrWhiteSpace(choicesJson))
@@ -514,13 +617,10 @@ namespace Lumino.Api.Application.Services
                 .Select(g => g.Max(x => x.Score))
                 .Sum();
 
-            int completedDistinctScenes = _dbContext.SceneAttempts
-                .Where(x => x.UserId == userId && x.IsCompleted)
-                .Select(x => x.SceneId)
-                .Distinct()
-                .Count();
+            int completedScenesCount = _dbContext.SceneAttempts
+                .Count(x => x.UserId == userId && x.IsCompleted);
 
-            int scenesScore = completedDistinctScenes * _learningSettings.SceneCompletionScore;
+            int scenesScore = completedScenesCount * _learningSettings.SceneCompletionScore;
 
             if (progress == null)
             {
@@ -533,12 +633,12 @@ namespace Lumino.Api.Application.Services
                 };
 
                 _dbContext.UserProgresses.Add(progress);
-                _dbContext.SaveChanges();
-                return;
             }
-
-            progress.TotalScore = lessonsScore + scenesScore;
-            progress.LastUpdatedAt = now;
+            else
+            {
+                progress.TotalScore = lessonsScore + scenesScore;
+                progress.LastUpdatedAt = now;
+            }
 
             _dbContext.SaveChanges();
         }
