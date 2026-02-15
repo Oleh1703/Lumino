@@ -229,6 +229,256 @@ namespace Lumino.Api.Application.Services
             };
         }
 
+        public SubmitSceneResponse SubmitSceneMistakes(int userId, int sceneId, SubmitSceneRequest request)
+        {
+            _submitSceneRequestValidator.Validate(request);
+
+            var scene = _dbContext.Scenes.FirstOrDefault(x => x.Id == sceneId);
+
+            if (scene == null)
+            {
+                throw new KeyNotFoundException("Scene not found");
+            }
+
+            var passedLessons = GetPassedDistinctLessonsCount(userId);
+
+            if (!SceneUnlockRules.IsUnlocked(sceneId, passedLessons, _learningSettings.SceneUnlockEveryLessons))
+            {
+                throw new ForbiddenAccessException("Scene is locked");
+            }
+
+            var steps = _dbContext.SceneSteps
+                .Where(x => x.SceneId == sceneId)
+                .OrderBy(x => x.Order)
+                .ToList();
+
+            var questionSteps = steps
+                .Where(x => !string.IsNullOrWhiteSpace(x.ChoicesJson))
+                .ToList();
+
+            int totalQuestions = questionSteps.Count;
+
+            if (totalQuestions == 0)
+            {
+                // якщо питань немає — просто завершуємо сцену
+                EnsureCompletedAttempt(userId, sceneId, score: 0, totalQuestions: 0, detailsJson: null);
+                return new SubmitSceneResponse
+                {
+                    SceneId = sceneId,
+                    TotalQuestions = 0,
+                    CorrectAnswers = 0,
+                    IsCompleted = true
+                };
+            }
+
+            var attempt = _dbContext.SceneAttempts
+                .FirstOrDefault(x => x.UserId == userId && x.SceneId == sceneId);
+
+            if (attempt == null || string.IsNullOrWhiteSpace(attempt.DetailsJson))
+            {
+                // якщо немає попередньої спроби — працюємо як звичайний submit
+                return SubmitScene(userId, sceneId, request);
+            }
+
+            SceneAttemptDetailsJson? details;
+
+            try
+            {
+                details = JsonSerializer.Deserialize<SceneAttemptDetailsJson>(attempt.DetailsJson, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+            }
+            catch
+            {
+                details = null;
+            }
+
+            if (details == null)
+            {
+                return SubmitScene(userId, sceneId, request);
+            }
+
+            var allQuestionStepIds = questionSteps.Select(x => x.Id).ToHashSet();
+
+            // беремо тільки ті помилки, які реально є question steps цієї сцени
+            var targetMistakeStepIds = (details.MistakeStepIds ?? new List<int>())
+                .Where(x => allQuestionStepIds.Contains(x))
+                .Distinct()
+                .ToList();
+
+            // якщо помилок немає — повертаємо поточний стан спроби
+            if (targetMistakeStepIds.Count == 0)
+            {
+                // гарантуємо, що Answers містять всі question steps
+                EnsureDetailsContainsAllQuestionSteps(details, questionSteps);
+
+                var correctCount = details.Answers.Count(x => x.IsCorrect);
+                var isCompleted = correctCount == totalQuestions;
+
+                var detailsJsonNoChange = JsonSerializer.Serialize(details, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    WriteIndented = false
+                });
+
+                EnsureCompletedAttempt(
+                    userId,
+                    sceneId,
+                    score: correctCount,
+                    totalQuestions: totalQuestions,
+                    detailsJson: detailsJsonNoChange,
+                    markCompleted: isCompleted
+                );
+
+                return new SubmitSceneResponse
+                {
+                    SceneId = sceneId,
+                    TotalQuestions = totalQuestions,
+                    CorrectAnswers = correctCount,
+                    IsCompleted = isCompleted,
+                    MistakeStepIds = details.MistakeStepIds ?? new List<int>(),
+                    Answers = details.Answers ?? new List<SceneStepAnswerResultDto>()
+                };
+            }
+
+            var answersMap = new Dictionary<int, string>();
+
+            foreach (var a in request.Answers)
+            {
+                if (!answersMap.ContainsKey(a.StepId))
+                {
+                    answersMap.Add(a.StepId, a.Answer);
+                    continue;
+                }
+
+                throw new ArgumentException("Duplicate StepId in answers");
+            }
+
+            // швидкий доступ до старих результатів
+            var existing = (details.Answers ?? new List<SceneStepAnswerResultDto>())
+                .ToDictionary(x => x.StepId, x => x);
+
+            foreach (var stepId in targetMistakeStepIds)
+            {
+                var step = questionSteps.First(x => x.Id == stepId);
+
+                var correctAnswers = TryGetCorrectAnswersFromChoicesJson(step.StepType, step.ChoicesJson!);
+
+                if (correctAnswers == null || correctAnswers.Count == 0)
+                {
+                    throw new ArgumentException($"Scene step {step.Id} has invalid ChoicesJson");
+                }
+
+                var correctAnswer = correctAnswers[0];
+
+                answersMap.TryGetValue(step.Id, out string? newUserAnswer);
+
+                // якщо нової відповіді не дали — залишаємо попередню
+                if (string.IsNullOrWhiteSpace(newUserAnswer) && existing.TryGetValue(step.Id, out var prev))
+                {
+                    newUserAnswer = prev.UserAnswer;
+                }
+
+                newUserAnswer ??= string.Empty;
+
+                bool isCorrect = correctAnswers.Any(x => IsAnswerCorrect(newUserAnswer, x));
+
+                if (existing.TryGetValue(step.Id, out var dto))
+                {
+                    dto.UserAnswer = newUserAnswer;
+                    dto.CorrectAnswer = correctAnswer;
+                    dto.IsCorrect = isCorrect;
+                }
+                else
+                {
+                    existing[step.Id] = new SceneStepAnswerResultDto
+                    {
+                        StepId = step.Id,
+                        UserAnswer = newUserAnswer,
+                        CorrectAnswer = correctAnswer,
+                        IsCorrect = isCorrect
+                    };
+                }
+            }
+
+            // синхронізуємо details.Answers з existing
+            details.Answers = existing.Values
+                .OrderBy(x => questionSteps.First(s => s.Id == x.StepId).Order)
+                .ToList();
+
+            // гарантуємо, що Answers містить всі question steps (інакше totalQuestions/correct можуть поїхати)
+            EnsureDetailsContainsAllQuestionSteps(details, questionSteps);
+
+            details.MistakeStepIds = details.Answers
+                .Where(x => !x.IsCorrect)
+                .Select(x => x.StepId)
+                .Distinct()
+                .ToList();
+
+            var correct = details.Answers.Count(x => x.IsCorrect);
+            bool completed = correct == totalQuestions;
+
+            var detailsJson = JsonSerializer.Serialize(details, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                WriteIndented = false
+            });
+
+            EnsureCompletedAttempt(
+                userId,
+                sceneId,
+                score: correct,
+                totalQuestions: totalQuestions,
+                detailsJson: detailsJson,
+                markCompleted: completed
+            );
+
+            return new SubmitSceneResponse
+            {
+                SceneId = sceneId,
+                TotalQuestions = totalQuestions,
+                CorrectAnswers = correct,
+                IsCompleted = completed,
+                MistakeStepIds = details.MistakeStepIds,
+                Answers = details.Answers
+            };
+        }
+
+        private static void EnsureDetailsContainsAllQuestionSteps(SceneAttemptDetailsJson details, List<SceneStep> questionSteps)
+        {
+            if (details.Answers == null)
+            {
+                details.Answers = new List<SceneStepAnswerResultDto>();
+            }
+
+            var byId = details.Answers.ToDictionary(x => x.StepId, x => x);
+
+            foreach (var step in questionSteps)
+            {
+                if (byId.ContainsKey(step.Id)) continue;
+
+                var correctAnswers = TryGetCorrectAnswersFromChoicesJson(step.StepType, step.ChoicesJson!);
+
+                var correctAnswer = (correctAnswers != null && correctAnswers.Count > 0)
+                    ? correctAnswers[0]
+                    : string.Empty;
+
+                details.Answers.Add(new SceneStepAnswerResultDto
+                {
+                    StepId = step.Id,
+                    UserAnswer = string.Empty,
+                    CorrectAnswer = correctAnswer,
+                    IsCorrect = false
+                });
+            }
+
+            // стабільний порядок як в сцені
+            details.Answers = details.Answers
+                .OrderBy(x => questionSteps.First(s => s.Id == x.StepId).Order)
+                .ToList();
+        }
+
         public SubmitSceneResponse SubmitScene(int userId, int sceneId, SubmitSceneRequest request)
         {
             _submitSceneRequestValidator.Validate(request);

@@ -56,6 +56,17 @@ namespace Lumino.Api.Controllers
             return Ok(result);
         }
 
+        // submit тільки помилок (Duolingo repeat mistakes)
+        [HttpPost("{id}/mistakes/submit")]
+        [Authorize]
+        public IActionResult SubmitMistakes(int id, [FromBody] SubmitSceneRequest request)
+        {
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
+
+            var result = _sceneService.SubmitSceneMistakes(userId, id, request);
+            return Ok(result);
+        }
+
         // submit сцени (перевірка choices, score, mistakes)
         [HttpPost("{id}/submit")]
         [Authorize]

@@ -714,6 +714,112 @@ public class SceneServiceTests
         Assert.Equal("Input", mistakes.Steps[0].StepType);
     }
 
+    [Fact]
+    public void SubmitSceneMistakes_WhenFixMistakes_ShouldCompleteScene()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Users.Add(new User
+        {
+            Id = 1,
+            Email = "mistakesfix@mail.com",
+            PasswordHash = "hash",
+            CreatedAt = DateTime.UtcNow
+        });
+
+        dbContext.Scenes.Add(new Scene
+        {
+            Id = 1,
+            Title = "Scene 1",
+            Description = "Desc",
+            SceneType = "intro"
+        });
+
+        dbContext.SceneSteps.Add(new SceneStep
+        {
+            Id = 1,
+            SceneId = 1,
+            Order = 1,
+            Speaker = "A",
+            Text = "Choose",
+            StepType = "Choice",
+            MediaUrl = null,
+            ChoicesJson = "[{\"text\":\"Cat\",\"isCorrect\":true},{\"text\":\"Dog\",\"isCorrect\":false}]"
+        });
+
+        dbContext.SceneSteps.Add(new SceneStep
+        {
+            Id = 2,
+            SceneId = 1,
+            Order = 2,
+            Speaker = "B",
+            Text = "Type the destination",
+            StepType = "Input",
+            MediaUrl = null,
+            ChoicesJson = "{\"correctAnswer\":\"Paris\",\"acceptableAnswers\":[\"to paris\"]}"
+        });
+
+        dbContext.SaveChanges();
+
+        var now = new DateTime(2026, 2, 12, 19, 30, 0, DateTimeKind.Utc);
+        var dateTimeProvider = new FixedDateTimeProvider(now);
+
+        var achievementService = new CountingAchievementService();
+
+        var service = new SceneService(
+            dbContext,
+            dateTimeProvider,
+            achievementService,
+            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1, SceneCompletionScore = 5 })
+        );
+
+        // перший submit з помилкою на Input
+        var first = service.SubmitScene(
+            userId: 1,
+            sceneId: 1,
+            request: new SubmitSceneRequest
+            {
+                Answers = new List<SubmitSceneAnswerRequest>
+                {
+                    new SubmitSceneAnswerRequest { StepId = 1, Answer = "Cat" },
+                    new SubmitSceneAnswerRequest { StepId = 2, Answer = "London" }
+                }
+            }
+        );
+
+        Assert.False(first.IsCompleted);
+        Assert.Single(first.MistakeStepIds);
+        Assert.Contains(2, first.MistakeStepIds);
+        Assert.Equal(0, achievementService.SceneChecksCount);
+
+        // submit тільки помилок
+        var second = service.SubmitSceneMistakes(
+            userId: 1,
+            sceneId: 1,
+            request: new SubmitSceneRequest
+            {
+                Answers = new List<SubmitSceneAnswerRequest>
+                {
+                    new SubmitSceneAnswerRequest { StepId = 2, Answer = "PARIS" }
+                }
+            }
+        );
+
+        Assert.True(second.IsCompleted);
+        Assert.Equal(2, second.TotalQuestions);
+        Assert.Equal(2, second.CorrectAnswers);
+        Assert.Empty(second.MistakeStepIds);
+
+        var attempt = dbContext.SceneAttempts.Single(x => x.UserId == 1 && x.SceneId == 1);
+
+        Assert.True(attempt.IsCompleted);
+        Assert.Equal(2, attempt.Score);
+        Assert.Equal(2, attempt.TotalQuestions);
+        Assert.Equal(now, attempt.CompletedAt);
+
+        Assert.Equal(1, achievementService.SceneChecksCount);
+    }
+
 [Fact]
     public void SubmitScene_WhenAnswerIsWrong_ShouldNotCompleteScene_AndReturnMistake()
     {
