@@ -620,6 +620,16 @@ namespace Lumino.Api.Application.Services
                 throw new ForbiddenAccessException("Scene is locked");
             }
 
+
+            // якщо у сцені є питання (Choice/Input), не дозволяємо “complete” без submit
+            bool hasQuestions = _dbContext.SceneSteps
+                .Any(x => x.SceneId == sceneId && !string.IsNullOrWhiteSpace(x.ChoicesJson));
+
+            if (hasQuestions)
+            {
+                throw new ForbiddenAccessException("Scene requires submit");
+            }
+
             var exists = _dbContext.SceneAttempts
                 .Any(x => x.UserId == userId && x.SceneId == sceneId);
 

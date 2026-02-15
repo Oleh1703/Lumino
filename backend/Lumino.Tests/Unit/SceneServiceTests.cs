@@ -128,7 +128,56 @@ public class SceneServiceTests
         });
     }
 
+    
     [Fact]
+    public void MarkCompleted_WhenSceneHasQuestions_ShouldThrow()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Users.Add(new User
+        {
+            Id = 1,
+            Email = "questions@mail.com",
+            PasswordHash = "hash",
+            CreatedAt = DateTime.UtcNow
+        });
+
+        dbContext.Scenes.Add(new Scene
+        {
+            Id = 1,
+            Title = "Scene 1",
+            Description = "Desc",
+            SceneType = "intro"
+        });
+
+        dbContext.SceneSteps.Add(new SceneStep
+        {
+            Id = 1,
+            SceneId = 1,
+            Order = 1,
+            Speaker = "A",
+            Text = "Choose",
+            StepType = "Choice",
+            MediaUrl = null,
+            ChoicesJson = "[{\"text\":\"Cat\",\"isCorrect\":true},{\"text\":\"Dog\",\"isCorrect\":false}]"
+        });
+
+        dbContext.SaveChanges();
+
+        var service = new SceneService(
+            dbContext,
+            new FixedDateTimeProvider(new DateTime(2026, 2, 12, 11, 30, 0, DateTimeKind.Utc)),
+            new FakeAchievementService(),
+            Options.Create(new LearningSettings { SceneCompletionScore = 5, SceneUnlockEveryLessons = 1 })
+        );
+
+        Assert.Throws<ForbiddenAccessException>(() =>
+        {
+            service.MarkCompleted(userId: 1, sceneId: 1);
+        });
+    }
+
+[Fact]
     public void MarkCompleted_SecondTime_ShouldBeIdempotent_AndNotIncreaseScoreAgain()
     {
         var dbContext = TestDbContextFactory.Create();
