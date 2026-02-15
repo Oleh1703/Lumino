@@ -200,4 +200,132 @@ public class CourseCompletionServiceTests
         Assert.True(userCourse!.IsCompleted);
         Assert.Equal(now, userCourse.CompletedAt);
     }
+
+
+    [Fact]
+    public void GetMyCourseCompletion_WhenLessonsCompletedButScenesNotCompleted_ShouldReturnInProgress()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        var course = new Course { Title = "English A1", Description = "Demo", IsPublished = true };
+        dbContext.Courses.Add(course);
+        dbContext.SaveChanges();
+
+        var topic = new Topic { CourseId = course.Id, Title = "Basics", Order = 1 };
+        dbContext.Topics.Add(topic);
+        dbContext.SaveChanges();
+
+        dbContext.Lessons.AddRange(
+            new Lesson { Id = 1, TopicId = topic.Id, Title = "L1", Theory = "T", Order = 1 },
+            new Lesson { Id = 2, TopicId = topic.Id, Title = "L2", Theory = "T", Order = 2 }
+        );
+
+        var userId = 10;
+
+        dbContext.LessonResults.AddRange(
+            new LessonResult { UserId = userId, LessonId = 1, Score = 8, TotalQuestions = 10, CompletedAt = new DateTime(2026, 2, 1, 10, 0, 0, DateTimeKind.Utc) },
+            new LessonResult { UserId = userId, LessonId = 2, Score = 9, TotalQuestions = 10, CompletedAt = new DateTime(2026, 2, 2, 10, 0, 0, DateTimeKind.Utc) }
+        );
+
+        dbContext.Scenes.AddRange(
+            new Scene { CourseId = course.Id, Title = "S1", Description = "D", SceneType = "Dialog", Order = 1 },
+            new Scene { CourseId = course.Id, Title = "S2", Description = "D", SceneType = "Dialog", Order = 2 }
+        );
+
+        dbContext.SaveChanges();
+
+        var now = new DateTime(2026, 2, 15, 10, 0, 0, DateTimeKind.Utc);
+
+        var service = new CourseCompletionService(
+            dbContext,
+            new FixedDateTimeProvider(now),
+            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneCompletionScore = 5, SceneUnlockEveryLessons = 1 })
+        );
+
+        var result = service.GetMyCourseCompletion(userId: userId, courseId: course.Id);
+
+        Assert.Equal("InProgress", result.Status);
+
+        Assert.False(result.IsCompleted);
+        Assert.Null(result.CompletedAt);
+
+        Assert.True(result.ScenesIncluded);
+        Assert.Equal(2, result.ScenesTotal);
+        Assert.Equal(0, result.ScenesCompleted);
+        Assert.Equal(0, result.ScenesCompletionPercent);
+    }
+
+    [Fact]
+    public void GetMyCourseCompletion_WhenHasScenesInOtherCourse_ShouldCountOnlyCourseScenes()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        var courseA = new Course { Title = "English A1", Description = "A", IsPublished = true };
+        var courseB = new Course { Title = "English A2", Description = "B", IsPublished = true };
+        dbContext.Courses.AddRange(courseA, courseB);
+        dbContext.SaveChanges();
+
+        var topicA = new Topic { CourseId = courseA.Id, Title = "Basics", Order = 1 };
+        dbContext.Topics.Add(topicA);
+        dbContext.SaveChanges();
+
+        dbContext.Lessons.AddRange(
+            new Lesson { Id = 1, TopicId = topicA.Id, Title = "L1", Theory = "T", Order = 1 },
+            new Lesson { Id = 2, TopicId = topicA.Id, Title = "L2", Theory = "T", Order = 2 }
+        );
+
+        var userId = 10;
+
+        dbContext.LessonResults.AddRange(
+            new LessonResult { UserId = userId, LessonId = 1, Score = 9, TotalQuestions = 10, CompletedAt = new DateTime(2026, 2, 1, 10, 0, 0, DateTimeKind.Utc) },
+            new LessonResult { UserId = userId, LessonId = 2, Score = 8, TotalQuestions = 10, CompletedAt = new DateTime(2026, 2, 2, 10, 0, 0, DateTimeKind.Utc) }
+        );
+
+        // course A scenes (Order controls unlock order)
+        dbContext.Scenes.AddRange(
+            new Scene { Id = 100, CourseId = courseA.Id, Title = "A-1", Description = "D", SceneType = "Dialog", Order = 1 },
+            new Scene { Id = 101, CourseId = courseA.Id, Title = "A-2", Description = "D", SceneType = "Dialog", Order = 2 }
+        );
+
+        // course B scenes must NOT be counted for course A completion
+        dbContext.Scenes.AddRange(
+            new Scene { Id = 200, CourseId = courseB.Id, Title = "B-1", Description = "D", SceneType = "Dialog", Order = 1 },
+            new Scene { Id = 201, CourseId = courseB.Id, Title = "B-2", Description = "D", SceneType = "Dialog", Order = 2 },
+            new Scene { Id = 202, CourseId = courseB.Id, Title = "B-3", Description = "D", SceneType = "Dialog", Order = 3 }
+        );
+
+        dbContext.SaveChanges();
+
+        // complete only first course A scene
+        dbContext.SceneAttempts.Add(new SceneAttempt
+        {
+            UserId = userId,
+            SceneId = 100,
+            IsCompleted = true,
+            Score = 5,
+            TotalQuestions = 0,
+            CompletedAt = new DateTime(2026, 2, 3, 10, 0, 0, DateTimeKind.Utc)
+        });
+
+        dbContext.SaveChanges();
+
+        var now = new DateTime(2026, 2, 15, 10, 0, 0, DateTimeKind.Utc);
+
+        var service = new CourseCompletionService(
+            dbContext,
+            new FixedDateTimeProvider(now),
+            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneCompletionScore = 5, SceneUnlockEveryLessons = 1 })
+        );
+
+        var result = service.GetMyCourseCompletion(userId: userId, courseId: courseA.Id);
+
+        Assert.Equal(courseA.Id, result.CourseId);
+        Assert.Equal("InProgress", result.Status);
+
+        Assert.True(result.ScenesIncluded);
+        Assert.Equal(2, result.ScenesTotal);
+        Assert.Equal(1, result.ScenesCompleted);
+        Assert.Equal(50, result.ScenesCompletionPercent);
+    }
+
 }

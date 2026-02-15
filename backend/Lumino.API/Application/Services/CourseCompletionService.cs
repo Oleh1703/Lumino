@@ -80,15 +80,17 @@ namespace Lumino.Api.Application.Services
             int scenesPercent = 0;
             bool scenesIncluded = false;
 
-            var allSceneIds = _dbContext.Scenes
-                .Select(x => x.Id)
-                .OrderBy(x => x)
+            var courseScenes = _dbContext.Scenes
+                .Where(x => x.CourseId == courseId)
+                .Select(x => new { x.Id, x.Order })
                 .ToList();
 
-            if (allSceneIds.Count > 0)
+            if (courseScenes.Count > 0)
             {
-                var unlockedSceneIds = allSceneIds
-                    .Where(id => SceneUnlockRules.IsUnlocked(id, completedLessons, _learningSettings.SceneUnlockEveryLessons))
+                var unlockedSceneIds = courseScenes
+                    .OrderBy(x => x.Order > 0 ? x.Order : x.Id)
+                    .Where(x => SceneUnlockRules.IsUnlocked(x.Order > 0 ? x.Order : x.Id, completedLessons, _learningSettings.SceneUnlockEveryLessons))
+                    .Select(x => x.Id)
                     .ToList();
 
                 scenesTotal = unlockedSceneIds.Count;
