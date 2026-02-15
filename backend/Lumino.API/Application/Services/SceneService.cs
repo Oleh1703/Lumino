@@ -52,6 +52,7 @@ namespace Lumino.Api.Application.Services
                 .Select(x => new SceneResponse
                 {
                     Id = x.Id,
+                    CourseId = x.CourseId,
                     Title = x.Title,
                     Description = x.Description,
                     SceneType = x.SceneType,
@@ -70,7 +71,7 @@ namespace Lumino.Api.Application.Services
                 throw new KeyNotFoundException("Scene not found");
             }
 
-            var passedLessons = GetPassedDistinctLessonsCount(userId);
+            var passedLessons = GetPassedDistinctLessonsCount(userId, scene.CourseId);
 
             var required = SceneUnlockRules.GetRequiredPassedLessons(sceneId, _learningSettings.SceneUnlockEveryLessons);
             var isUnlocked = SceneUnlockRules.IsUnlocked(sceneId, passedLessons, _learningSettings.SceneUnlockEveryLessons);
@@ -81,6 +82,7 @@ namespace Lumino.Api.Application.Services
             return new SceneDetailsResponse
             {
                 Id = scene.Id,
+                CourseId = scene.CourseId,
                 Title = scene.Title,
                 Description = scene.Description,
                 SceneType = scene.SceneType,
@@ -102,7 +104,7 @@ namespace Lumino.Api.Application.Services
                 throw new KeyNotFoundException("Scene not found");
             }
 
-            var passedLessons = GetPassedDistinctLessonsCount(userId);
+            var passedLessons = GetPassedDistinctLessonsCount(userId, scene.CourseId);
 
             var required = SceneUnlockRules.GetRequiredPassedLessons(sceneId, _learningSettings.SceneUnlockEveryLessons);
             var isUnlocked = SceneUnlockRules.IsUnlocked(sceneId, passedLessons, _learningSettings.SceneUnlockEveryLessons);
@@ -133,6 +135,7 @@ namespace Lumino.Api.Application.Services
             return new SceneContentResponse
             {
                 Id = scene.Id,
+                CourseId = scene.CourseId,
                 Title = scene.Title,
                 Description = scene.Description,
                 SceneType = scene.SceneType,
@@ -155,7 +158,7 @@ namespace Lumino.Api.Application.Services
                 throw new KeyNotFoundException("Scene not found");
             }
 
-            var passedLessons = GetPassedDistinctLessonsCount(userId);
+            var passedLessons = GetPassedDistinctLessonsCount(userId, scene.CourseId);
 
             if (!SceneUnlockRules.IsUnlocked(sceneId, passedLessons, _learningSettings.SceneUnlockEveryLessons))
             {
@@ -240,7 +243,7 @@ namespace Lumino.Api.Application.Services
                 throw new KeyNotFoundException("Scene not found");
             }
 
-            var passedLessons = GetPassedDistinctLessonsCount(userId);
+            var passedLessons = GetPassedDistinctLessonsCount(userId, scene.CourseId);
 
             if (!SceneUnlockRules.IsUnlocked(sceneId, passedLessons, _learningSettings.SceneUnlockEveryLessons))
             {
@@ -490,7 +493,7 @@ namespace Lumino.Api.Application.Services
                 throw new KeyNotFoundException("Scene not found");
             }
 
-            var passedLessons = GetPassedDistinctLessonsCount(userId);
+            var passedLessons = GetPassedDistinctLessonsCount(userId, scene.CourseId);
 
             if (!SceneUnlockRules.IsUnlocked(sceneId, passedLessons, _learningSettings.SceneUnlockEveryLessons))
             {
@@ -610,7 +613,7 @@ namespace Lumino.Api.Application.Services
             }
 
             // заборона “закрити” сцену, якщо вона ще locked
-            var passedLessons = GetPassedDistinctLessonsCount(userId);
+            var passedLessons = GetPassedDistinctLessonsCount(userId, scene.CourseId);
 
             if (!SceneUnlockRules.IsUnlocked(sceneId, passedLessons, _learningSettings.SceneUnlockEveryLessons))
             {
@@ -654,6 +657,31 @@ namespace Lumino.Api.Application.Services
 
             return _dbContext.LessonResults
                 .Where(x => x.UserId == userId && x.TotalQuestions > 0)
+                .Where(x => x.Score * 100 >= x.TotalQuestions * passingScorePercent)
+                .Select(x => x.LessonId)
+                .Distinct()
+                .Count();
+        }
+
+        private int GetPassedDistinctLessonsCount(int userId, int? courseId)
+        {
+            if (courseId == null)
+            {
+                return GetPassedDistinctLessonsCount(userId);
+            }
+
+            int passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
+
+            var lessonIdsInCourse =
+                (from t in _dbContext.Topics
+                 join l in _dbContext.Lessons on t.Id equals l.TopicId
+                 where t.CourseId == courseId.Value
+                 select l.Id)
+                .Distinct();
+
+            return _dbContext.LessonResults
+                .Where(x => x.UserId == userId && x.TotalQuestions > 0)
+                .Where(x => lessonIdsInCourse.Contains(x.LessonId))
                 .Where(x => x.Score * 100 >= x.TotalQuestions * passingScorePercent)
                 .Select(x => x.LessonId)
                 .Distinct()

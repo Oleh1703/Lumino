@@ -182,6 +182,13 @@ namespace Lumino.Api.Data
                 entity.Property(x => x.Title).IsRequired();
                 entity.Property(x => x.Description).IsRequired();
                 entity.Property(x => x.SceneType).IsRequired();
+
+                entity.HasOne<Course>()
+                    .WithMany()
+                    .HasForeignKey(x => x.CourseId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(x => x.CourseId);
             });
 
             modelBuilder.Entity<SceneStep>(entity =>

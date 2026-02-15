@@ -40,7 +40,7 @@ public class NextActivityServiceTests
         var service = new NextActivityService(
             dbContext,
             new FixedDateTimeProvider(new DateTime(2026, 2, 11, 0, 0, 0, DateTimeKind.Utc)),
-            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneCompletionScore = 5 })
+            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1, SceneCompletionScore = 5 })
         );
 
         var next = service.GetNext(5);
@@ -76,7 +76,7 @@ public class NextActivityServiceTests
         var service = new NextActivityService(
             dbContext,
             new FixedDateTimeProvider(new DateTime(2026, 2, 11, 0, 0, 0, DateTimeKind.Utc)),
-            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneCompletionScore = 5 })
+            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1, SceneCompletionScore = 5 })
         );
 
         var next = service.GetNext(5);
@@ -146,7 +146,7 @@ public class NextActivityServiceTests
         var service = new NextActivityService(
             dbContext,
             new FixedDateTimeProvider(new DateTime(2026, 2, 11, 0, 0, 0, DateTimeKind.Utc)),
-            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneCompletionScore = 5 })
+            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1, SceneCompletionScore = 5 })
         );
 
         var next = service.GetNext(5);
@@ -211,7 +211,7 @@ public class NextActivityServiceTests
         var service = new NextActivityService(
             dbContext,
             new FixedDateTimeProvider(new DateTime(2026, 2, 11, 0, 0, 0, DateTimeKind.Utc)),
-            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneCompletionScore = 5 })
+            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1, SceneCompletionScore = 5 })
         );
 
         var next = service.GetNext(5);
@@ -314,7 +314,7 @@ public class NextActivityServiceTests
         var service = new NextActivityService(
             dbContext,
             new FixedDateTimeProvider(new DateTime(2026, 2, 11, 0, 0, 0, DateTimeKind.Utc)),
-            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneCompletionScore = 5 })
+            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1, SceneCompletionScore = 5 })
         );
 
         var next = service.GetNext(5);

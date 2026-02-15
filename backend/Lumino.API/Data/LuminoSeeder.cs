@@ -22,6 +22,7 @@ namespace Lumino.Api.Data
             SeedScenes(dbContext);
             SeedVocabulary(dbContext);
             SeedDemoContentEnglishOnly(dbContext);
+            LinkScenesToDefaultCourse(dbContext);
 
             SeedVocabularyLinks(dbContext);
         }
@@ -338,6 +339,37 @@ namespace Lumino.Api.Data
             }
 
             dbContext.SaveChanges();
+        }
+
+        private static void LinkScenesToDefaultCourse(LuminoDbContext dbContext)
+        {
+            // Step3: link scenes to the default course (published first, otherwise any).
+            // Safe to call multiple times.
+            var defaultCourse = dbContext.Courses.FirstOrDefault(x => x.IsPublished) ?? dbContext.Courses.FirstOrDefault();
+            if (defaultCourse == null)
+            {
+                return;
+            }
+
+            var scenes = dbContext.Scenes.ToList();
+            bool changed = false;
+
+            foreach (var scene in scenes)
+            {
+                // do not overwrite if already linked
+                if (scene.CourseId != null && scene.CourseId > 0)
+                {
+                    continue;
+                }
+
+                scene.CourseId = defaultCourse.Id;
+                changed = true;
+            }
+
+            if (changed)
+            {
+                dbContext.SaveChanges();
+            }
         }
 
         private static void SeedVocabulary(LuminoDbContext dbContext)

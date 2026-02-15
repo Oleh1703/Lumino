@@ -300,17 +300,40 @@ namespace Lumino.Api.Application.Services
 
         private NextActivityResponse? GetNextScene(int userId)
         {
+            var activeCourse = _dbContext.UserCourses
+                .FirstOrDefault(x => x.UserId == userId && x.IsActive);
+
+            int? courseIdToUse = activeCourse?.CourseId;
+
+            if (courseIdToUse == null)
+            {
+                courseIdToUse = GetFirstPublishedCourseWithLessonsId();
+
+                if (courseIdToUse == null)
+                {
+                    return null;
+                }
+            }
+
             var completedSceneIds = _dbContext.SceneAttempts
                 .Where(x => x.UserId == userId && x.IsCompleted)
                 .Select(x => x.SceneId)
                 .Distinct()
                 .ToList();
 
-            // unlock-rule для сцен: залежить від кількості passed уроків
+            // unlock-rule для сцен: залежить від кількості passed уроків В АКТИВНОМУ КУРСІ
             int passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
+
+            var lessonIdsInCourse =
+                (from t in _dbContext.Topics
+                 join l in _dbContext.Lessons on t.Id equals l.TopicId
+                 where t.CourseId == courseIdToUse.Value
+                 select l.Id)
+                .Distinct();
 
             int passedLessons = _dbContext.LessonResults
                 .Where(x => x.UserId == userId && x.TotalQuestions > 0)
+                .Where(x => lessonIdsInCourse.Contains(x.LessonId))
                 .Where(x => x.Score * 100 >= x.TotalQuestions * passingScorePercent)
                 .Select(x => x.LessonId)
                 .Distinct()
@@ -318,7 +341,22 @@ namespace Lumino.Api.Application.Services
 
             var unlockEvery = SceneUnlockRules.NormalizeUnlockEveryLessons(_learningSettings.SceneUnlockEveryLessons);
 
-            var scene = _dbContext.Scenes
+            // якщо вже є сцени прив'язані до курсу - показуємо тільки їх
+            // інакше (legacy) - беремо сцени без CourseId
+            bool hasCourseScenes = _dbContext.Scenes.Any(x => x.CourseId == courseIdToUse.Value);
+
+            var scenesQuery = _dbContext.Scenes.AsQueryable();
+
+            if (hasCourseScenes)
+            {
+                scenesQuery = scenesQuery.Where(x => x.CourseId == courseIdToUse.Value);
+            }
+            else
+            {
+                scenesQuery = scenesQuery.Where(x => x.CourseId == null);
+            }
+
+            var scene = scenesQuery
                 .OrderBy(x => x.Id)
                 .AsEnumerable()
                 .FirstOrDefault(x =>

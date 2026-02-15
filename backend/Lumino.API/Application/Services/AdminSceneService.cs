@@ -68,6 +68,7 @@ namespace Lumino.Api.Application.Services
                 Description = request.Description,
                 SceneType = request.SceneType,
                 BackgroundUrl = request.BackgroundUrl,
+                CourseId = GetCourseIdOrDefault(request.CourseId),
                 AudioUrl = request.AudioUrl
             };
 
@@ -113,6 +114,7 @@ namespace Lumino.Api.Application.Services
 
             scene.Title = request.Title;
             scene.Description = request.Description;
+            scene.CourseId = GetCourseIdOrDefault(request.CourseId);
             scene.SceneType = request.SceneType;
             scene.BackgroundUrl = request.BackgroundUrl;
             scene.AudioUrl = request.AudioUrl;
@@ -273,6 +275,27 @@ namespace Lumino.Api.Application.Services
                     ChoicesJson = x.ChoicesJson
                 })
                 .ToList();
+        }
+
+        private int? GetCourseIdOrDefault(int? requestCourseId)
+        {
+            if (requestCourseId.HasValue && requestCourseId.Value > 0)
+            {
+                var exists = _dbContext.Courses.Any(x => x.Id == requestCourseId.Value);
+                if (exists)
+                {
+                    return requestCourseId.Value;
+                }
+            }
+
+            var published = _dbContext.Courses.FirstOrDefault(x => x.IsPublished);
+            if (published != null)
+            {
+                return published.Id;
+            }
+
+            var any = _dbContext.Courses.FirstOrDefault();
+            return any?.Id;
         }
 
         private void ValidateStepsOrders(List<CreateSceneStepRequest> steps)
