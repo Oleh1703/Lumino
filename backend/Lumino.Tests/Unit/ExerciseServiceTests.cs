@@ -124,6 +124,110 @@ public class ExerciseServiceTests
     }
 
     [Fact]
+    public void GetExercisesByLesson_WhenOrderIsZeroOrLess_ShouldFallbackToIdAfterPositiveOrders()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Courses.Add(new Course
+        {
+            Id = 1,
+            Title = "Course",
+            Description = "Desc",
+            IsPublished = true
+        });
+
+        dbContext.Topics.Add(new Topic
+        {
+            Id = 1,
+            CourseId = 1,
+            Title = "Topic",
+            Order = 1
+        });
+
+        dbContext.Lessons.Add(new Lesson
+        {
+            Id = 1,
+            TopicId = 1,
+            Title = "Lesson",
+            Theory = "Theory",
+            Order = 1
+        });
+
+        dbContext.UserLessonProgresses.Add(new UserLessonProgress
+        {
+            UserId = 10,
+            LessonId = 1,
+            IsUnlocked = true,
+            IsCompleted = false,
+            BestScore = 0,
+            LastAttemptAt = DateTime.UtcNow
+        });
+
+        dbContext.Exercises.AddRange(
+            new Exercise
+            {
+                Id = 10,
+                LessonId = 1,
+                Type = ExerciseType.Input,
+                Question = "Q1",
+                Data = "{}",
+                CorrectAnswer = "A",
+                Order = 2
+            },
+            new Exercise
+            {
+                Id = 20,
+                LessonId = 1,
+                Type = ExerciseType.Input,
+                Question = "Q2",
+                Data = "{}",
+                CorrectAnswer = "B",
+                Order = 0
+            },
+            new Exercise
+            {
+                Id = 15,
+                LessonId = 1,
+                Type = ExerciseType.Input,
+                Question = "Q3",
+                Data = "{}",
+                CorrectAnswer = "C",
+                Order = -1
+            },
+            new Exercise
+            {
+                Id = 5,
+                LessonId = 1,
+                Type = ExerciseType.Input,
+                Question = "Q4",
+                Data = "{}",
+                CorrectAnswer = "D",
+                Order = 1
+            }
+        );
+
+        dbContext.SaveChanges();
+
+        var service = new ExerciseService(dbContext);
+
+        var result = service.GetExercisesByLesson(10, 1);
+
+        Assert.Equal(4, result.Count);
+
+        Assert.Equal(5, result[0].Id);
+        Assert.Equal(1, result[0].Order);
+
+        Assert.Equal(10, result[1].Id);
+        Assert.Equal(2, result[1].Order);
+
+        Assert.Equal(15, result[2].Id);
+        Assert.Equal(-1, result[2].Order);
+
+        Assert.Equal(20, result[3].Id);
+        Assert.Equal(0, result[3].Order);
+    }
+
+    [Fact]
     public void GetExercisesByLesson_ReturnsOrderedByOrder_AndTypeAsString()
     {
         var dbContext = TestDbContextFactory.Create();
