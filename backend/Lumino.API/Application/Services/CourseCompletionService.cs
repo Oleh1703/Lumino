@@ -39,7 +39,7 @@ namespace Lumino.Api.Application.Services
                 from t in _dbContext.Topics
                 join l in _dbContext.Lessons on t.Id equals l.TopicId
                 where t.CourseId == courseId
-                orderby t.Order, l.Order
+                orderby (t.Order > 0 ? t.Order : t.Id), (l.Order > 0 ? l.Order : l.Id)
                 select l.Id
             ).ToList();
 

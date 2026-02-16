@@ -338,6 +338,96 @@ public class LessonResultServiceTests
     }
 
     [Fact]
+    public void SubmitLesson_WhenPassed_OrderZero_ShouldUnlockNextLesson_ByIdFallback()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Courses.Add(new Course
+        {
+            Id = 1,
+            Title = "English A1",
+            Description = "Desc",
+            IsPublished = true
+        });
+
+        dbContext.Topics.Add(new Topic
+        {
+            Id = 5,
+            CourseId = 1,
+            Title = "Basics",
+            Order = 0
+        });
+
+        dbContext.Lessons.Add(new Lesson
+        {
+            Id = 10,
+            TopicId = 5,
+            Title = "Lesson 10",
+            Theory = "T",
+            Order = 0
+        });
+
+        dbContext.Lessons.Add(new Lesson
+        {
+            Id = 20,
+            TopicId = 5,
+            Title = "Lesson 20",
+            Theory = "T",
+            Order = 0
+        });
+
+        dbContext.Exercises.Add(new Exercise
+        {
+            Id = 100,
+            LessonId = 10,
+            Type = ExerciseType.Input,
+            Question = "Q1",
+            Data = "",
+            CorrectAnswer = "ok",
+            Order = 1
+        });
+
+        dbContext.UserLessonProgresses.Add(new UserLessonProgress
+        {
+            UserId = 10,
+            LessonId = 10,
+            IsUnlocked = true,
+            IsCompleted = false,
+            BestScore = 0,
+            LastAttemptAt = DateTime.UtcNow
+        });
+
+        dbContext.SaveChanges();
+
+        var now = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc);
+
+        var service = new LessonResultService(
+            dbContext,
+            new FakeAchievementService(),
+            new FixedDateTimeProvider(now),
+            new FakeSubmitLessonValidator(),
+            Options.Create(new LearningSettings { PassingScorePercent = 80 })
+        );
+
+        var response = service.SubmitLesson(10, new SubmitLessonRequest
+        {
+            LessonId = 10,
+            Answers = new List<SubmitExerciseAnswerRequest>
+            {
+                new SubmitExerciseAnswerRequest { ExerciseId = 100, Answer = "ok" }
+            }
+        });
+
+        Assert.True(response.IsPassed);
+
+        var p2 = dbContext.UserLessonProgresses.First(x => x.UserId == 10 && x.LessonId == 20);
+        Assert.True(p2.IsUnlocked);
+
+        var activeCourse = dbContext.UserCourses.First(x => x.UserId == 10 && x.CourseId == 1);
+        Assert.Equal(20, activeCourse.LastLessonId);
+    }
+
+    [Fact]
     public void SubmitLesson_WhenPassed_ShouldAddLessonWordsToUserVocabulary_ByLessonVocabulary_EvenIfTheoryEmpty()
     {
         var dbContext = TestDbContextFactory.Create();
