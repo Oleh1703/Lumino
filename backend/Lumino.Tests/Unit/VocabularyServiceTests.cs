@@ -1,6 +1,7 @@
 ﻿﻿using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Utils;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Lumino.Tests;
@@ -13,7 +14,7 @@ public class VocabularyServiceTests
         var dbContext = TestDbContextFactory.Create();
 
         var now = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc);
-        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now));
+        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now), Options.Create(new LearningSettings()));
 
         service.AddWord(userId: 1, new AddVocabularyRequest
         {
@@ -46,7 +47,7 @@ public class VocabularyServiceTests
         var dbContext = TestDbContextFactory.Create();
 
         var now = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc);
-        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now));
+        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now), Options.Create(new LearningSettings()));
 
         service.AddWord(userId: 1, new AddVocabularyRequest
         {
@@ -70,7 +71,7 @@ public class VocabularyServiceTests
         var dbContext = TestDbContextFactory.Create();
 
         var now = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc);
-        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now));
+        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now), Options.Create(new LearningSettings()));
 
         service.AddWord(userId: 1, new AddVocabularyRequest
         {
@@ -90,7 +91,7 @@ public class VocabularyServiceTests
         var dbContext = TestDbContextFactory.Create();
 
         var now = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc);
-        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now));
+        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now), Options.Create(new LearningSettings()));
 
         service.AddWord(userId: 1, new AddVocabularyRequest
         {
@@ -121,7 +122,7 @@ public class VocabularyServiceTests
         var dbContext = TestDbContextFactory.Create();
 
         var now = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc);
-        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now));
+        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now), Options.Create(new LearningSettings()));
 
         service.AddWord(userId: 1, new AddVocabularyRequest
         {
@@ -154,7 +155,7 @@ public class VocabularyServiceTests
         var dbContext = TestDbContextFactory.Create();
 
         var now = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc);
-        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now));
+        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now), Options.Create(new LearningSettings()));
 
         Assert.Throws<KeyNotFoundException>(() =>
         {
@@ -171,7 +172,7 @@ public class VocabularyServiceTests
         var dbContext = TestDbContextFactory.Create();
 
         var now = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc);
-        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now));
+        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now), Options.Create(new LearningSettings()));
 
         Assert.Throws<KeyNotFoundException>(() =>
         {

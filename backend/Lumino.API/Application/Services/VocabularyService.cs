@@ -4,6 +4,7 @@ using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Utils;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,11 +15,13 @@ namespace Lumino.Api.Application.Services
     {
         private readonly LuminoDbContext _dbContext;
         private readonly IDateTimeProvider _dateTimeProvider;
+        private readonly LearningSettings _learningSettings;
 
-        public VocabularyService(LuminoDbContext dbContext, IDateTimeProvider dateTimeProvider)
+        public VocabularyService(LuminoDbContext dbContext, IDateTimeProvider dateTimeProvider, IOptions<LearningSettings> learningSettings)
         {
             _dbContext = dbContext;
             _dateTimeProvider = dateTimeProvider;
+            _learningSettings = learningSettings?.Value ?? new LearningSettings();
         }
 
         public List<VocabularyResponse> GetMyVocabulary(int userId)
@@ -188,7 +191,7 @@ namespace Lumino.Api.Application.Services
             else
             {
                 entity.ReviewCount = 0;
-                entity.NextReviewAt = now.AddHours(12);
+                entity.NextReviewAt = now.AddHours(_learningSettings.VocabularyWrongDelayHours);
             }
 
             _dbContext.SaveChanges();
@@ -223,20 +226,25 @@ namespace Lumino.Api.Application.Services
             _dbContext.SaveChanges();
         }
 
-        private static DateTime CalculateNextReviewAt(DateTime now, int reviewCount)
+        private DateTime CalculateNextReviewAt(DateTime now, int reviewCount)
         {
-            // Simplified spaced repetition (days): 1, 2, 4, 7, 14, 30, 60...
-            var days =
-                reviewCount switch
-                {
-                    1 => 1,
-                    2 => 2,
-                    3 => 4,
-                    4 => 7,
-                    5 => 14,
-                    6 => 30,
-                    _ => 60
-                };
+            var intervals = _learningSettings.VocabularyReviewIntervalsDays;
+
+            if (intervals == null || intervals.Count == 0)
+            {
+                intervals = new List<int> { 1, 2, 4, 7, 14, 30, 60 };
+            }
+
+            if (reviewCount <= 0)
+            {
+                return now;
+            }
+
+            var index = reviewCount - 1;
+
+            var days = index < intervals.Count
+                ? intervals[index]
+                : intervals[intervals.Count - 1];
 
             return now.AddDays(days);
         }
