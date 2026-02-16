@@ -68,13 +68,17 @@ namespace Lumino.Api.Application.Services
 
             ValidateStepsOrders(request.Steps);
 
+            var courseId = GetCourseIdOrDefault(request.CourseId);
+            ValidateUniqueSceneOrder(courseId, request.Order, null);
+
             var scene = new Scene
             {
                 Title = request.Title,
                 Description = request.Description,
                 SceneType = request.SceneType,
                 BackgroundUrl = request.BackgroundUrl,
-                CourseId = GetCourseIdOrDefault(request.CourseId),
+                CourseId = courseId,
+                Order = request.Order,
                 AudioUrl = request.AudioUrl
             };
 
@@ -118,9 +122,13 @@ namespace Lumino.Api.Application.Services
                 throw new KeyNotFoundException("Scene not found");
             }
 
+            var courseId = GetCourseIdOrDefault(request.CourseId);
+            ValidateUniqueSceneOrder(courseId, request.Order, id);
+
             scene.Title = request.Title;
             scene.Description = request.Description;
-            scene.CourseId = GetCourseIdOrDefault(request.CourseId);
+            scene.CourseId = courseId;
+            scene.Order = request.Order;
             scene.SceneType = request.SceneType;
             scene.BackgroundUrl = request.BackgroundUrl;
             scene.AudioUrl = request.AudioUrl;
@@ -302,6 +310,27 @@ namespace Lumino.Api.Application.Services
 
             var any = _dbContext.Courses.FirstOrDefault();
             return any?.Id;
+        }
+
+        private void ValidateUniqueSceneOrder(int? courseId, int order, int? ignoreSceneId)
+        {
+            if (order <= 0)
+            {
+                return;
+            }
+
+            if (!courseId.HasValue || courseId.Value <= 0)
+            {
+                return;
+            }
+
+            bool exists = _dbContext.Scenes.Any(x => x.CourseId == courseId.Value && x.Order == order
+                                               && (!ignoreSceneId.HasValue || x.Id != ignoreSceneId.Value));
+
+            if (exists)
+            {
+                throw new ArgumentException("Scene with this Order already exists in this course");
+            }
         }
 
         private void ValidateStepsOrders(List<CreateSceneStepRequest> steps)

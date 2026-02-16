@@ -1,4 +1,4 @@
-﻿﻿using Lumino.Api.Application.DTOs;
+﻿using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Domain.Entities;
 using Xunit;
@@ -427,7 +427,138 @@ public class AdminSceneServiceTests
         dbContext.SaveChanges();
     }
 
-    private static void SeedScene(Lumino.Api.Data.LuminoDbContext dbContext, int sceneId)
+    
+    [Fact]
+    public void Create_WhenOrderProvided_ShouldPersistOrderAndCourse()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Courses.Add(new Course { Id = 1, Title = "C1", Description = "D1", IsPublished = true });
+        dbContext.SaveChanges();
+
+        var service = new AdminSceneService(dbContext);
+
+        var result = service.Create(new CreateSceneRequest
+        {
+            CourseId = 1,
+            Order = 5,
+            Title = "Scene X",
+            Description = "Desc",
+            SceneType = "intro",
+            BackgroundUrl = null,
+            AudioUrl = null,
+            Steps = new()
+        });
+
+        var savedScene = dbContext.Scenes.FirstOrDefault(x => x.Id == result.Id);
+        Assert.NotNull(savedScene);
+        Assert.Equal(1, savedScene!.CourseId);
+        Assert.Equal(5, savedScene.Order);
+    }
+
+    [Fact]
+    public void Create_WhenDuplicateOrderInSameCourse_ShouldThrow()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Courses.Add(new Course { Id = 1, Title = "C1", Description = "D1", IsPublished = true });
+
+        dbContext.Scenes.Add(new Scene
+        {
+            Id = 10,
+            CourseId = 1,
+            Order = 3,
+            Title = "S1",
+            Description = "D",
+            SceneType = "intro"
+        });
+
+        dbContext.SaveChanges();
+
+        var service = new AdminSceneService(dbContext);
+
+        Assert.Throws<ArgumentException>(() =>
+        {
+            service.Create(new CreateSceneRequest
+            {
+                CourseId = 1,
+                Order = 3,
+                Title = "S2",
+                Description = "D",
+                SceneType = "intro",
+                BackgroundUrl = null,
+                AudioUrl = null,
+                Steps = new()
+            });
+        });
+    }
+
+    [Fact]
+    public void Update_WhenDuplicateOrderInSameCourse_ShouldThrow()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Courses.Add(new Course { Id = 1, Title = "C1", Description = "D1", IsPublished = true });
+
+        dbContext.Scenes.AddRange(
+            new Scene { Id = 11, CourseId = 1, Order = 1, Title = "S1", Description = "D", SceneType = "intro" },
+            new Scene { Id = 12, CourseId = 1, Order = 2, Title = "S2", Description = "D", SceneType = "intro" }
+        );
+
+        dbContext.SaveChanges();
+
+        var service = new AdminSceneService(dbContext);
+
+        Assert.Throws<ArgumentException>(() =>
+        {
+            service.Update(12, new UpdateSceneRequest
+            {
+                CourseId = 1,
+                Order = 1,
+                Title = "S2",
+                Description = "D",
+                SceneType = "intro",
+                BackgroundUrl = null,
+                AudioUrl = null
+            });
+        });
+    }
+
+    [Fact]
+    public void Update_WhenMoveToCourseWithDuplicateOrder_ShouldThrow()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Courses.AddRange(
+            new Course { Id = 1, Title = "C1", Description = "D1", IsPublished = true },
+            new Course { Id = 2, Title = "C2", Description = "D2", IsPublished = true }
+        );
+
+        dbContext.Scenes.AddRange(
+            new Scene { Id = 21, CourseId = 1, Order = 1, Title = "A-1", Description = "D", SceneType = "intro" },
+            new Scene { Id = 22, CourseId = 2, Order = 1, Title = "B-1", Description = "D", SceneType = "intro" }
+        );
+
+        dbContext.SaveChanges();
+
+        var service = new AdminSceneService(dbContext);
+
+        Assert.Throws<ArgumentException>(() =>
+        {
+            service.Update(21, new UpdateSceneRequest
+            {
+                CourseId = 2,
+                Order = 1,
+                Title = "A-1",
+                Description = "D",
+                SceneType = "intro",
+                BackgroundUrl = null,
+                AudioUrl = null
+            });
+        });
+    }
+
+private static void SeedScene(Lumino.Api.Data.LuminoDbContext dbContext, int sceneId)
     {
         dbContext.Scenes.Add(new Scene
         {
