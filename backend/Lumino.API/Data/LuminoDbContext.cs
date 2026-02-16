@@ -191,7 +191,7 @@ namespace Lumino.Api.Data
                 entity.HasIndex(x => x.CourseId);
 
                 // NEW: stable scene ordering (Order > 0), fallback to Id when Order == 0 in services.
-                entity.HasIndex(x => new { x.CourseId, x.Order });
+                entity.HasIndex(x => new { x.CourseId, x.Order }).IsUnique().HasFilter("[Order] > 0");
             });
 
             modelBuilder.Entity<SceneStep>(entity =>

@@ -482,6 +482,8 @@ namespace Lumino.Api.Application.Services
                     userCourse.LastLessonId = nextLessonId.Value;
                     userCourse.LastOpenedAt = now;
                 }
+
+                TryMarkCourseCompleted(userId, userCourse, courseId.Value, now);
             }
 
             _dbContext.SaveChanges();
@@ -624,6 +626,78 @@ namespace Lumino.Api.Application.Services
 
             return nextLessonId;
         }
+
+
+        private void TryMarkCourseCompleted(int userId, UserCourse? userCourse, int courseId, DateTime now)
+        {
+            if (userCourse == null)
+            {
+                return;
+            }
+
+            if (userCourse.IsCompleted)
+            {
+                return;
+            }
+
+            var lessonIds =
+                (from t in _dbContext.Topics
+                 join l in _dbContext.Lessons on t.Id equals l.TopicId
+                 where t.CourseId == courseId
+                 select l.Id)
+                .Distinct()
+                .ToList();
+
+            if (lessonIds.Count == 0)
+            {
+                return;
+            }
+
+            // Враховуємо завершені уроки з БД
+            var completedLessonIds = _dbContext.UserLessonProgresses
+                .Where(x => x.UserId == userId && x.IsCompleted)
+                .Where(x => lessonIds.Contains(x.LessonId))
+                .Select(x => x.LessonId)
+                .Distinct()
+                .ToList();
+
+            var completedSet = new HashSet<int>(completedLessonIds);
+
+            // Враховуємо зміни в поточному DbContext (до SaveChanges),
+            // щоб поточний PASSED урок також врахувався при завершенні курсу
+            foreach (var progress in _dbContext.UserLessonProgresses.Local)
+            {
+                if (progress.UserId != userId)
+                {
+                    continue;
+                }
+
+                if (!lessonIds.Contains(progress.LessonId))
+                {
+                    continue;
+                }
+
+                if (progress.IsCompleted)
+                {
+                    completedSet.Add(progress.LessonId);
+                }
+                else
+                {
+                    completedSet.Remove(progress.LessonId);
+                }
+            }
+
+            if (completedSet.Count >= lessonIds.Count)
+            {
+                userCourse.IsCompleted = true;
+
+                if (userCourse.CompletedAt == null)
+                {
+                    userCourse.CompletedAt = now;
+                }
+            }
+        }
+
 
         private static List<(string Word, string Translation)> ExtractPairsFromTheory(string? theory)
         {

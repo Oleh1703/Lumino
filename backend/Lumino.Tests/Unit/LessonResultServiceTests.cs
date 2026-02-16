@@ -551,4 +551,118 @@ public class LessonResultServiceTests
 
         Assert.Equal(now, userWord!.NextReviewAt);
     }
+
+    [Fact]
+    public void SubmitLesson_WhenCompletesAllLessonsInCourse_ShouldMarkUserCourseCompleted()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Courses.Add(new Course
+        {
+            Id = 1,
+            Title = "Course 1",
+            Description = "D",
+            IsPublished = true
+        });
+
+        dbContext.Topics.Add(new Topic
+        {
+            Id = 1,
+            CourseId = 1,
+            Title = "Topic 1",
+            Order = 1
+        });
+
+        dbContext.Lessons.AddRange(
+            new Lesson
+            {
+                Id = 1,
+                Title = "Lesson 1",
+                Theory = "Text",
+                TopicId = 1,
+                Order = 1
+            },
+            new Lesson
+            {
+                Id = 2,
+                Title = "Lesson 2",
+                Theory = "Text",
+                TopicId = 1,
+                Order = 2
+            }
+        );
+
+        dbContext.Exercises.AddRange(
+            new Exercise
+            {
+                Id = 1,
+                LessonId = 1,
+                Type = ExerciseType.Input,
+                Question = "Q1",
+                Data = "",
+                CorrectAnswer = "a",
+                Order = 1
+            },
+            new Exercise
+            {
+                Id = 2,
+                LessonId = 2,
+                Type = ExerciseType.Input,
+                Question = "Q2",
+                Data = "",
+                CorrectAnswer = "b",
+                Order = 1
+            }
+        );
+
+        // урок 1 має бути unlocked для цього користувача (інакше SubmitLesson кине "Lesson is locked")
+        dbContext.UserLessonProgresses.Add(new UserLessonProgress
+        {
+            UserId = 1,
+            LessonId = 1,
+            IsUnlocked = true,
+            IsCompleted = false,
+            BestScore = 0,
+            LastAttemptAt = DateTime.UtcNow
+        });
+
+        dbContext.SaveChanges();
+
+        var service = new LessonResultService(
+            dbContext,
+            new FakeAchievementService(),
+            new FakeDateTimeProvider(),
+            new FakeSubmitLessonValidator(),
+            Options.Create(new LearningSettings { PassingScorePercent = 80 })
+        );
+
+        var r1 = service.SubmitLesson(1, new SubmitLessonRequest
+        {
+            LessonId = 1,
+            Answers = new List<SubmitExerciseAnswerRequest>
+            {
+                new SubmitExerciseAnswerRequest { ExerciseId = 1, Answer = "a" }
+            }
+        });
+
+        Assert.True(r1.IsPassed);
+
+        var r2 = service.SubmitLesson(1, new SubmitLessonRequest
+        {
+            LessonId = 2,
+            Answers = new List<SubmitExerciseAnswerRequest>
+            {
+                new SubmitExerciseAnswerRequest { ExerciseId = 2, Answer = "b" }
+            }
+        });
+
+        Assert.True(r2.IsPassed);
+
+        var userCourse = dbContext.UserCourses.FirstOrDefault(x => x.UserId == 1 && x.CourseId == 1);
+
+        Assert.NotNull(userCourse);
+        Assert.True(userCourse!.IsCompleted);
+        Assert.NotNull(userCourse.CompletedAt);
+    }
+
 }
