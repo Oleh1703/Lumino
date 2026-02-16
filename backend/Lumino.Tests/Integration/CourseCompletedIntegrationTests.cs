@@ -1,4 +1,4 @@
-﻿using Lumino.Api.Application.DTOs;
+﻿﻿using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Application.Validators;
 using Lumino.Api.Domain.Entities;
@@ -117,6 +117,8 @@ public class CourseCompletedIntegrationTests
 
         Assert.NotNull(userCourse);
         Assert.True(userCourse!.IsCompleted);
+        Assert.False(userCourse.IsActive);
+        Assert.Null(userCourse.LastLessonId);
         Assert.NotNull(userCourse.CompletedAt);
     }
 }

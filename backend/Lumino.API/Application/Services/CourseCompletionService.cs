@@ -184,6 +184,14 @@ namespace Lumino.Api.Application.Services
         {
             if (userCourse != null && userCourse.IsCompleted)
             {
+                if (userCourse.IsActive || userCourse.LastLessonId != null)
+                {
+                    userCourse.IsActive = false;
+                    userCourse.LastLessonId = null;
+
+                    _dbContext.SaveChanges();
+                }
+
                 return;
             }
 
@@ -207,6 +215,9 @@ namespace Lumino.Api.Application.Services
                 _dbContext.SaveChanges();
                 return;
             }
+
+            userCourse.IsActive = false;
+            userCourse.LastLessonId = null;
 
             userCourse.IsCompleted = true;
             userCourse.CompletedAt = now;
