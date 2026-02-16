@@ -131,7 +131,8 @@ namespace Lumino.Api.Application.Services
             {
                 steps = _dbContext.SceneSteps
                     .Where(x => x.SceneId == sceneId)
-                    .OrderBy(x => x.Order)
+                    .OrderBy(x => x.Order <= 0 ? int.MaxValue : x.Order)
+                    .ThenBy(x => x.Id)
                     .Select(x => new SceneStepResponse
                     {
                         Id = x.Id,
@@ -227,7 +228,8 @@ namespace Lumino.Api.Application.Services
 
             var steps = _dbContext.SceneSteps
                 .Where(x => mistakeIds.Contains(x.Id))
-                .OrderBy(x => x.Order)
+                .OrderBy(x => x.Order <= 0 ? int.MaxValue : x.Order)
+                .ThenBy(x => x.Id)
                 .Select(x => new SceneStepResponse
                 {
                     Id = x.Id,
@@ -271,7 +273,8 @@ namespace Lumino.Api.Application.Services
 
             var steps = _dbContext.SceneSteps
                 .Where(x => x.SceneId == sceneId)
-                .OrderBy(x => x.Order)
+                .OrderBy(x => x.Order <= 0 ? int.MaxValue : x.Order)
+                .ThenBy(x => x.Id)
                 .ToList();
 
             var questionSteps = steps
@@ -523,7 +526,8 @@ namespace Lumino.Api.Application.Services
 
             var steps = _dbContext.SceneSteps
                 .Where(x => x.SceneId == sceneId)
-                .OrderBy(x => x.Order)
+                .OrderBy(x => x.Order <= 0 ? int.MaxValue : x.Order)
+                .ThenBy(x => x.Id)
                 .ToList();
 
             var questionSteps = steps
@@ -635,7 +639,8 @@ namespace Lumino.Api.Application.Services
 
             var steps = _dbContext.SceneSteps
                 .Where(x => x.SceneId == sceneId)
-                .OrderBy(x => x.Order)
+                .OrderBy(x => x.Order <= 0 ? int.MaxValue : x.Order)
+                .ThenBy(x => x.Id)
                 .ToList();
 
             var hasQuestions = steps

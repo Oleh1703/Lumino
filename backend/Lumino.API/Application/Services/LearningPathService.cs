@@ -65,14 +65,16 @@ namespace Lumino.Api.Application.Services
 
             var topics = orderedLessons
                 .GroupBy(x => new { x.TopicId, x.TopicTitle, x.TopicOrder })
-                .OrderBy(x => x.Key.TopicOrder)
+                .OrderBy(x => x.Key.TopicOrder <= 0 ? int.MaxValue : x.Key.TopicOrder)
+                .ThenBy(x => x.Key.TopicId)
                 .Select(g => new LearningPathTopicResponse
                 {
                     Id = g.Key.TopicId,
                     Title = g.Key.TopicTitle,
                     Order = g.Key.TopicOrder,
                     Lessons = g
-                        .OrderBy(x => x.LessonOrder)
+                        .OrderBy(x => x.LessonOrder <= 0 ? int.MaxValue : x.LessonOrder)
+                        .ThenBy(x => x.LessonId)
                         .Select(x =>
                         {
                             progressDict.TryGetValue(x.LessonId, out var p);

@@ -18,7 +18,8 @@ namespace Lumino.Api.Application.Services
         {
             return _dbContext.Topics
                 .Where(x => x.CourseId == courseId)
-                .OrderBy(x => x.Order)
+                .OrderBy(x => x.Order <= 0 ? int.MaxValue : x.Order)
+                .ThenBy(x => x.Id)
                 .Select(x => new AdminTopicResponse
                 {
                     Id = x.Id,

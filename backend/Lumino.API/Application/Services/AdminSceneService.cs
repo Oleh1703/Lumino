@@ -88,7 +88,7 @@ namespace Lumino.Api.Application.Services
             if (request.Steps != null && request.Steps.Count > 0)
             {
                 var steps = request.Steps
-                    .OrderBy(x => x.Order)
+                    .OrderBy(x => x.Order <= 0 ? int.MaxValue : x.Order)
                     .Select(x => new SceneStep
                     {
                         SceneId = scene.Id,
@@ -276,7 +276,8 @@ namespace Lumino.Api.Application.Services
         {
             return _dbContext.SceneSteps
                 .Where(x => x.SceneId == sceneId)
-                .OrderBy(x => x.Order)
+                .OrderBy(x => x.Order <= 0 ? int.MaxValue : x.Order)
+                .ThenBy(x => x.Id)
                 .Select(x => new AdminSceneStepResponse
                 {
                     Id = x.Id,
