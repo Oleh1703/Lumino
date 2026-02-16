@@ -49,7 +49,7 @@ namespace Lumino.Api.Application.Services
         {
             return _dbContext.Scenes
                 .AsEnumerable()
-                .OrderBy(x => x.Order > 0 ? x.Order : x.Id)
+                .OrderBy(x => x.Order <= 0 ? int.MaxValue : x.Order)
                 .ThenBy(x => x.Id)
                 .Select(x => new SceneResponse
                 {
@@ -750,7 +750,7 @@ namespace Lumino.Api.Application.Services
 
             var orderedIds = scenesQuery
                 .AsEnumerable()
-                .OrderBy(x => x.Order > 0 ? x.Order : x.Id)
+                .OrderBy(x => x.Order <= 0 ? int.MaxValue : x.Order)
                 .ThenBy(x => x.Id)
                 .Select(x => x.Id)
                 .ToList();

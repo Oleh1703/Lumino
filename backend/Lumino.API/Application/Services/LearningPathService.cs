@@ -45,7 +45,7 @@ namespace Lumino.Api.Application.Services
                 (from t in _dbContext.Topics
                  join l in _dbContext.Lessons on t.Id equals l.TopicId
                  where t.CourseId == course.Id
-                 orderby (t.Order > 0 ? t.Order : t.Id), (l.Order > 0 ? l.Order : l.Id)
+                 orderby (t.Order <= 0 ? int.MaxValue : t.Order), t.Id, (l.Order <= 0 ? int.MaxValue : l.Order), l.Id
                  select new OrderedLessonInfo
                  {
                      TopicId = t.Id,
