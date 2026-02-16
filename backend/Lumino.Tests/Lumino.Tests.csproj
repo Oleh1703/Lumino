@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -15,6 +15,7 @@
 
     <!-- ВАЖЛИВО: ставимо InMemory -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.23" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.23" />
   </ItemGroup>
 
   <ItemGroup>
