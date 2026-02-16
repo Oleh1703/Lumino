@@ -76,10 +76,10 @@ namespace Lumino.Api.Application.Services
 
             var passedLessons = GetPassedDistinctLessonsCount(userId, scene.CourseId);
 
-            var sceneOrderOrId = scene.Order > 0 ? scene.Order : scene.Id;
+            var scenePosition = GetScenePosition(scene);
 
-            var required = SceneUnlockRules.GetRequiredPassedLessons(sceneOrderOrId, _learningSettings.SceneUnlockEveryLessons);
-            var isUnlocked = SceneUnlockRules.IsUnlocked(sceneOrderOrId, passedLessons, _learningSettings.SceneUnlockEveryLessons);
+            var required = SceneUnlockRules.GetRequiredPassedLessons(scenePosition, _learningSettings.SceneUnlockEveryLessons);
+            var isUnlocked = SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, _learningSettings.SceneUnlockEveryLessons);
 
             var unlockReason = isUnlocked ? null : $"Pass {required} lessons to unlock";
 
@@ -115,10 +115,10 @@ namespace Lumino.Api.Application.Services
 
             var passedLessons = GetPassedDistinctLessonsCount(userId, scene.CourseId);
 
-            var sceneOrderOrId = scene.Order > 0 ? scene.Order : scene.Id;
+            var scenePosition = GetScenePosition(scene);
 
-            var required = SceneUnlockRules.GetRequiredPassedLessons(sceneOrderOrId, _learningSettings.SceneUnlockEveryLessons);
-            var isUnlocked = SceneUnlockRules.IsUnlocked(sceneOrderOrId, passedLessons, _learningSettings.SceneUnlockEveryLessons);
+            var required = SceneUnlockRules.GetRequiredPassedLessons(scenePosition, _learningSettings.SceneUnlockEveryLessons);
+            var isUnlocked = SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, _learningSettings.SceneUnlockEveryLessons);
 
             var unlockReason = isUnlocked ? null : $"Pass {required} lessons to unlock";
 
@@ -174,10 +174,10 @@ namespace Lumino.Api.Application.Services
             }
 
             var passedLessons = GetPassedDistinctLessonsCount(userId, scene.CourseId);
-            var sceneOrderOrId = scene.Order > 0 ? scene.Order : scene.Id;
+            var scenePosition = scene.Order > 0 ? scene.Order : scene.Id;
 
 
-            if (!SceneUnlockRules.IsUnlocked(sceneOrderOrId, passedLessons, _learningSettings.SceneUnlockEveryLessons))
+            if (!SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, _learningSettings.SceneUnlockEveryLessons))
             {
                 throw new ForbiddenAccessException("Scene is locked");
             }
@@ -261,10 +261,10 @@ namespace Lumino.Api.Application.Services
             }
 
             var passedLessons = GetPassedDistinctLessonsCount(userId, scene.CourseId);
-            var sceneOrderOrId = scene.Order > 0 ? scene.Order : scene.Id;
+            var scenePosition = scene.Order > 0 ? scene.Order : scene.Id;
 
 
-            if (!SceneUnlockRules.IsUnlocked(sceneOrderOrId, passedLessons, _learningSettings.SceneUnlockEveryLessons))
+            if (!SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, _learningSettings.SceneUnlockEveryLessons))
             {
                 throw new ForbiddenAccessException("Scene is locked");
             }
@@ -513,10 +513,10 @@ namespace Lumino.Api.Application.Services
             }
 
             var passedLessons = GetPassedDistinctLessonsCount(userId, scene.CourseId);
-            var sceneOrderOrId = scene.Order > 0 ? scene.Order : scene.Id;
+            var scenePosition = scene.Order > 0 ? scene.Order : scene.Id;
 
 
-            if (!SceneUnlockRules.IsUnlocked(sceneOrderOrId, passedLessons, _learningSettings.SceneUnlockEveryLessons))
+            if (!SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, _learningSettings.SceneUnlockEveryLessons))
             {
                 throw new ForbiddenAccessException("Scene is locked");
             }
@@ -650,9 +650,9 @@ namespace Lumino.Api.Application.Services
 
             // заборона “закрити” сцену, якщо вона ще locked
             var passedLessons = GetPassedDistinctLessonsCount(userId, scene.CourseId);
-            var sceneOrderOrId = scene.Order > 0 ? scene.Order : scene.Id;
+            var scenePosition = GetScenePosition(scene);
 
-            if (!SceneUnlockRules.IsUnlocked(sceneOrderOrId, passedLessons, _learningSettings.SceneUnlockEveryLessons))
+            if (!SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, _learningSettings.SceneUnlockEveryLessons))
             {
                 throw new ForbiddenAccessException("Scene is locked");
             }
@@ -723,6 +723,41 @@ namespace Lumino.Api.Application.Services
                 .Select(x => x.LessonId)
                 .Distinct()
                 .Count();
+        }
+
+        private int GetScenePosition(Scene scene)
+        {
+            if (scene == null)
+            {
+                return 1;
+            }
+
+            var scenesQuery = _dbContext.Scenes.AsQueryable();
+
+            if (scene.CourseId != null)
+            {
+                scenesQuery = scenesQuery.Where(x => x.CourseId == scene.CourseId.Value);
+            }
+            else
+            {
+                scenesQuery = scenesQuery.Where(x => x.CourseId == null);
+            }
+
+            var orderedIds = scenesQuery
+                .AsEnumerable()
+                .OrderBy(x => x.Order > 0 ? x.Order : x.Id)
+                .ThenBy(x => x.Id)
+                .Select(x => x.Id)
+                .ToList();
+
+            int index = orderedIds.IndexOf(scene.Id);
+
+            if (index < 0)
+            {
+                return 1;
+            }
+
+            return index + 1;
         }
 
         private void EnsureCompletedAttempt(int userId, int sceneId, int score, int totalQuestions, string? detailsJson, bool markCompleted = true)

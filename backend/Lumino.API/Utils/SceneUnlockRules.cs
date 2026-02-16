@@ -7,22 +7,22 @@ namespace Lumino.Api.Utils
             return value < 1 ? 1 : value;
         }
 
-        // sceneOrderOrId: використовуємо Scene.Order (якщо > 0), інакше fallback на Scene.Id
-        public static int GetRequiredPassedLessons(int sceneOrderOrId, int unlockEveryLessons)
+        // scenePosition: використовуємо Scene.Order (якщо > 0), інакше fallback на Scene.Id
+        public static int GetRequiredPassedLessons(int scenePosition, int unlockEveryLessons)
         {
             unlockEveryLessons = NormalizeUnlockEveryLessons(unlockEveryLessons);
 
-            if (sceneOrderOrId <= 1)
+            if (scenePosition <= 1)
             {
                 return 0;
             }
 
-            return (sceneOrderOrId - 1) * unlockEveryLessons;
+            return (scenePosition - 1) * unlockEveryLessons;
         }
 
-        public static bool IsUnlocked(int sceneOrderOrId, int passedLessonsCount, int unlockEveryLessons)
+        public static bool IsUnlocked(int scenePosition, int passedLessonsCount, int unlockEveryLessons)
         {
-            var required = GetRequiredPassedLessons(sceneOrderOrId, unlockEveryLessons);
+            var required = GetRequiredPassedLessons(scenePosition, unlockEveryLessons);
             return passedLessonsCount >= required;
         }
     }

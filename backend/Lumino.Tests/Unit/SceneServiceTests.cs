@@ -105,6 +105,14 @@ public class SceneServiceTests
         // scene 2 -> requiredLessons = (2-1)*1 = 1
         dbContext.Scenes.Add(new Scene
         {
+            Id = 1,
+            Title = "Scene 1",
+            Description = "Desc",
+            SceneType = "intro"
+        });
+
+        dbContext.Scenes.Add(new Scene
+        {
             Id = 2,
             Title = "Scene 2",
             Description = "Desc",
@@ -260,6 +268,14 @@ public class SceneServiceTests
         });
 
         // scene 2 unlocked якщо пройдено 1 lesson
+        dbContext.Scenes.Add(new Scene
+        {
+            Id = 1,
+            Title = "Scene 1",
+            Description = "Desc",
+            SceneType = "intro"
+        });
+
         dbContext.Scenes.Add(new Scene
         {
             Id = 2,
@@ -960,6 +976,14 @@ public class SceneServiceTests
         });
 
         // scene 2 -> requiredLessons = (2-1)*1 = 1
+        dbContext.Scenes.Add(new Scene
+        {
+            Id = 1,
+            Title = "Scene 1",
+            Description = "Desc",
+            SceneType = "intro"
+        });
+
         dbContext.Scenes.Add(new Scene
         {
             Id = 2,

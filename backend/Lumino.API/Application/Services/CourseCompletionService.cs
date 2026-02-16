@@ -5,6 +5,7 @@ using Lumino.Api.Domain.Entities;
 using Lumino.Api.Utils;
 using Microsoft.Extensions.Options;
 using System;
+using System.Collections.Generic;
 
 namespace Lumino.Api.Application.Services
 {
@@ -87,11 +88,22 @@ namespace Lumino.Api.Application.Services
 
             if (courseScenes.Count > 0)
             {
-                var unlockedSceneIds = courseScenes
+                var orderedScenes = courseScenes
                     .OrderBy(x => x.Order > 0 ? x.Order : x.Id)
-                    .Where(x => SceneUnlockRules.IsUnlocked(x.Order > 0 ? x.Order : x.Id, completedLessons, _learningSettings.SceneUnlockEveryLessons))
-                    .Select(x => x.Id)
+                    .ThenBy(x => x.Id)
                     .ToList();
+
+                var unlockedSceneIds = new List<int>();
+
+                for (int i = 0; i < orderedScenes.Count; i++)
+                {
+                    int scenePosition = i + 1;
+
+                    if (SceneUnlockRules.IsUnlocked(scenePosition, completedLessons, _learningSettings.SceneUnlockEveryLessons))
+                    {
+                        unlockedSceneIds.Add(orderedScenes[i].Id);
+                    }
+                }
 
                 scenesTotal = unlockedSceneIds.Count;
 

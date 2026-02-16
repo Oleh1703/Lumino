@@ -157,6 +157,56 @@ public class NextActivityServiceTests
     }
 
     [Fact]
+    public void GetNext_WhenSceneOrderNotSequential_ShouldUsePositionNotRawOrder()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        SeedLessons(dbContext);
+
+        dbContext.Scenes.AddRange(
+            new Scene { Id = 1, Title = "Scene 1", Description = "D", SceneType = "Dialog", Order = 10 },
+            new Scene { Id = 2, Title = "Scene 2", Description = "D", SceneType = "Dialog", Order = 20 }
+        );
+
+        // Mark lesson 1 and lesson 2 as passed
+        dbContext.LessonResults.Add(new LessonResult
+        {
+            Id = 1,
+            UserId = 5,
+            LessonId = 1,
+            Score = 8,
+            TotalQuestions = 10,
+            MistakesJson = "[]",
+            CompletedAt = new DateTime(2026, 2, 10, 0, 0, 0, DateTimeKind.Utc)
+        });
+
+        dbContext.LessonResults.Add(new LessonResult
+        {
+            Id = 2,
+            UserId = 5,
+            LessonId = 2,
+            Score = 8,
+            TotalQuestions = 10,
+            MistakesJson = "[]",
+            CompletedAt = new DateTime(2026, 2, 10, 0, 0, 0, DateTimeKind.Utc)
+        });
+
+        dbContext.SaveChanges();
+
+        var service = new NextActivityService(
+            dbContext,
+            new FixedDateTimeProvider(new DateTime(2026, 2, 11, 0, 0, 0, DateTimeKind.Utc)),
+            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1, SceneCompletionScore = 5 })
+        );
+
+        var next = service.GetNext(5);
+
+        Assert.NotNull(next);
+        Assert.Equal("Scene", next!.Type);
+        Assert.Equal(1, next.SceneId);
+    }
+
+    [Fact]
     public void GetNext_WhenNothingToDo_ReturnsNull()
     {
         var dbContext = TestDbContextFactory.Create();

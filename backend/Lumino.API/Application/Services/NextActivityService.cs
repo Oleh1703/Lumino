@@ -356,13 +356,31 @@ namespace Lumino.Api.Application.Services
                 scenesQuery = scenesQuery.Where(x => x.CourseId == null);
             }
 
-            var scene = scenesQuery
+            var orderedScenes = scenesQuery
                 .AsEnumerable()
                 .OrderBy(x => x.Order > 0 ? x.Order : x.Id)
                 .ThenBy(x => x.Id)
-                .FirstOrDefault(x =>
-                    !completedSceneIds.Contains(x.Id) &&
-                    SceneUnlockRules.IsUnlocked(x.Order > 0 ? x.Order : x.Id, passedLessons, unlockEvery));
+                .ToList();
+
+            Scene? scene = null;
+
+            for (int i = 0; i < orderedScenes.Count; i++)
+            {
+                var s = orderedScenes[i];
+
+                if (completedSceneIds.Contains(s.Id))
+                {
+                    continue;
+                }
+
+                int scenePosition = i + 1;
+
+                if (SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, unlockEvery))
+                {
+                    scene = s;
+                    break;
+                }
+            }
 
             if (scene == null)
             {
