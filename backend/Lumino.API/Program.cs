@@ -147,7 +147,10 @@ namespace Lumino.Api
                 app.UseSwaggerUI();
             }
 
-            app.UseHttpsRedirection();
+            if (!app.Environment.IsEnvironment("Testing"))
+            {
+                app.UseHttpsRedirection();
+            }
 
             app.UseStaticFiles();
 

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using Lumino.Api.Utils;
+using Microsoft.AspNetCore.Hosting;
 
 namespace Lumino.Api.Middleware
 {
@@ -8,11 +9,16 @@ namespace Lumino.Api.Middleware
     {
         private readonly RequestDelegate _next;
         private readonly ILogger<ExceptionHandlingMiddleware> _logger;
+        private readonly IWebHostEnvironment _environment;
 
-        public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
+        public ExceptionHandlingMiddleware(
+            RequestDelegate next,
+            ILogger<ExceptionHandlingMiddleware> logger,
+            IWebHostEnvironment environment)
         {
             _next = next;
             _logger = logger;
+            _environment = environment;
         }
 
         public async Task Invoke(HttpContext context)
@@ -31,13 +37,30 @@ namespace Lumino.Api.Middleware
         {
             var (statusCode, type, message) = MapException(ex);
 
-            _logger.LogError(ex,
-                "Unhandled exception: {Type} | {Message} | Path: {Path} | TraceId: {TraceId}",
-                type,
-                message,
-                context.Request.Path.Value,
-                context.TraceIdentifier
-            );
+            // Не шумимо у тестах на очікуваних 4xx (вони спеціально викликаються в інтеграційних тестах)
+            if (!(_environment.IsEnvironment("Testing") && statusCode < 500))
+            {
+                if (statusCode >= 500)
+                {
+                    _logger.LogError(ex,
+                        "Unhandled exception: {Type} | {Message} | Path: {Path} | TraceId: {TraceId}",
+                        type,
+                        message,
+                        context.Request.Path.Value,
+                        context.TraceIdentifier
+                    );
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "Handled exception: {Type} | {Message} | Path: {Path} | TraceId: {TraceId}",
+                        type,
+                        message,
+                        context.Request.Path.Value,
+                        context.TraceIdentifier
+                    );
+                }
+            }
 
             if (context.Response.HasStarted)
             {
