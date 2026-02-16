@@ -22,6 +22,8 @@ namespace Lumino.Api.Application.DTOs
 
         public bool IsUnlocked { get; set; }
 
+        public string? UnlockReason { get; set; }
+
         public int PassedLessons { get; set; }
 
         public int RequiredPassedLessons { get; set; }

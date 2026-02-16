@@ -81,6 +81,8 @@ namespace Lumino.Api.Application.Services
             var required = SceneUnlockRules.GetRequiredPassedLessons(sceneOrderOrId, _learningSettings.SceneUnlockEveryLessons);
             var isUnlocked = SceneUnlockRules.IsUnlocked(sceneOrderOrId, passedLessons, _learningSettings.SceneUnlockEveryLessons);
 
+            var unlockReason = isUnlocked ? null : $"Pass {required} lessons to unlock";
+
             var isCompleted = _dbContext.SceneAttempts
                 .Any(x => x.UserId == userId && x.SceneId == sceneId && x.IsCompleted);
 
@@ -96,6 +98,7 @@ namespace Lumino.Api.Application.Services
                 AudioUrl = scene.AudioUrl,
                 IsCompleted = isCompleted,
                 IsUnlocked = isUnlocked,
+                UnlockReason = unlockReason,
                 PassedLessons = passedLessons,
                 RequiredPassedLessons = required
             };
@@ -116,6 +119,8 @@ namespace Lumino.Api.Application.Services
 
             var required = SceneUnlockRules.GetRequiredPassedLessons(sceneOrderOrId, _learningSettings.SceneUnlockEveryLessons);
             var isUnlocked = SceneUnlockRules.IsUnlocked(sceneOrderOrId, passedLessons, _learningSettings.SceneUnlockEveryLessons);
+
+            var unlockReason = isUnlocked ? null : $"Pass {required} lessons to unlock";
 
             var isCompleted = _dbContext.SceneAttempts
                 .Any(x => x.UserId == userId && x.SceneId == sceneId && x.IsCompleted);
@@ -152,6 +157,7 @@ namespace Lumino.Api.Application.Services
                 AudioUrl = scene.AudioUrl,
                 IsCompleted = isCompleted,
                 IsUnlocked = isUnlocked,
+                UnlockReason = unlockReason,
                 PassedLessons = passedLessons,
                 RequiredPassedLessons = required,
                 Steps = steps
