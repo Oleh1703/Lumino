@@ -264,7 +264,7 @@ namespace Lumino.Api.Application.Services
 
         private static string Normalize(string value)
         {
-            return (value ?? string.Empty).Trim().ToLower();
+            return AnswerNormalizer.Normalize(value);
         }
 
         private void UpdateUserProgress(int userId, bool shouldIncrementCompletedLessons)

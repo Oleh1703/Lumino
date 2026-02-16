@@ -776,9 +776,7 @@ namespace Lumino.Api.Application.Services
 
         private static string NormalizeAnswer(string value)
         {
-            return (value ?? "")
-                .Trim()
-                .ToLowerInvariant();
+            return AnswerNormalizer.Normalize(value);
         }
 
         private static List<string>? TryGetCorrectAnswersFromChoicesJson(string stepType, string choicesJson)
