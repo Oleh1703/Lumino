@@ -1,344 +1,397 @@
-diff --git a/docs/LearningFlow.md b/docs/LearningFlow.md
-new file mode 100644
-index 0000000..b73c9e1
---- /dev/null
-+++ b/docs/LearningFlow.md
-@@ -0,0 +1,221 @@
-+# Lumino API — навчальний флоу (клон Duolingo)
-+
-+> Документ для фронтенду: які ендпоінти викликати, у якому порядку, і як інтерпретувати стани `locked/unlocked/completed` та `NextActivity`.
-+
-+## 0) Авторизація (перед будь-яким навчанням)
-+1) Реєстрація / логін → отримати JWT токен.
-+2) Усі навчальні ендпоінти з `[Authorize]` викликати з заголовком:
-+- `Authorization: Bearer <token>`
-+
-+> В бекенді userId береться з JWT (`ClaimsUtils.GetUserIdOrThrow(User)`).
-+
-+---
-+
-+## 1) Вибір курсу (екран “Courses / Оберіть курс”)
-+
-+### 1.1 Отримати список курсів
-+- `GET /api/courses`
-+- Повертає тільки опубліковані курси.
-+
-+### 1.2 Старт / активація курсу (обовʼязково перед навчанням)
-+- `POST /api/learning/courses/{courseId}/start`
-+- Робить курс активним для користувача:
-+  - створює `UserCourse` якщо його не було
-+  - виставляє `IsActive = true`, оновлює `StartedAt`, `LastOpenedAt`
-+  - синхронізує `UserLessonProgresses` для всіх уроків курсу (locked/unlocked/completed)
-+  - гарантує, що є хоча б один `unlocked` урок для старту/продовження
-+- Відповідь: `ActiveCourseResponse`
-+```json
-+{
-+  "courseId": 1,
-+  "startedAt": "2026-02-16T12:00:00Z",
-+  "lastLessonId": 10,
-+  "lastOpenedAt": "2026-02-16T12:00:00Z"
-+}
-+```
-+
-+### 1.3 Отримати активний курс (опційно, при старті застосунку)
-+- `GET /api/learning/courses/active`
-+- Якщо активного курсу немає → `404`.
-+
-+---
-+
-+## 2) Learning Path (екран “Доріжка навчання”)
-+
-+### 2.1 Отримати path по курсу для поточного користувача
-+- `GET /api/learning/courses/{courseId}/path/me`
-+- Відповідь: `LearningPathResponse`
-+  - `Topics[]` та `Lessons[]` відсортовані по правилу: `Order якщо > 0`, інакше `Id`.
-+  - `Lessons` містять стани, які фронт використовує для UI (кнопка, замок, прогрес).
-+```json
-+{
-+  "courseId": 1,
-+  "courseTitle": "English A1",
-+  "topics": [
-+    {
-+      "id": 1,
-+      "title": "Basics",
-+      "order": 1,
-+      "lessons": [
-+        {
-+          "id": 10,
-+          "title": "Greetings",
-+          "order": 1,
-+          "isUnlocked": true,
-+          "isPassed": true,
-+          "bestScore": 8,
-+          "totalQuestions": 10,
-+          "bestPercent": 80
-+        }
-+      ]
-+    }
-+  ]
-+}
-+```
-+
-+### 2.2 Значення станів уроків
-+- `isUnlocked = true` → урок доступний (можна заходити, робити вправи).
-+- `isPassed = true` → урок пройдено (score >= passing threshold).
-+- “Completed” у path по суті = `isPassed` (для уроків).
-+
-+> Якщо урок `locked` і фронт все ж викличе `GET /api/lessons/{id}` або `GET /api/lessons/{id}/exercises` — бекенд поверне `403` з помилкою.
-+
-+---
-+
-+## 3) NextActivity (кнопка “Continue / Продовжити”)
-+
-+### 3.1 Отримати наступну активність
-+- `GET /api/next/me`
-+  - (є також alias: `GET /api/learning/next`)
-+- Відповідь: `NextActivityResponse` або `204 No Content` якщо нема що робити.
-+
-+### 3.2 Пріоритети NextActivity (важливо для Duolingo-логіки)
-+1) **VocabularyReview**, якщо є слово `due` (`NextReviewAt <= now`)
-+2) **Lesson**, якщо є `unlocked` і ще не `passed`
-+3) **Scene**, якщо є `uncompleted` і вона вже `unlocked` по правилу сцен
-+
-+```json
-+// варіант: VocabularyReview
-+{
-+  "type": "VocabularyReview",
-+  "userVocabularyId": 123,
-+  "vocabularyItemId": 77,
-+  "word": "hello",
-+  "translation": "привіт"
-+}
-+```
-+
-+```json
-+// варіант: Lesson
-+{
-+  "type": "Lesson",
-+  "lessonId": 10,
-+  "topicId": 1,
-+  "lessonTitle": "Greetings"
-+}
-+```
-+
-+```json
-+// варіант: Scene
-+{
-+  "type": "Scene",
-+  "sceneId": 5,
-+  "sceneTitle": "Cafe dialog"
-+}
-+```
-+
-+---
-+
-+## 4) Уроки (Lesson flow)
-+
-+### 4.1 Відкрити урок
-+- `GET /api/lessons/{lessonId}`
-+- Повертає: `LessonResponse` (теорія + метадані).
-+
-+### 4.2 Отримати вправи уроку
-+- `GET /api/lessons/{lessonId}/exercises`
-+- Повертає список `ExerciseResponse`.
-+
-+> Кожна вправа має `id` — фронт надсилає відповіді саме по `id`, порядок на фронті може бути по `order`.
-+
-+### 4.3 Надіслати відповіді (submit)
-+- `POST /api/lesson-submit`
-+- Body: `SubmitLessonRequest`
-+```json
-+{
-+  "lessonId": 10,
-+  "answers": [
-+    { "exerciseId": 1001, "answer": "hello" },
-+    { "exerciseId": 1002, "answer": "goodbye" }
-+  ]
-+}
-+```
-+
-+- Відповідь: `SubmitLessonResponse`
-+  - `isPassed` — пройдено чи ні
-+  - `mistakeExerciseIds` — вправи з помилками (для “повторити помилки”)
-+  - `answers[]` — деталізація (правильна/користувацька відповідь)
-+```json
-+{
-+  "totalExercises": 10,
-+  "correctAnswers": 8,
-+  "isPassed": true,
-+  "mistakeExerciseIds": [1003, 1007],
-+  "answers": [
-+    { "exerciseId": 1001, "userAnswer": "hello", "correctAnswer": "hello", "isCorrect": true }
-+  ]
-+}
-+```
-+
-+### 4.4 Що відбувається в бекенді після submit уроку
-+Якщо `isPassed = true`:
-+- зберігається `LessonResult` (score/total/mistakes)
-+- оновлюється `UserLessonProgress`:
-+  - поточний урок → `IsCompleted = true`
-+  - наступний урок у курсі → `IsUnlocked = true`
-+- оновлюється `UserCourse.LastLessonId` (щоб “продовжити” з нього)
-+- оновлюється `UserProgress` (score, completed lessons, streak)
-+- додаються слова у словник користувача (див. розділ Vocabulary)
-+- перевіряються досягнення (achievements)
-+
-+Якщо `isPassed = false`:
-+- результат зберігається, але **unlock наступного уроку не відбувається**.
-+
-+---
-+
-+## 5) Сцени (Scene flow — “історії” як у Duolingo)
-+
-+### 5.1 Список сцен
-+- `GET /api/scenes`
-+- Повертає загальний список сцен (метадані).
-+
-+### 5.2 Деталі сцени (включно з locked/unlocked)
-+- `GET /api/scenes/{sceneId}`
-+- Повертає `SceneDetailsResponse`:
-+  - `isUnlocked`
-+  - `unlockReason` (що показати на UI коли locked)
-+  - `passedLessons` / `requiredPassedLessons`
-+
-+### 5.3 Контент сцени
-+- `GET /api/scenes/{sceneId}/content`
-+- Повертає `SceneContentResponse`
-+  - якщо `isUnlocked = false`, `steps` буде порожній список.
-+
-+### 5.4 Submit сцени (відповіді)
-+- `POST /api/scenes/{sceneId}/submit`
-+- Body: `SubmitSceneRequest`
-+```json
-+{
-+  "answers": [
-+    { "stepId": 501, "answer": "A" },
-+    { "stepId": 502, "answer": "B" }
-+  ]
-+}
-+```
-+
-+- Відповідь: `SubmitSceneResponse`
-+  - `isCompleted = true`, якщо `correctAnswers == totalQuestions`
-+  - `mistakeStepIds` + `answers[]` для UI помилок
-+
-+> Якщо в сцені **немає питань** (тільки діалоги), submit одразу завершує сцену як completed.
-+
-+### 5.5 “Повторити помилки” по сцені
-+- `GET /api/scenes/{sceneId}/mistakes`
-+  - повертає `SceneMistakesResponse` (кроки з помилками)
-+- `POST /api/scenes/{sceneId}/mistakes/submit`
-+  - працює як retry: перераховує тільки кроки, які були в помилках, і оновлює attempt
-+
-+### 5.6 Правило unlock сцен
-+Сцени відкриваються по кількості **passed уроків** (в рамках курсу сцени):
-+- `SceneUnlockEveryLessons` (налаштування) визначає, після скількох passed уроків відкривається наступна сцена.
-+
-+---
-+
-+## 6) Vocabulary (слова + повторення)
-+
-+### 6.1 Як слова попадають у vocabulary
-+Після **успішного** проходження уроку (`isPassed = true`) бекенд:
-+- бере слова з `LessonVocabularies` (якщо привʼязка є),
-+- і/або парсить `lesson.theory` (fallback),
-+- додатково бере слова з помилкових вправ (`ExerciseVocabularies` або fallback з відповідей),
-+- записує в `UserVocabularies` з `NextReviewAt`:
-+  - якщо слово було в помилках → `NextReviewAt = now` (тобто “due” одразу)
-+  - інакше → `now + 1 day`
-+
-+### 6.2 Список всіх моїх слів
-+- `GET /api/vocabulary/me`
-+
-+### 6.3 Скільки “due” прямо зараз
-+- `GET /api/vocabulary/due`
-+- Повертає список слів, де `NextReviewAt <= now`.
-+
-+### 6.4 Взяти 1 наступне слово на повторення
-+- `GET /api/vocabulary/review/next`
-+- Якщо нема due → `204 No Content`.
-+
-+### 6.5 Відмітити повторення
-+- `POST /api/vocabulary/{userVocabularyId}/review`
-+- Body:
-+```json
-+{ "isCorrect": true }
-+```
-+- Якщо `isCorrect=true` → `reviewCount++`, `nextReviewAt` ставиться за інтервалами (`VocabularyReviewIntervalsDays`).
-+- Якщо `isCorrect=false` → `reviewCount=0`, `nextReviewAt = now + VocabularyWrongDelayHours`.
-+
-+---
-+
-+## 7) Прогрес і результати
-+
-+### 7.1 Загальний прогрес користувача
-+- `GET /api/progress/me`
-+- Повертає `UserProgressResponse`:
-+  - completed lessons / completion percent
-+  - streak (рахується по датах успішних уроків та completed сцен)
-+
-+### 7.2 Результати уроків (історія)
-+- `GET /api/results/me` — список результатів
-+- `GET /api/results/me/{resultId}` — деталі конкретної спроби (з правильними відповідями)
-+
-+### 7.3 Completion по курсу
-+- `GET /api/learning/courses/{courseId}/completion/me`
-+- Повертає `CourseCompletionResponse` (уроки + сцени, якщо вони привʼязані до курсу).
-+
-+---
-+
-+## 8) Контракт помилок (для фронтенду)
-+Будь-яка помилка повертається у форматі:
-+```json
-+{
-+  "statusCode": 403,
-+  "type": "forbidden",
-+  "message": "Lesson is locked",
-+  "traceId": "....",
-+  "path": "/api/lessons/10",
-+  "timestampUtc": "2026-02-16T12:00:00Z"
-+}
-+```
-+
-+Типові статуси:
-+- `400 bad_request` — неправильний request / дублікати id у answers
-+- `401 unauthorized` — нема/некоректний токен
-+- `403 forbidden` — locked урок/сцена або заборонена дія
-+- `404 not_found` — не знайдено ресурс
-+
-+---
-+
-+## 9) Мінімальний “happy path” (повна послідовність викликів)
-+1) `GET /api/courses`
-+2) `POST /api/learning/courses/{courseId}/start`
-+3) `GET /api/learning/courses/{courseId}/path/me`
-+4) `GET /api/next/me`
-+5) якщо `Lesson`:
-+   - `GET /api/lessons/{lessonId}`
-+   - `GET /api/lessons/{lessonId}/exercises`
-+   - `POST /api/lesson-submit`
-+   - (опційно) `GET /api/next/me` (щоб перейти далі)
-+6) якщо `Scene`:
-+   - `GET /api/scenes/{sceneId}`
-+   - `GET /api/scenes/{sceneId}/content`
-+   - `POST /api/scenes/{sceneId}/submit`
-+   - якщо є помилки → `GET /api/scenes/{sceneId}/mistakes` + `POST /api/scenes/{sceneId}/mistakes/submit`
-+7) якщо `VocabularyReview`:
-+   - `POST /api/vocabulary/{userVocabularyId}/review`
-+   - `GET /api/next/me`
-+
-+---
-+
-+## Перевірка + коміт (після додавання документа)
-+
-+1) Запустити тести:
-+```bash
-+dotnet test .\Lumino.Tests\Lumino.Tests.csproj
-+```
-+
-+2) Додати файл і закомітити:
-+```bash
-+git add .\docs\LearningFlow.md
-+git commit -m "docs: add LearningFlow API documentation for frontend"
-+```
+# Lumino Backend — Learning Flow
+
+> **Ціль документа:** показати **точний порядок викликів API** для навчання (як у Duolingo) + пояснити, **коли/чому** уроки та сцени мають стани `locked / unlocked / completed`, і як отримувати **наступну активність**.
+
+---
+
+## 1) Базові правила (дуже важливо для фронтенду)
+
+### 1.1 Авторизація
+1) `POST /api/auth/register` або `POST /api/auth/login` → отримати `accessToken` (JWT) + `refreshToken`.
+2) Для всіх навчальних ендпоінтів з `[Authorize]` передавати заголовок:
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+> `userId` на бекенді береться з JWT (через `ClaimsUtils.GetUserIdOrThrow(User)`).
+
+### 1.2 “Головний навігатор” навчання — NextActivity
+Є окремий сервіс, який повертає **що робити далі**:
+
+- `GET /api/next/me` (або alias `GET /api/learning/next`)
+- Якщо немає чого робити → `204 No Content`
+- Якщо є — повертає `NextActivityResponse`
+
+**Пріоритет у NextActivity (важливо):**
+1) `VocabularyReview` (якщо є слова `due`)
+2) `Lesson` (перший `unlocked` і ще не `passed`)
+3) `Scene` (перша доступна сцена за правилом unlock)
+
+> Тобто якщо у користувача зʼявилися слова на повторення — NextActivity **перекриє уроки/сцени** і відправить спочатку на повторення.
+
+---
+
+## 2) Налаштування правил навчання (конфіг)
+
+Ці правила лежать у `LearningSettings` (appsettings / options) і використовуються в сервісах:
+
+- **PassingScorePercent**: `%` для зарахування уроку (за замовчуванням **80%**).
+- **SceneUnlockEveryLessons**: скільки “passed уроків” потрібно на відкриття кожної наступної сцени (мінімум 1).
+- **SceneCompletionScore**: використовується у сценах як поріг/логіка завершення (див. Scene submit).
+- **VocabularyWrongDelayHours**: через скільки годин повторювати слово після помилки (SRS).
+- **VocabularyReviewIntervalsDays**: інтервали повторення (SRS) у днях після правильних відповідей.
+
+---
+
+## 3) Екран “Courses” → вибір курсу
+
+### 3.1 Отримати список курсів
+- `GET /api/courses`
+- Повертає **тільки опубліковані** (`IsPublished`) курси.
+
+### 3.2 Обовʼязковий старт курсу (перед навчанням)
+- `POST /api/learning/courses/{courseId}/start`
+
+Що робить бекенд:
+- створює або оновлює `UserCourse` (курс стає **active**),
+- вимикає інші активні курси користувача,
+- синхронізує `UserLessonProgresses` для **всіх** уроків курсу,
+- робить **перший урок unlocked**,
+- встановлює `LastLessonId` на коректний “де продовжити”.
+
+> **Якщо НЕ викликати start**, то NextActivity все одно спробує підібрати курс, але фронтенду краще працювати з явним “активним курсом”.
+
+### 3.3 Отримати активний курс користувача
+- `GET /api/learning/courses/active`
+- Якщо активного курсу нема → `404 Not Found`
+
+---
+
+## 4) Екран “Learning Path / Доріжка” (Topics + Lessons + стани)
+
+### 4.1 Отримати Topics у курсі (публічний)
+- `GET /api/courses/{courseId}/topics`
+
+### 4.2 Отримати lessons у topic (публічний)
+- `GET /api/topics/{topicId}/lessons`
+
+### 4.3 Найзручніший варіант для доріжки: “мій шлях” по курсу
+- `GET /api/learning/courses/{courseId}/path/me`
+
+Повертає:
+- Course → Topics → Lessons
+- для кожного уроку:
+  - `IsUnlocked`
+  - `IsPassed`
+  - `BestScore`
+  - `TotalQuestions`
+  - `BestPercent`
+
+> Це найкращий ендпоінт для рендеру “карти” навчання: фронтенд не мусить вручну склеювати topics/lessons/progress.
+
+### 4.4 Детальний прогрес уроків у курсі (якщо треба)
+- `GET /api/learning/courses/{courseId}/lessons/progress`
+
+---
+
+## 5) Уроки: повний “happy path” (виконання уроку)
+
+### 5.1 Отримати урок (деталі + теорія + доступ)
+- `GET /api/lessons/{lessonId}` *(Authorize)*
+
+> Якщо урок locked, бекенд поверне **403 Forbidden** при submit, а при отриманні уроку/вправ — фронтенд орієнтується на `IsUnlocked` у Learning Path.
+
+### 5.2 Отримати вправи уроку
+- `GET /api/lessons/{lessonId}/exercises` *(Authorize)*
+
+### 5.3 Відправити відповіді (submit)
+- `POST /api/lesson-submit` *(Authorize)*
+
+Body:
+```json
+{
+  "lessonId": 123,
+  "answers": [
+    { "exerciseId": 1, "answer": "..." },
+    { "exerciseId": 2, "answer": "..." }
+  ]
+}
+```
+
+Response (`SubmitLessonResponse`) важливе:
+- `IsPassed` — чи урок зараховано
+- `CorrectAnswers`, `TotalExercises`
+- `MistakeExerciseIds` + деталізація `Answers`
+
+### 5.4 Що відбувається на бекенді після submit уроку
+1) Рахується `IsPassed` за правилом:
+
+- якщо `TotalQuestions <= 0` → `false`
+- інакше: `correct * 100 >= total * PassingScorePercent`
+
+2) Записується `LessonResult` (історія спроб).
+3) Оновлюється `UserProgress` (Score / CompletedLessons / Streak логіка).
+4) Якщо `IsPassed == true`:
+   - оновлюється `UserLessonProgress` (`IsCompleted = true`, `BestScore`…),
+   - **unlock наступного уроку** (по порядку в курсі),
+   - `UserCourse.LastLessonId` переноситься на наступний урок,
+   - може бути виставлено `UserCourse.IsCompleted` якщо всі уроки завершені,
+   - запускається перевірка досягнень.
+
+5) Автоматичне Vocabulary після **Passed**:
+   - слова беруться з Lesson theory + з помилок
+   - якщо слово було помилкою → `NextReviewAt = now` (тобто слово **due одразу**)
+   - інакше → `NextReviewAt = now + 1 day`
+
+---
+
+## 6) Vocabulary (SRS): повторення та “слова на сьогодні”
+
+### 6.1 Весь словник користувача
+- `GET /api/vocabulary/me`
+
+### 6.2 Слова, які “due” (час повторення настав)
+- `GET /api/vocabulary/due`
+
+### 6.3 “Наступне слово на повторення”
+- `GET /api/vocabulary/review/next`
+- Якщо немає слів → `204 No Content`
+
+### 6.4 Додати слово вручну
+- `POST /api/vocabulary`
+
+Body:
+```json
+{
+  "word": "cat",
+  "translation": "кіт",
+  "example": "The cat is sleeping."
+}
+```
+
+### 6.5 Відповісти на повторення (правильно/неправильно)
+- `POST /api/vocabulary/{id}/review`
+
+Body:
+```json
+{ "isCorrect": true }
+```
+
+Результат:
+- оновлюється `ReviewCount`, `LastReviewedAt`, `NextReviewAt`
+- інтервали повторення беруться з `VocabularyReviewIntervalsDays`
+- при помилці використовується `VocabularyWrongDelayHours`
+
+### 6.6 Видалити слово
+- `DELETE /api/vocabulary/{id}`
+
+---
+
+## 7) Scenes (історії): unlock → контент → submit → mistakes
+
+### 7.1 Список сцен (публічний)
+- `GET /api/scenes`
+
+### 7.2 Деталі сцени для користувача (locked/completed + причина)
+- `GET /api/scenes/{sceneId}` *(Authorize)*
+
+Повертає:
+- `IsUnlocked`
+- `RequiredPassedLessons`
+- `UnlockReason` (якщо locked)
+- `IsCompleted`
+
+### 7.3 Отримати контент сцени (кроки), тільки якщо unlocked
+- `GET /api/scenes/{sceneId}/content` *(Authorize)*
+
+> Якщо сцена locked → буде **403 Forbidden**.
+
+### 7.4 Submit сцени
+- `POST /api/scenes/{sceneId}/submit` *(Authorize)*
+
+Body:
+```json
+{
+  "answers": [
+    { "stepId": 10, "answer": "A" },
+    { "stepId": 11, "answer": "B" }
+  ]
+}
+```
+
+Response (`SubmitSceneResponse`) містить:
+- `TotalQuestions`
+- `CorrectAnswers`
+- `IsCompleted`
+- `MistakeStepIds` + деталізація відповідей
+
+### 7.5 “Repeat mistakes” (як у Duolingo)
+1) Отримати кроки, де були помилки в останній спробі:
+   - `GET /api/scenes/{sceneId}/mistakes`
+2) Відправити повторно тільки ці кроки:
+   - `POST /api/scenes/{sceneId}/mistakes/submit`
+
+### 7.6 Ручне завершення сцени (якщо потрібно)
+- `POST /api/scenes/complete` *(Authorize)*
+
+Body:
+```json
+{ "sceneId": 55 }
+```
+
+### 7.7 Отримати всі completed сцени користувача
+- `GET /api/scenes/completed` *(Authorize)*
+
+---
+
+## 8) Прогрес, результати та досягнення (профіль)
+
+### 8.1 Загальний прогрес користувача
+- `GET /api/progress/me` *(Authorize)*
+
+Повертає:
+- `TotalScore`
+- `CompletedLessons`
+- `CompletionPercent`
+- `CurrentStreakDays` + `LastStudyAt`
+- `TotalScenes` / `CompletedDistinctScenes` і т.д.
+
+### 8.2 Історія результатів (уроки)
+- `GET /api/results/me` *(Authorize)*
+- Деталі конкретної спроби:
+  - `GET /api/results/me/{resultId}` *(Authorize)*
+
+### 8.3 Досягнення користувача
+- `GET /api/achievements/me` *(Authorize)*
+
+---
+
+## 9) Рекомендований сценарій фронтенду (коротко, але повністю)
+
+Найпростіший і стабільний флоу:
+
+1) Login/Register → зберегти токени
+2) `GET /api/learning/courses/active`
+   - якщо `404` → показати Courses і викликати `POST /api/learning/courses/{courseId}/start`
+3) `GET /api/learning/courses/{courseId}/path/me` → намалювати доріжку
+4) Кнопка “Continue” / авто-перехід:
+   - `GET /api/next/me`
+   - якщо `VocabularyReview` → показати екран повторення і працювати через `/api/vocabulary/...`
+   - якщо `Lesson` → `GET /api/lessons/{id}` + `GET /api/lessons/{id}/exercises` → `POST /api/lesson-submit`
+   - якщо `Scene` → `GET /api/scenes/{id}` → `GET /api/scenes/{id}/content` → `POST /api/scenes/{id}/submit`
+5) Після будь-якого завершення (урок/сцена/слово):
+   - оновити UI: `GET /api/progress/me`
+   - оновити доріжку: `GET /api/learning/courses/{courseId}/path/me`
+   - отримати “що далі”: `GET /api/next/me`
+
+---
+
+## 10) Типові помилки інтеграції (і як правильно)
+
+### 10.1 403 Forbidden на submit уроку
+Причина: урок `locked`.
+
+Правильно:
+- спочатку `POST /api/learning/courses/{courseId}/start`
+- працювати тільки з уроками, де `IsUnlocked == true` (з path/me)
+
+### 10.2 NextActivity повертає VocabularyReview, хоча ви “хотіли урок”
+Це **очікувана логіка**: у NextActivity пріоритет у due-слова.
+
+Якщо треба “примусово” відкрити урок:
+- відкривайте з доріжки (`path/me`) і викликайте урок напряму
+- або “закрийте” due-слова через `/api/vocabulary/{id}/review`
+
+### 10.3 Scenes: locked, але список сцен показує всі
+`GET /api/scenes` — публічний список.
+Статус locked/unlocked — це **персонально**, тому потрібно викликати:
+- `GET /api/scenes/{id}` (Authorize)
+
+---
+
+## 11) Mermaid-схеми (для швидкої візуалізації)
+
+### 11.1 Continue flow (NextActivity)
+```mermaid
+sequenceDiagram
+  autonumber
+  participant FE as Frontend
+  participant API as Lumino API
+
+  FE->>API: GET /api/next/me (JWT)
+  alt 204 No Content
+    API-->>FE: No next activity
+  else VocabularyReview
+    API-->>FE: { type: VocabularyReview, userVocabularyId, ... }
+    FE->>API: POST /api/vocabulary/{id}/review
+    API-->>FE: updated schedule
+  else Lesson
+    API-->>FE: { type: Lesson, lessonId, ... }
+    FE->>API: GET /api/lessons/{lessonId}
+    FE->>API: GET /api/lessons/{lessonId}/exercises
+    FE->>API: POST /api/lesson-submit
+    API-->>FE: { isPassed, mistakes... }
+  else Scene
+    API-->>FE: { type: Scene, sceneId, ... }
+    FE->>API: GET /api/scenes/{sceneId}
+    FE->>API: GET /api/scenes/{sceneId}/content
+    FE->>API: POST /api/scenes/{sceneId}/submit
+    API-->>FE: { isCompleted, mistakes... }
+  end
+```
+
+### 11.2 Unlock rules (уроки)
+```mermaid
+flowchart TD
+  A[StartCourse] --> B[Create/Sync UserLessonProgress for all lessons]
+  B --> C[Lesson #1 IsUnlocked = true]
+  C --> D[User submits Lesson]
+  D -->|Passed| E[Mark lesson completed]
+  E --> F[Unlock next lesson in course order]
+  D -->|Not passed| G[Stay on same lesson]
+```
+
+---
+
+## 12) Швидкий довідник ендпоінтів (тільки те, що потрібно для навчання)
+
+| Feature | Method | Endpoint |
+|---|---:|---|
+| Register | POST | `/api/auth/register` |
+| Login | POST | `/api/auth/login` |
+| Refresh token | POST | `/api/auth/refresh` |
+| Logout | POST | `/api/auth/logout` |
+| Courses | GET | `/api/courses` |
+| Start course | POST | `/api/learning/courses/{courseId}/start` |
+| Active course | GET | `/api/learning/courses/active` |
+| Course path (me) | GET | `/api/learning/courses/{courseId}/path/me` |
+| Topics in course | GET | `/api/courses/{courseId}/topics` |
+| Lessons in topic | GET | `/api/topics/{topicId}/lessons` |
+| Lesson details | GET | `/api/lessons/{lessonId}` |
+| Lesson exercises | GET | `/api/lessons/{lessonId}/exercises` |
+| Submit lesson | POST | `/api/lesson-submit` |
+| Next activity | GET | `/api/next/me` |
+| My progress | GET | `/api/progress/me` |
+| Results | GET | `/api/results/me` |
+| Result details | GET | `/api/results/me/{resultId}` |
+| Achievements | GET | `/api/achievements/me` |
+| Vocabulary list | GET | `/api/vocabulary/me` |
+| Vocabulary due | GET | `/api/vocabulary/due` |
+| Next vocab review | GET | `/api/vocabulary/review/next` |
+| Add vocab | POST | `/api/vocabulary` |
+| Review vocab | POST | `/api/vocabulary/{id}/review` |
+| Delete vocab | DELETE | `/api/vocabulary/{id}` |
+| Scenes list | GET | `/api/scenes` |
+| Scene details | GET | `/api/scenes/{id}` |
+| Scene content | GET | `/api/scenes/{id}/content` |
+| Scene submit | POST | `/api/scenes/{id}/submit` |
+| Scene mistakes | GET | `/api/scenes/{id}/mistakes` |
+| Submit mistakes | POST | `/api/scenes/{id}/mistakes/submit` |
+| Mark scene completed | POST | `/api/scenes/complete` |
+| Completed scenes | GET | `/api/scenes/completed` |
+
+---
+
+### Примітка
+Цей документ описує **саме поточний** стан вашого `backend.zip` (Lumino.API) і відповідає фактичним контролерам/роутам та правилам у сервісах.

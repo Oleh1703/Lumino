@@ -54,6 +54,8 @@ namespace Lumino.Api.Application.Services
 
             var exercises = _dbContext.Exercises
                 .Where(x => x.LessonId == lesson.Id)
+                .OrderBy(x => x.Order <= 0 ? int.MaxValue : x.Order)
+                .ThenBy(x => x.Id)
                 .ToList();
 
             int correct = 0;

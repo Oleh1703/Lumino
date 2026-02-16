@@ -755,4 +755,90 @@ public class LessonResultServiceTests
         Assert.NotNull(userCourse.CompletedAt);
     }
 
+
+    [Fact]
+    public void SubmitLesson_ShouldReturnAnswersOrderedByOrder_ThenIdFallback()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Lessons.Add(new Lesson
+        {
+            Id = 1,
+            Title = "Lesson 1",
+            Theory = "",
+            TopicId = 1,
+            Order = 1
+        });
+
+        dbContext.Exercises.AddRange(
+            new Exercise
+            {
+                Id = 10,
+                LessonId = 1,
+                Type = ExerciseType.Input,
+                Question = "Q2",
+                Data = "",
+                CorrectAnswer = "b",
+                Order = 2
+            },
+            new Exercise
+            {
+                Id = 5,
+                LessonId = 1,
+                Type = ExerciseType.Input,
+                Question = "Q1",
+                Data = "",
+                CorrectAnswer = "a",
+                Order = 1
+            },
+            new Exercise
+            {
+                Id = 20,
+                LessonId = 1,
+                Type = ExerciseType.Input,
+                Question = "Q3",
+                Data = "",
+                CorrectAnswer = "c",
+                Order = 0
+            }
+        );
+
+        dbContext.UserLessonProgresses.Add(new UserLessonProgress
+        {
+            UserId = 10,
+            LessonId = 1,
+            IsUnlocked = true,
+            IsCompleted = false,
+            BestScore = 0,
+            LastAttemptAt = DateTime.UtcNow
+        });
+
+        dbContext.SaveChanges();
+
+        var service = new LessonResultService(
+            dbContext,
+            new FakeAchievementService(),
+            new FakeDateTimeProvider(),
+            new FakeSubmitLessonValidator(),
+            Options.Create(new LearningSettings { PassingScorePercent = 80 })
+        );
+
+        var response = service.SubmitLesson(10, new SubmitLessonRequest
+        {
+            LessonId = 1,
+            Answers = new List<SubmitExerciseAnswerRequest>
+            {
+                new SubmitExerciseAnswerRequest { ExerciseId = 10, Answer = "b" },
+                new SubmitExerciseAnswerRequest { ExerciseId = 20, Answer = "c" },
+                new SubmitExerciseAnswerRequest { ExerciseId = 5, Answer = "a" }
+            }
+        });
+
+        Assert.True(response.IsPassed);
+        Assert.Equal(3, response.Answers.Count);
+
+        Assert.Equal(5, response.Answers[0].ExerciseId);
+        Assert.Equal(10, response.Answers[1].ExerciseId);
+        Assert.Equal(20, response.Answers[2].ExerciseId);
+    }
 }
