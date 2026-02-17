@@ -9,34 +9,51 @@ indent_size = 4
 trim_trailing_whitespace = true
 
 # ===============================
+# .NET / Visual Studio
+# ===============================
+[*.sln]
+end_of_line = crlf
+
+[*.csproj]
+end_of_line = crlf
+
+[*.props]
+end_of_line = crlf
+
+[*.targets]
+end_of_line = crlf
+
+# ===============================
 # C#
 # ===============================
-[*.cs]
+[*.{cs,csx}]
+end_of_line = crlf
 indent_size = 4
 
 # ===============================
 # JSON
 # ===============================
 [*.json]
+end_of_line = crlf
 indent_size = 2
 
 # ===============================
 # JavaScript / TypeScript
 # ===============================
-[*.js]
+[*.{js,jsx,ts,tsx}]
+end_of_line = crlf
 indent_size = 2
 
-[*.jsx]
-indent_size = 2
-
-[*.ts]
-indent_size = 2
-
-[*.tsx]
+# ===============================
+# Shell scripts
+# ===============================
+[*.sh]
+end_of_line = lf
 indent_size = 2
 
 # ===============================
 # Markdown
 # ===============================
 [*.md]
+end_of_line = crlf
 trim_trailing_whitespace = false

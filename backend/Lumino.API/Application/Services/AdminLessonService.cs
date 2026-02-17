@@ -38,12 +38,16 @@ namespace Lumino.Api.Application.Services
                 throw new ArgumentException("Request is required");
             }
 
+            var order = NormalizeOrder(request.Order);
+
+            ValidateUniqueLessonOrder(request.TopicId, order, ignoreLessonId: null);
+
             var lesson = new Lesson
             {
                 TopicId = request.TopicId,
                 Title = request.Title,
                 Theory = request.Theory,
-                Order = request.Order
+                Order = order
             };
 
             _dbContext.Lessons.Add(lesson);
@@ -73,9 +77,13 @@ namespace Lumino.Api.Application.Services
                 throw new KeyNotFoundException("Lesson not found");
             }
 
+            var order = NormalizeOrder(request.Order);
+
+            ValidateUniqueLessonOrder(lesson.TopicId, order, ignoreLessonId: lesson.Id);
+
             lesson.Title = request.Title;
             lesson.Theory = request.Theory;
-            lesson.Order = request.Order;
+            lesson.Order = order;
 
             _dbContext.SaveChanges();
         }
@@ -91,6 +99,29 @@ namespace Lumino.Api.Application.Services
 
             _dbContext.Lessons.Remove(lesson);
             _dbContext.SaveChanges();
+        }
+
+        private int NormalizeOrder(int order)
+        {
+            return order < 0 ? 0 : order;
+        }
+
+        private void ValidateUniqueLessonOrder(int topicId, int order, int? ignoreLessonId)
+        {
+            if (order <= 0)
+            {
+                return;
+            }
+
+            var hasDuplicate = _dbContext.Lessons.Any(x =>
+                x.TopicId == topicId &&
+                x.Order == order &&
+                (ignoreLessonId == null || x.Id != ignoreLessonId));
+
+            if (hasDuplicate)
+            {
+                throw new ArgumentException("Order is already used in this topic");
+            }
         }
     }
 }

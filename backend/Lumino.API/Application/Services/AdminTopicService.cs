@@ -37,11 +37,15 @@ namespace Lumino.Api.Application.Services
                 throw new ArgumentException("Request is required");
             }
 
+            var order = NormalizeOrder(request.Order);
+
+            ValidateUniqueTopicOrder(request.CourseId, order, ignoreTopicId: null);
+
             var topic = new Topic
             {
                 CourseId = request.CourseId,
                 Title = request.Title,
-                Order = request.Order
+                Order = order
             };
 
             _dbContext.Topics.Add(topic);
@@ -70,8 +74,12 @@ namespace Lumino.Api.Application.Services
                 throw new KeyNotFoundException("Topic not found");
             }
 
+            var order = NormalizeOrder(request.Order);
+
+            ValidateUniqueTopicOrder(topic.CourseId, order, ignoreTopicId: topic.Id);
+
             topic.Title = request.Title;
-            topic.Order = request.Order;
+            topic.Order = order;
 
             _dbContext.SaveChanges();
         }
@@ -87,6 +95,29 @@ namespace Lumino.Api.Application.Services
 
             _dbContext.Topics.Remove(topic);
             _dbContext.SaveChanges();
+        }
+
+        private int NormalizeOrder(int order)
+        {
+            return order < 0 ? 0 : order;
+        }
+
+        private void ValidateUniqueTopicOrder(int courseId, int order, int? ignoreTopicId)
+        {
+            if (order <= 0)
+            {
+                return;
+            }
+
+            var hasDuplicate = _dbContext.Topics.Any(x =>
+                x.CourseId == courseId &&
+                x.Order == order &&
+                (ignoreTopicId == null || x.Id != ignoreTopicId));
+
+            if (hasDuplicate)
+            {
+                throw new ArgumentException("Order is already used in this course");
+            }
         }
     }
 }

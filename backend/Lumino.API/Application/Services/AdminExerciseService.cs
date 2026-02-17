@@ -42,7 +42,11 @@ namespace Lumino.Api.Application.Services
                 throw new ArgumentException("Request is required");
             }
 
-            ValidateExercise(request.Type, request.Question, request.Data, request.CorrectAnswer, request.Order);
+            int order = NormalizeOrder(request.Order);
+
+            ValidateExercise(request.Type, request.Question, request.Data, request.CorrectAnswer);
+
+            ValidateOrderUnique(request.LessonId, 0, order);
 
             var exercise = new Exercise
             {
@@ -51,7 +55,7 @@ namespace Lumino.Api.Application.Services
                 Question = request.Question,
                 Data = request.Data,
                 CorrectAnswer = request.CorrectAnswer,
-                Order = request.Order
+                Order = order
             };
 
             _dbContext.Exercises.Add(exercise);
@@ -83,13 +87,17 @@ namespace Lumino.Api.Application.Services
                 throw new KeyNotFoundException("Exercise not found");
             }
 
-            ValidateExercise(request.Type, request.Question, request.Data, request.CorrectAnswer, request.Order);
+            int order = NormalizeOrder(request.Order);
+
+            ValidateExercise(request.Type, request.Question, request.Data, request.CorrectAnswer);
+
+            ValidateOrderUnique(exercise.LessonId, exercise.Id, order);
 
             exercise.Type = Enum.Parse<ExerciseType>(request.Type);
             exercise.Question = request.Question;
             exercise.Data = request.Data;
             exercise.CorrectAnswer = request.CorrectAnswer;
-            exercise.Order = request.Order;
+            exercise.Order = order;
 
             _dbContext.SaveChanges();
         }
@@ -107,7 +115,35 @@ namespace Lumino.Api.Application.Services
             _dbContext.SaveChanges();
         }
 
-        private static void ValidateExercise(string type, string question, string data, string correctAnswer, int order)
+        private int NormalizeOrder(int order)
+        {
+            if (order < 0)
+            {
+                return 0;
+            }
+
+            return order;
+        }
+
+        private void ValidateOrderUnique(int lessonId, int exerciseId, int order)
+        {
+            if (order <= 0)
+            {
+                return;
+            }
+
+            bool exists = _dbContext.Exercises.Any(x =>
+                x.LessonId == lessonId &&
+                x.Order == order &&
+                x.Id != exerciseId);
+
+            if (exists)
+            {
+                throw new ArgumentException("Exercise with this Order already exists in this lesson");
+            }
+        }
+
+        private static void ValidateExercise(string type, string question, string data, string correctAnswer)
         {
             if (string.IsNullOrWhiteSpace(type))
             {
@@ -122,11 +158,6 @@ namespace Lumino.Api.Application.Services
             if (string.IsNullOrWhiteSpace(question))
             {
                 throw new ArgumentException("Question is required");
-            }
-
-            if (order <= 0)
-            {
-                throw new ArgumentException("Order is invalid");
             }
 
             if (string.IsNullOrWhiteSpace(data))

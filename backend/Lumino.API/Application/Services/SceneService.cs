@@ -175,7 +175,7 @@ namespace Lumino.Api.Application.Services
             }
 
             var passedLessons = GetPassedDistinctLessonsCount(userId, scene.CourseId);
-            var scenePosition = scene.Order > 0 ? scene.Order : scene.Id;
+            var scenePosition = GetScenePosition(scene);
 
 
             if (!SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, _learningSettings.SceneUnlockEveryLessons))
@@ -263,7 +263,7 @@ namespace Lumino.Api.Application.Services
             }
 
             var passedLessons = GetPassedDistinctLessonsCount(userId, scene.CourseId);
-            var scenePosition = scene.Order > 0 ? scene.Order : scene.Id;
+            var scenePosition = GetScenePosition(scene);
 
 
             if (!SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, _learningSettings.SceneUnlockEveryLessons))
@@ -516,7 +516,7 @@ namespace Lumino.Api.Application.Services
             }
 
             var passedLessons = GetPassedDistinctLessonsCount(userId, scene.CourseId);
-            var scenePosition = scene.Order > 0 ? scene.Order : scene.Id;
+            var scenePosition = GetScenePosition(scene);
 
 
             if (!SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, _learningSettings.SceneUnlockEveryLessons))

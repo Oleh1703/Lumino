@@ -73,7 +73,7 @@ namespace Lumino.Api.Application.Services
 
             if (progress == null || !progress.IsUnlocked)
             {
-                throw new ForbiddenAccessException("Lesson is locked");
+                throw new ForbiddenAccessException(GetLessonLockedMessage(course.Id, lessonId));
             }
 
             return new LessonResponse
@@ -84,6 +84,38 @@ namespace Lumino.Api.Application.Services
                 Theory = lesson.Theory,
                 Order = lesson.Order
             };
+        }
+        private string GetLessonLockedMessage(int courseId, int lessonId)
+        {
+            var lessonIds = _dbContext.Lessons
+                .Join(
+                    _dbContext.Topics.Where(t => t.CourseId == courseId),
+                    l => l.TopicId,
+                    t => t.Id,
+                    (l, t) => new
+                    {
+                        LessonId = l.Id,
+                        TopicId = t.Id,
+                        TopicOrder = t.Order,
+                        LessonOrder = l.Order
+                    })
+                .OrderBy(x => x.TopicOrder <= 0 ? int.MaxValue : x.TopicOrder)
+                .ThenBy(x => x.TopicId)
+                .ThenBy(x => x.LessonOrder <= 0 ? int.MaxValue : x.LessonOrder)
+                .ThenBy(x => x.LessonId)
+                .Select(x => x.LessonId)
+                .ToList();
+
+            var index = lessonIds.IndexOf(lessonId);
+
+            if (index <= 0)
+            {
+                return "Lesson is locked";
+            }
+
+            var requiredLessonId = lessonIds[index - 1];
+
+            return $"Lesson is locked. Complete lesson {requiredLessonId} to unlock.";
         }
     }
 }

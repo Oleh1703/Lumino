@@ -1,4 +1,4 @@
-﻿using Lumino.Api.Application.DTOs;
+using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Domain.Entities;
 using Xunit;
@@ -31,16 +31,17 @@ public class AdminSceneServiceTests
     }
 
     [Fact]
-    public void GetById_ReturnsScene_WithStepsOrderedByOrder()
+    public void GetById_ReturnsScene_WithStepsOrderedByOrder_AndZeroGoesLast()
     {
         var dbContext = TestDbContextFactory.Create();
 
         SeedScene(dbContext, sceneId: 1);
 
         dbContext.SceneSteps.AddRange(
-            new SceneStep { Id = 1, SceneId = 1, Order = 2, Speaker = "A", Text = "T2", StepType = "Text" },
-            new SceneStep { Id = 2, SceneId = 1, Order = 1, Speaker = "B", Text = "T1", StepType = "Text" },
-            new SceneStep { Id = 3, SceneId = 1, Order = 3, Speaker = "C", Text = "T3", StepType = "Text" }
+            new SceneStep { Id = 10, SceneId = 1, Order = 2, Speaker = "A", Text = "T2", StepType = "Text" },
+            new SceneStep { Id = 11, SceneId = 1, Order = 0, Speaker = "B", Text = "T0", StepType = "Text" },
+            new SceneStep { Id = 12, SceneId = 1, Order = 1, Speaker = "C", Text = "T1", StepType = "Text" },
+            new SceneStep { Id = 13, SceneId = 1, Order = -1, Speaker = "D", Text = "T-1", StepType = "Text" }
         );
 
         dbContext.SaveChanges();
@@ -51,15 +52,17 @@ public class AdminSceneServiceTests
 
         Assert.Equal(1, result.Id);
         Assert.Equal("Scene 1", result.Title);
-        Assert.Equal(3, result.Steps.Count);
+        Assert.Equal(4, result.Steps.Count);
 
-        Assert.Equal(2, result.Steps[0].Id);
-        Assert.Equal(1, result.Steps[1].Id);
-        Assert.Equal(3, result.Steps[2].Id);
+        Assert.Equal(12, result.Steps[0].Id);
+        Assert.Equal(10, result.Steps[1].Id);
+        Assert.Equal(11, result.Steps[2].Id);
+        Assert.Equal(13, result.Steps[3].Id);
 
         Assert.Equal(1, result.Steps[0].Order);
         Assert.Equal(2, result.Steps[1].Order);
-        Assert.Equal(3, result.Steps[2].Order);
+        Assert.Equal(0, result.Steps[2].Order);
+        Assert.Equal(-1, result.Steps[3].Order);
     }
 
     [Fact]
@@ -117,7 +120,7 @@ public class AdminSceneServiceTests
     }
 
     [Fact]
-    public void Create_DuplicateStepOrders_Throws()
+    public void Create_DuplicatePositiveStepOrders_Throws()
     {
         var dbContext = TestDbContextFactory.Create();
         var service = new AdminSceneService(dbContext);
@@ -136,6 +139,29 @@ public class AdminSceneServiceTests
                 }
             });
         });
+    }
+
+    [Fact]
+    public void Create_DuplicateZeroStepOrders_ShouldNotThrow()
+    {
+        var dbContext = TestDbContextFactory.Create();
+        var service = new AdminSceneService(dbContext);
+
+        var result = service.Create(new CreateSceneRequest
+        {
+            Title = "S",
+            Description = "D",
+            SceneType = "intro",
+            Steps = new()
+            {
+                new CreateSceneStepRequest { Order = 0, Speaker = "A", Text = "T1", StepType = "Text" },
+                new CreateSceneStepRequest { Order = 0, Speaker = "B", Text = "T2", StepType = "Text" }
+            }
+        });
+
+        Assert.True(result.Id > 0);
+        Assert.Equal(2, result.Steps.Count);
+        Assert.All(result.Steps, x => Assert.Equal(0, x.Order));
     }
 
     [Fact]
@@ -232,15 +258,16 @@ public class AdminSceneServiceTests
     }
 
     [Fact]
-    public void GetSteps_ReturnsOrderedByOrder()
+    public void GetSteps_ReturnsOrderedByOrder_AndZeroGoesLast()
     {
         var dbContext = TestDbContextFactory.Create();
         SeedScene(dbContext, sceneId: 1);
 
         dbContext.SceneSteps.AddRange(
             new SceneStep { Id = 1, SceneId = 1, Order = 3, Speaker = "A", Text = "T3", StepType = "Text" },
-            new SceneStep { Id = 2, SceneId = 1, Order = 1, Speaker = "B", Text = "T1", StepType = "Text" },
-            new SceneStep { Id = 3, SceneId = 1, Order = 2, Speaker = "C", Text = "T2", StepType = "Text" }
+            new SceneStep { Id = 2, SceneId = 1, Order = 0, Speaker = "B", Text = "T0", StepType = "Text" },
+            new SceneStep { Id = 3, SceneId = 1, Order = 2, Speaker = "C", Text = "T2", StepType = "Text" },
+            new SceneStep { Id = 4, SceneId = 1, Order = 1, Speaker = "D", Text = "T1", StepType = "Text" }
         );
 
         dbContext.SaveChanges();
@@ -249,10 +276,11 @@ public class AdminSceneServiceTests
 
         var result = service.GetSteps(1);
 
-        Assert.Equal(3, result.Count);
+        Assert.Equal(4, result.Count);
         Assert.Equal(1, result[0].Order);
         Assert.Equal(2, result[1].Order);
         Assert.Equal(3, result[2].Order);
+        Assert.Equal(0, result[3].Order);
     }
 
     [Fact]
@@ -286,7 +314,7 @@ public class AdminSceneServiceTests
     }
 
     [Fact]
-    public void AddStep_WhenOrderAlreadyExists_Throws()
+    public void AddStep_WhenPositiveOrderAlreadyExists_Throws()
     {
         var dbContext = TestDbContextFactory.Create();
         SeedScene(dbContext, sceneId: 1);
@@ -315,6 +343,65 @@ public class AdminSceneServiceTests
                 StepType = "Text"
             });
         });
+    }
+
+    [Fact]
+    public void AddStep_WhenOrderIsZero_AndAlreadyExists_ShouldAllow()
+    {
+        var dbContext = TestDbContextFactory.Create();
+        SeedScene(dbContext, sceneId: 1);
+
+        dbContext.SceneSteps.Add(new SceneStep
+        {
+            Id = 1,
+            SceneId = 1,
+            Order = 0,
+            Speaker = "A",
+            Text = "T",
+            StepType = "Text"
+        });
+
+        dbContext.SaveChanges();
+
+        var service = new AdminSceneService(dbContext);
+
+        var result = service.AddStep(1, new CreateSceneStepRequest
+        {
+            Order = 0,
+            Speaker = "B",
+            Text = "T2",
+            StepType = "Text"
+        });
+
+        Assert.True(result.Id > 0);
+        Assert.Equal(0, result.Order);
+
+        var all = dbContext.SceneSteps.Where(x => x.SceneId == 1 && x.Order == 0).ToList();
+        Assert.Equal(2, all.Count);
+    }
+
+    [Fact]
+    public void AddStep_WhenOrderIsNegative_ShouldNormalizeToZero()
+    {
+        var dbContext = TestDbContextFactory.Create();
+        SeedScene(dbContext, sceneId: 1);
+
+        var service = new AdminSceneService(dbContext);
+
+        var result = service.AddStep(1, new CreateSceneStepRequest
+        {
+            Order = -5,
+            Speaker = "A",
+            Text = "T",
+            StepType = "Text"
+        });
+
+        Assert.True(result.Id > 0);
+        Assert.Equal(0, result.Order);
+
+        var saved = dbContext.SceneSteps.FirstOrDefault(x => x.Id == result.Id);
+        Assert.NotNull(saved);
+        Assert.Equal(0, saved!.Order);
     }
 
     [Fact]
@@ -355,6 +442,66 @@ public class AdminSceneServiceTests
         Assert.Equal("New text", updated.Text);
         Assert.Equal("m2", updated.MediaUrl);
         Assert.Equal("[\"B\"]", updated.ChoicesJson);
+    }
+
+    [Fact]
+    public void UpdateStep_WhenSetPositiveOrderDuplicate_ShouldThrow()
+    {
+        var dbContext = TestDbContextFactory.Create();
+        SeedScene(dbContext, sceneId: 1);
+
+        dbContext.SceneSteps.AddRange(
+            new SceneStep { Id = 1, SceneId = 1, Order = 1, Speaker = "A", Text = "T1", StepType = "Text" },
+            new SceneStep { Id = 2, SceneId = 1, Order = 2, Speaker = "B", Text = "T2", StepType = "Text" }
+        );
+
+        dbContext.SaveChanges();
+
+        var service = new AdminSceneService(dbContext);
+
+        Assert.Throws<ArgumentException>(() =>
+        {
+            service.UpdateStep(1, 1, new UpdateSceneStepRequest
+            {
+                Order = 2,
+                Speaker = "A",
+                Text = "T1",
+                StepType = "Text"
+            });
+        });
+    }
+
+    [Fact]
+    public void UpdateStep_WhenOrderIsNegative_ShouldNormalizeToZero()
+    {
+        var dbContext = TestDbContextFactory.Create();
+        SeedScene(dbContext, sceneId: 1);
+
+        dbContext.SceneSteps.Add(new SceneStep
+        {
+            Id = 1,
+            SceneId = 1,
+            Order = 1,
+            Speaker = "Old",
+            Text = "Old text",
+            StepType = "Text"
+        });
+
+        dbContext.SaveChanges();
+
+        var service = new AdminSceneService(dbContext);
+
+        service.UpdateStep(1, 1, new UpdateSceneStepRequest
+        {
+            Order = -3,
+            Speaker = "New",
+            Text = "New text",
+            StepType = "Text"
+        });
+
+        var updated = dbContext.SceneSteps.FirstOrDefault(x => x.Id == 1);
+        Assert.NotNull(updated);
+        Assert.Equal(0, updated!.Order);
     }
 
     [Fact]
@@ -427,7 +574,6 @@ public class AdminSceneServiceTests
         dbContext.SaveChanges();
     }
 
-    
     [Fact]
     public void Create_WhenOrderProvided_ShouldPersistOrderAndCourse()
     {
@@ -558,7 +704,7 @@ public class AdminSceneServiceTests
         });
     }
 
-private static void SeedScene(Lumino.Api.Data.LuminoDbContext dbContext, int sceneId)
+    private static void SeedScene(Lumino.Api.Data.LuminoDbContext dbContext, int sceneId)
     {
         dbContext.Scenes.Add(new Scene
         {

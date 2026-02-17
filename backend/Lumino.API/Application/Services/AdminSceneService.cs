@@ -66,10 +66,13 @@ namespace Lumino.Api.Application.Services
                 throw new ArgumentException("Request is required");
             }
 
+            NormalizeStepsOrders(request.Steps);
             ValidateStepsOrders(request.Steps);
 
             var courseId = GetCourseIdOrDefault(request.CourseId);
-            ValidateUniqueSceneOrder(courseId, request.Order, null);
+            var sceneOrder = NormalizeOrder(request.Order);
+
+            ValidateUniqueSceneOrder(courseId, sceneOrder, null);
 
             var scene = new Scene
             {
@@ -78,7 +81,7 @@ namespace Lumino.Api.Application.Services
                 SceneType = request.SceneType,
                 BackgroundUrl = request.BackgroundUrl,
                 CourseId = courseId,
-                Order = request.Order,
+                Order = sceneOrder,
                 AudioUrl = request.AudioUrl
             };
 
@@ -123,12 +126,14 @@ namespace Lumino.Api.Application.Services
             }
 
             var courseId = GetCourseIdOrDefault(request.CourseId);
-            ValidateUniqueSceneOrder(courseId, request.Order, id);
+            var sceneOrder = NormalizeOrder(request.Order);
+
+            ValidateUniqueSceneOrder(courseId, sceneOrder, id);
 
             scene.Title = request.Title;
             scene.Description = request.Description;
             scene.CourseId = courseId;
-            scene.Order = request.Order;
+            scene.Order = sceneOrder;
             scene.SceneType = request.SceneType;
             scene.BackgroundUrl = request.BackgroundUrl;
             scene.AudioUrl = request.AudioUrl;
@@ -178,8 +183,10 @@ namespace Lumino.Api.Application.Services
 
             EnsureSceneExists(sceneId);
 
-            bool orderExists = _dbContext.SceneSteps
-                .Any(x => x.SceneId == sceneId && x.Order == request.Order);
+            var stepOrder = NormalizeOrder(request.Order);
+
+            bool orderExists = stepOrder > 0 && _dbContext.SceneSteps
+                .Any(x => x.SceneId == sceneId && x.Order == stepOrder);
 
             if (orderExists)
             {
@@ -189,7 +196,7 @@ namespace Lumino.Api.Application.Services
             var step = new SceneStep
             {
                 SceneId = sceneId,
-                Order = request.Order,
+                Order = stepOrder,
                 Speaker = request.Speaker,
                 Text = request.Text,
                 StepType = request.StepType,
@@ -229,15 +236,17 @@ namespace Lumino.Api.Application.Services
                 throw new KeyNotFoundException("Scene step not found");
             }
 
-            bool orderExists = _dbContext.SceneSteps
-                .Any(x => x.SceneId == sceneId && x.Order == request.Order && x.Id != stepId);
+            var stepOrder = NormalizeOrder(request.Order);
+
+            bool orderExists = stepOrder > 0 && _dbContext.SceneSteps
+                .Any(x => x.SceneId == sceneId && x.Order == stepOrder && x.Id != stepId);
 
             if (orderExists)
             {
                 throw new ArgumentException("Step with this Order already exists");
             }
 
-            step.Order = request.Order;
+            step.Order = stepOrder;
             step.Speaker = request.Speaker;
             step.Text = request.Text;
             step.StepType = request.StepType;
@@ -334,6 +343,22 @@ namespace Lumino.Api.Application.Services
             }
         }
 
+        private void NormalizeStepsOrders(List<CreateSceneStepRequest> steps)
+        {
+            if (steps == null || steps.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var step in steps)
+            {
+                if (step.Order < 0)
+                {
+                    step.Order = 0;
+                }
+            }
+        }
+
         private void ValidateStepsOrders(List<CreateSceneStepRequest> steps)
         {
             if (steps == null || steps.Count == 0)
@@ -341,7 +366,10 @@ namespace Lumino.Api.Application.Services
                 return;
             }
 
+            // Дублі дозволені, якщо Order <= 0 (вони підуть у кінець і стабілізуються по Id)
+            // Для Order > 0 — дублі заборонені
             var duplicateOrders = steps
+                .Where(x => x.Order > 0)
                 .GroupBy(x => x.Order)
                 .Where(g => g.Count() > 1)
                 .Select(g => g.Key)
@@ -351,6 +379,11 @@ namespace Lumino.Api.Application.Services
             {
                 throw new ArgumentException("Duplicate step Order values");
             }
+        }
+
+        private int NormalizeOrder(int order)
+        {
+            return order < 0 ? 0 : order;
         }
     }
 }

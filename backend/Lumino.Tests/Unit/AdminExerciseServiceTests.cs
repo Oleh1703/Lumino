@@ -1,4 +1,4 @@
-﻿using Lumino.Api.Application.DTOs;
+﻿﻿using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Domain.Entities;
 using Xunit;
@@ -118,7 +118,76 @@ public class AdminExerciseServiceTests
         Assert.Equal("Match", result.Type);
     }
 
-    private static void SeedLesson(Lumino.Api.Data.LuminoDbContext dbContext)
+    
+    [Fact]
+    public void Create_OrderZero_ShouldCreate_AndBeLastInGetByLesson()
+    {
+        var dbContext = TestDbContextFactory.Create();
+        SeedLesson(dbContext);
+
+        var service = new AdminExerciseService(dbContext);
+
+        service.Create(new CreateExerciseRequest
+        {
+            LessonId = 1,
+            Type = "Input",
+            Question = "Q1",
+            Data = "{}",
+            CorrectAnswer = "A",
+            Order = 1
+        });
+
+        var result = service.Create(new CreateExerciseRequest
+        {
+            LessonId = 1,
+            Type = "Input",
+            Question = "Q2",
+            Data = "{}",
+            CorrectAnswer = "B",
+            Order = 0
+        });
+
+        var list = service.GetByLesson(1);
+
+        Assert.Equal(2, list.Count);
+        Assert.Equal(1, list[0].Order);
+        Assert.Equal(result.Id, list[1].Id);
+        Assert.Equal(0, list[1].Order);
+    }
+
+    [Fact]
+    public void Create_DuplicatePositiveOrderInLesson_ShouldThrow()
+    {
+        var dbContext = TestDbContextFactory.Create();
+        SeedLesson(dbContext);
+
+        var service = new AdminExerciseService(dbContext);
+
+        service.Create(new CreateExerciseRequest
+        {
+            LessonId = 1,
+            Type = "Input",
+            Question = "Q1",
+            Data = "{}",
+            CorrectAnswer = "A",
+            Order = 1
+        });
+
+        Assert.Throws<ArgumentException>(() =>
+        {
+            service.Create(new CreateExerciseRequest
+            {
+                LessonId = 1,
+                Type = "Input",
+                Question = "Q2",
+                Data = "{}",
+                CorrectAnswer = "B",
+                Order = 1
+            });
+        });
+    }
+
+private static void SeedLesson(Lumino.Api.Data.LuminoDbContext dbContext)
     {
         dbContext.Courses.Add(new Course
         {
