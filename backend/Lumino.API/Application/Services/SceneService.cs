@@ -177,7 +177,6 @@ namespace Lumino.Api.Application.Services
             var passedLessons = GetPassedDistinctLessonsCount(userId, scene.CourseId);
             var scenePosition = GetScenePosition(scene);
 
-
             if (!SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, _learningSettings.SceneUnlockEveryLessons))
             {
                 throw new ForbiddenAccessException("Scene is locked");
@@ -264,7 +263,6 @@ namespace Lumino.Api.Application.Services
 
             var passedLessons = GetPassedDistinctLessonsCount(userId, scene.CourseId);
             var scenePosition = GetScenePosition(scene);
-
 
             if (!SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, _learningSettings.SceneUnlockEveryLessons))
             {
@@ -442,7 +440,7 @@ namespace Lumino.Api.Application.Services
                 .ToList();
 
             var correct = details.Answers.Count(x => x.IsCorrect);
-            bool completed = correct == totalQuestions;
+            bool completed = LessonPassingRules.IsPassed(correct, totalQuestions, _learningSettings.ScenePassingPercent);
 
             var detailsJson = JsonSerializer.Serialize(details, new JsonSerializerOptions
             {
@@ -517,7 +515,6 @@ namespace Lumino.Api.Application.Services
 
             var passedLessons = GetPassedDistinctLessonsCount(userId, scene.CourseId);
             var scenePosition = GetScenePosition(scene);
-
 
             if (!SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, _learningSettings.SceneUnlockEveryLessons))
             {
@@ -600,7 +597,7 @@ namespace Lumino.Api.Application.Services
                 });
             }
 
-            bool isCompleted = correct == totalQuestions;
+            bool isCompleted = LessonPassingRules.IsPassed(correct, totalQuestions, _learningSettings.ScenePassingPercent);
 
             var detailsJson = JsonSerializer.Serialize(details, new JsonSerializerOptions
             {
@@ -772,9 +769,15 @@ namespace Lumino.Api.Application.Services
             var attempt = _dbContext.SceneAttempts
                 .FirstOrDefault(x => x.UserId == userId && x.SceneId == sceneId);
 
-            // якщо вже пройдено — idempotent (не перераховуємо прогрес/ачівки)
+            // якщо вже пройдено — не перераховуємо прогрес/ачівки,
+            // але дозволяємо оновити DetailsJson/Score (наприклад, щоб “доправити” помилки)
             if (attempt != null && attempt.IsCompleted)
             {
+                attempt.Score = score;
+                attempt.TotalQuestions = totalQuestions;
+                attempt.DetailsJson = detailsJson;
+
+                _dbContext.SaveChanges();
                 return;
             }
 
@@ -800,10 +803,12 @@ namespace Lumino.Api.Application.Services
             attempt.TotalQuestions = totalQuestions;
             attempt.DetailsJson = detailsJson;
 
+            // фіксуємо час останньої здачі (навіть якщо ще не completed)
+            attempt.CompletedAt = now;
+
             if (markCompleted)
             {
                 attempt.IsCompleted = true;
-                attempt.CompletedAt = now;
             }
 
             _dbContext.SaveChanges();
@@ -814,6 +819,7 @@ namespace Lumino.Api.Application.Services
                 _achievementService.CheckAndGrantSceneAchievements(userId);
             }
         }
+
 
         private static bool IsAnswerCorrect(string userAnswer, string correctAnswer)
         {

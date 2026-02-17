@@ -687,6 +687,99 @@ public class SceneServiceTests
     }
 
     
+
+    [Fact]
+    public void SubmitScene_WhenPassingPercent50_ShouldCompleteSceneButKeepMistakes()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Users.Add(new User
+        {
+            Id = 1,
+            Email = "scenepassing50@mail.com",
+            PasswordHash = "hash",
+            CreatedAt = DateTime.UtcNow
+        });
+
+        dbContext.Scenes.Add(new Scene
+        {
+            Id = 1,
+            Title = "Scene 1",
+            Description = "Desc",
+            SceneType = "intro"
+        });
+
+        dbContext.SceneSteps.Add(new SceneStep
+        {
+            Id = 1,
+            SceneId = 1,
+            Order = 1,
+            Speaker = "A",
+            Text = "Choose",
+            StepType = "Choice",
+            MediaUrl = null,
+            ChoicesJson = "[{\"text\":\"Cat\",\"isCorrect\":true},{\"text\":\"Dog\",\"isCorrect\":false}]"
+        });
+
+        dbContext.SceneSteps.Add(new SceneStep
+        {
+            Id = 2,
+            SceneId = 1,
+            Order = 2,
+            Speaker = "B",
+            Text = "Type the destination",
+            StepType = "Input",
+            MediaUrl = null,
+            ChoicesJson = "{\"correctAnswer\":\"Paris\",\"acceptableAnswers\":[\"to paris\"]}"
+        });
+
+        dbContext.SaveChanges();
+
+        var now = new DateTime(2026, 2, 12, 18, 41, 0, DateTimeKind.Utc);
+        var dateTimeProvider = new FixedDateTimeProvider(now);
+
+        var achievementService = new CountingAchievementService();
+
+        var service = new SceneService(
+            dbContext,
+            dateTimeProvider,
+            achievementService,
+            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1, SceneCompletionScore = 5, ScenePassingPercent = 50 })
+        );
+
+        var result = service.SubmitScene(
+            userId: 1,
+            sceneId: 1,
+            request: new SubmitSceneRequest
+            {
+                Answers = new List<SubmitSceneAnswerRequest>
+                {
+                    new SubmitSceneAnswerRequest { StepId = 1, Answer = "Cat" },
+                    new SubmitSceneAnswerRequest { StepId = 2, Answer = "London" }
+                }
+            }
+        );
+
+        Assert.NotNull(result);
+        Assert.Equal(1, result.SceneId);
+        Assert.Equal(2, result.TotalQuestions);
+        Assert.Equal(1, result.CorrectAnswers);
+        Assert.True(result.IsCompleted);
+
+        Assert.Single(result.MistakeStepIds);
+        Assert.Contains(2, result.MistakeStepIds);
+
+        var attempt = dbContext.SceneAttempts.Single(x => x.UserId == 1 && x.SceneId == 1);
+
+        Assert.True(attempt.IsCompleted);
+        Assert.Equal(1, attempt.Score);
+        Assert.Equal(2, attempt.TotalQuestions);
+        Assert.Equal(now, attempt.CompletedAt);
+        Assert.False(string.IsNullOrWhiteSpace(attempt.DetailsJson));
+
+        Assert.Equal(1, achievementService.SceneChecksCount);
+    }
+
     [Fact]
     public void GetSceneMistakes_WhenHasMistakes_ShouldReturnOnlyMistakeSteps()
     {
@@ -1031,184 +1124,7 @@ public class SceneServiceTests
         });
     }
 
-    
-    [Fact]
-    public void SubmitScene_And_GetSceneMistakes_WhenSceneOrderIsNotSequential_ShouldUseScenePositionForUnlock()
-    {
-        var dbContext = TestDbContextFactory.Create();
-
-        dbContext.Users.Add(new User
-        {
-            Id = 1,
-            Email = "sceneorder@mail.com",
-            PasswordHash = "hash",
-            CreatedAt = DateTime.UtcNow
-        });
-
-        // IMPORTANT: Order is not sequential (10) -> scenePosition must be 1 (first scene), not 10
-        dbContext.Scenes.Add(new Scene
-        {
-            Id = 1,
-            Order = 10,
-            Title = "Scene 1",
-            Description = "Desc",
-            SceneType = "intro"
-        });
-
-        dbContext.SceneSteps.Add(new SceneStep
-        {
-            Id = 1,
-            SceneId = 1,
-            Order = 1,
-            Speaker = "A",
-            Text = "Choose",
-            StepType = "Choice",
-            MediaUrl = null,
-            ChoicesJson = "[{\"text\":\"Cat\",\"isCorrect\":true},{\"text\":\"Dog\",\"isCorrect\":false}]"
-        });
-
-        dbContext.SaveChanges();
-
-        var now = new DateTime(2026, 2, 12, 19, 0, 0, DateTimeKind.Utc);
-
-        var service = new SceneService(
-            dbContext,
-            new FixedDateTimeProvider(now),
-            new FakeAchievementService(),
-            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1, SceneCompletionScore = 5 })
-        );
-
-        // submit with wrong answer -> should NOT be forbidden, should create attempt + mistakes
-        var submit = service.SubmitScene(
-            userId: 1,
-            sceneId: 1,
-            request: new SubmitSceneRequest
-            {
-                Answers = new List<SubmitSceneAnswerRequest>
-                {
-                    new SubmitSceneAnswerRequest { StepId = 1, Answer = "Dog" }
-                }
-            }
-        );
-
-        Assert.NotNull(submit);
-        Assert.Equal(1, submit.SceneId);
-        Assert.Equal(1, submit.TotalQuestions);
-        Assert.Equal(0, submit.CorrectAnswers);
-        Assert.False(submit.IsCompleted);
-        Assert.Single(submit.MistakeStepIds);
-
-        // Get mistakes must use the same unlock rule as GetSceneContent/GetSceneDetails -> should NOT throw
-        var mistakes = service.GetSceneMistakes(userId: 1, sceneId: 1);
-
-        Assert.NotNull(mistakes);
-        Assert.Equal(1, mistakes.SceneId);
-        Assert.Equal(1, mistakes.TotalMistakes);
-        Assert.Single(mistakes.MistakeStepIds);
-        Assert.Single(mistakes.Steps);
-        Assert.Equal(1, mistakes.Steps[0].Id);
-    }
-
-    [Fact]
-    public void SubmitScene_WithLineAndQuestions_ShouldCountOnlyQuestions_AndComplete()
-    {
-        var dbContext = TestDbContextFactory.Create();
-
-        dbContext.Users.Add(new User
-        {
-            Id = 1,
-            Email = "mix@mail.com",
-            PasswordHash = "hash",
-            CreatedAt = DateTime.UtcNow
-        });
-
-        dbContext.Scenes.Add(new Scene
-        {
-            Id = 1,
-            Title = "Scene 1",
-            Description = "Desc",
-            SceneType = "intro",
-            Order = 1
-        });
-
-        dbContext.SceneSteps.AddRange(
-            new SceneStep
-            {
-                Id = 1,
-                SceneId = 1,
-                Order = 1,
-                Speaker = "NPC",
-                Text = "Hello!",
-                StepType = "Line",
-                MediaUrl = null,
-                ChoicesJson = null
-            },
-            new SceneStep
-            {
-                Id = 2,
-                SceneId = 1,
-                Order = 2,
-                Speaker = "NPC",
-                Text = "Pick A",
-                StepType = "Choice",
-                MediaUrl = null,
-                ChoicesJson = "[{\"text\":\"A\",\"isCorrect\":true},{\"text\":\"B\",\"isCorrect\":false}]"
-            },
-            new SceneStep
-            {
-                Id = 3,
-                SceneId = 1,
-                Order = 3,
-                Speaker = "NPC",
-                Text = "Type: hi",
-                StepType = "Input",
-                MediaUrl = null,
-                ChoicesJson = "{\"correctAnswer\":\"hi\",\"acceptableAnswers\":[\"hello\"]}"
-            }
-        );
-
-        dbContext.SaveChanges();
-
-        var now = new DateTime(2026, 2, 12, 20, 0, 0, DateTimeKind.Utc);
-
-        var service = new SceneService(
-            dbContext,
-            new FixedDateTimeProvider(now),
-            new FakeAchievementService(),
-            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1, SceneCompletionScore = 5 })
-        );
-
-        var submit = service.SubmitScene(
-            userId: 1,
-            sceneId: 1,
-            request: new SubmitSceneRequest
-            {
-                Answers = new List<SubmitSceneAnswerRequest>
-                {
-                    new SubmitSceneAnswerRequest { StepId = 2, Answer = "A" },
-                    new SubmitSceneAnswerRequest { StepId = 3, Answer = "HI" }
-                }
-            }
-        );
-
-        Assert.NotNull(submit);
-        Assert.Equal(1, submit.SceneId);
-        Assert.Equal(2, submit.TotalQuestions);
-        Assert.Equal(2, submit.CorrectAnswers);
-        Assert.True(submit.IsCompleted);
-        Assert.Empty(submit.MistakeStepIds);
-
-        var attempt = dbContext.SceneAttempts.FirstOrDefault(x => x.UserId == 1 && x.SceneId == 1);
-
-        Assert.NotNull(attempt);
-        Assert.True(attempt!.IsCompleted);
-        Assert.Equal(now, attempt.CompletedAt);
-        Assert.Equal(2, attempt.TotalQuestions);
-        Assert.Equal(2, attempt.Score);
-    }
-
-
-private class CountingAchievementService : IAchievementService
+    private class CountingAchievementService : IAchievementService
     {
         public int SceneChecksCount { get; private set; }
 

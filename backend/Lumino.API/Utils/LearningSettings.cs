@@ -8,6 +8,9 @@ namespace Lumino.Api.Utils
 
         public int SceneCompletionScore { get; set; } = 5;
 
+        // поріг проходження сцени у відсотках (як у Duolingo). 100 = без помилок.
+        public int ScenePassingPercent { get; set; } = 100;
+
         // скільки пройдених уроків потрібно на відкриття кожної наступної сцени.
         // правило: requiredLessons = (sceneId - 1) * SceneUnlockEveryLessons
         public int SceneUnlockEveryLessons { get; set; } = 1;
