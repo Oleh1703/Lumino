@@ -250,43 +250,55 @@ namespace Lumino.Api.Data
                 {
                     new SceneStepSeed(1, "Barista", "Hi! What would you like?", "Line", null, null),
                     new SceneStepSeed(2, "You", "I'd like a coffee, please.", "Line", null, null),
-                    new SceneStepSeed(3, "Barista", "Sure. Anything else?", "Line", null, null),
-                    new SceneStepSeed(4, "You", "No, that's all. Thank you!", "Line", null, null)
+                    new SceneStepSeed(3, "Quiz", "What did you order?", "Choice", null, "[{\"text\": \"Coffee\", \"isCorrect\": true}, {\"text\": \"Tea\", \"isCorrect\": false}, {\"text\": \"Water\", \"isCorrect\": false}]"),
+                    new SceneStepSeed(4, "Barista", "Sure. Anything else?", "Line", null, null),
+                    new SceneStepSeed(5, "Quiz", "Do you want anything else?", "Choice", null, "[{\"text\": \"No\", \"isCorrect\": true}, {\"text\": \"Yes\", \"isCorrect\": false}]"),
+                    new SceneStepSeed(6, "Quiz", "Type: Thank you", "Input", null, "{\"correctAnswer\": \"Thank you\", \"acceptableAnswers\": [\"Thanks\", \"Thanks!\"]}")
                 },
                 ["Airport check-in"] = new List<SceneStepSeed>
                 {
                     new SceneStepSeed(1, "Staff", "Hello. Can I see your passport?", "Line", null, null),
                     new SceneStepSeed(2, "You", "Yes, here you go.", "Line", null, null),
-                    new SceneStepSeed(3, "Staff", "Do you have any luggage?", "Line", null, null),
-                    new SceneStepSeed(4, "You", "Just a small bag.", "Line", null, null)
+                    new SceneStepSeed(3, "Quiz", "Type the key word: passport", "Input", null, "{\"correctAnswer\": \"passport\", \"acceptableAnswers\": [\"my passport\"]}"),
+                    new SceneStepSeed(4, "Staff", "Do you have any luggage?", "Line", null, null),
+                    new SceneStepSeed(5, "Quiz", "How many bags do you have?", "Choice", null, "[{\"text\": \"One small bag\", \"isCorrect\": true}, {\"text\": \"Three suitcases\", \"isCorrect\": false}, {\"text\": \"None\", \"isCorrect\": false}]"),
+                    new SceneStepSeed(6, "You", "Just a small bag.", "Line", null, null)
                 },
                 ["Hotel booking"] = new List<SceneStepSeed>
                 {
                     new SceneStepSeed(1, "Receptionist", "Hello! Do you have a reservation?", "Line", null, null),
-                    new SceneStepSeed(2, "You", "Yes, it's under my name.", "Line", null, null),
-                    new SceneStepSeed(3, "Receptionist", "Great. Here is your key.", "Line", null, null),
-                    new SceneStepSeed(4, "You", "Thank you!", "Line", null, null)
+                    new SceneStepSeed(2, "Quiz", "What does \"reservation\" mean here?", "Choice", null, "[{\"text\": \"Booking\", \"isCorrect\": true}, {\"text\": \"Restaurant\", \"isCorrect\": false}, {\"text\": \"Passport\", \"isCorrect\": false}]"),
+                    new SceneStepSeed(3, "You", "Yes, it's under my name.", "Line", null, null),
+                    new SceneStepSeed(4, "Quiz", "Type: key", "Input", null, "{\"correctAnswer\": \"key\", \"acceptableAnswers\": [\"room key\"]}"),
+                    new SceneStepSeed(5, "Receptionist", "Great. Here is your key.", "Line", null, null),
+                    new SceneStepSeed(6, "You", "Thank you!", "Line", null, null)
                 },
                 ["Asking directions"] = new List<SceneStepSeed>
                 {
                     new SceneStepSeed(1, "You", "Excuse me, where is the station?", "Line", null, null),
-                    new SceneStepSeed(2, "Person", "Go straight and turn left.", "Line", null, null),
-                    new SceneStepSeed(3, "You", "Thanks a lot!", "Line", null, null),
-                    new SceneStepSeed(4, "Person", "You're welcome.", "Line", null, null)
+                    new SceneStepSeed(2, "Quiz", "Where do you want to go?", "Choice", null, "[{\"text\": \"To the station\", \"isCorrect\": true}, {\"text\": \"To the hotel\", \"isCorrect\": false}, {\"text\": \"To the airport\", \"isCorrect\": false}]"),
+                    new SceneStepSeed(3, "Person", "Go straight and turn left.", "Line", null, null),
+                    new SceneStepSeed(4, "Quiz", "Type: left", "Input", null, "{\"correctAnswer\": \"left\", \"acceptableAnswers\": [\"turn left\"]}"),
+                    new SceneStepSeed(5, "You", "Thanks a lot!", "Line", null, null),
+                    new SceneStepSeed(6, "Person", "You're welcome.", "Line", null, null)
                 },
                 ["Shopping"] = new List<SceneStepSeed>
                 {
                     new SceneStepSeed(1, "You", "How much is this?", "Line", null, null),
                     new SceneStepSeed(2, "Seller", "It's ten dollars.", "Line", null, null),
-                    new SceneStepSeed(3, "You", "That's cheap! I'll take it.", "Line", null, null),
-                    new SceneStepSeed(4, "Seller", "Great choice!", "Line", null, null)
+                    new SceneStepSeed(3, "Quiz", "How much is it?", "Choice", null, "[{\"text\": \"Ten dollars\", \"isCorrect\": true}, {\"text\": \"Five dollars\", \"isCorrect\": false}, {\"text\": \"Twenty dollars\", \"isCorrect\": false}]"),
+                    new SceneStepSeed(4, "You", "That's cheap! I'll take it.", "Line", null, null),
+                    new SceneStepSeed(5, "Quiz", "Type: I'll take it", "Input", null, "{\"correctAnswer\": \"I'll take it\", \"acceptableAnswers\": [\"I will take it\"]}"),
+                    new SceneStepSeed(6, "Seller", "Great choice!", "Line", null, null)
                 },
                 ["Small talk"] = new List<SceneStepSeed>
                 {
                     new SceneStepSeed(1, "You", "Hi! My name is Alex.", "Line", null, null),
                     new SceneStepSeed(2, "Person", "Nice to meet you, Alex!", "Line", null, null),
-                    new SceneStepSeed(3, "You", "Nice to meet you too.", "Line", null, null),
-                    new SceneStepSeed(4, "Person", "How are you?", "Line", null, null)
+                    new SceneStepSeed(3, "Quiz", "What is your name?", "Choice", null, "[{\"text\": \"Alex\", \"isCorrect\": true}, {\"text\": \"John\", \"isCorrect\": false}, {\"text\": \"Kate\", \"isCorrect\": false}]"),
+                    new SceneStepSeed(4, "Quiz", "Type: Nice to meet you", "Input", null, "{\"correctAnswer\": \"Nice to meet you\", \"acceptableAnswers\": [\"Nice to meet you!\"]}"),
+                    new SceneStepSeed(5, "You", "Nice to meet you too.", "Line", null, null),
+                    new SceneStepSeed(6, "Person", "How are you?", "Line", null, null)
                 }
             };
 
