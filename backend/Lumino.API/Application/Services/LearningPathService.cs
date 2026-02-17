@@ -140,7 +140,7 @@ namespace Lumino.Api.Application.Services
 
             var orderedScenes = scenesQuery
                 .AsEnumerable()
-                .OrderBy(x => x.Order > 0 ? x.Order : x.Id)
+                .OrderBy(x => x.Order <= 0 ? int.MaxValue : x.Order)
                 .ThenBy(x => x.Id)
                 .ToList();
 

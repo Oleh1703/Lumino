@@ -1,4 +1,4 @@
-﻿﻿using Lumino.Api.Application.Services;
+﻿using Lumino.Api.Application.Services;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Utils;
 using Microsoft.Extensions.Options;
@@ -300,6 +300,96 @@ public class AchievementServiceTests
 
         var userStreak7 = dbContext.UserAchievements.FirstOrDefault(x => x.UserId == userId && x.AchievementId == streak7!.Id);
         Assert.NotNull(userStreak7);
+    }
+
+
+    [Fact]
+    public void GrantDailyGoal_ShouldNotDuplicate_WhenCalledTwice()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Topics.Add(new Topic
+        {
+            Id = 1,
+            CourseId = 1,
+            Title = "Basics",
+            Order = 1
+        });
+
+        dbContext.Lessons.Add(new Lesson
+        {
+            Id = 1,
+            TopicId = 1,
+            Title = "Lesson 1",
+            Theory = "T",
+            Order = 1
+        });
+
+        var userId = 10;
+
+        // Today: passed lesson => daily goal reached (target = 1)
+        dbContext.LessonResults.Add(new LessonResult
+        {
+            UserId = userId,
+            LessonId = 1,
+            Score = 1,
+            TotalQuestions = 1,
+            CompletedAt = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc)
+        });
+
+        dbContext.SaveChanges();
+
+        var service = new AchievementService(
+            dbContext,
+            new FixedDateTimeProvider(new DateTime(2026, 2, 12, 12, 0, 0, DateTimeKind.Utc)),
+            Options.Create(new LearningSettings { PassingScorePercent = 80, DailyGoalScoreTarget = 1 })
+        );
+
+        service.CheckAndGrantAchievements(userId, 1, 1);
+        service.CheckAndGrantAchievements(userId, 1, 1);
+
+        var dailyGoal = dbContext.Achievements.FirstOrDefault(x => x.Title == "Daily Goal");
+        Assert.NotNull(dailyGoal);
+
+        var count = dbContext.UserAchievements.Count(x => x.UserId == userId && x.AchievementId == dailyGoal!.Id);
+        Assert.Equal(1, count);
+    }
+
+    [Fact]
+    public void GrantStreakThirty_ShouldGrant_WhenThirtyConsecutiveDaysFromScenes()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        var userId = 10;
+
+        // 30 consecutive study days via completed scenes
+        for (int i = 0; i < 30; i++)
+        {
+            dbContext.SceneAttempts.Add(new SceneAttempt
+            {
+                UserId = userId,
+                SceneId = 1000 + i,
+                IsCompleted = true,
+                Score = 1,
+                CompletedAt = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc).Date.AddDays(-i).AddHours(10)
+            });
+        }
+
+        dbContext.SaveChanges();
+
+        var service = new AchievementService(
+            dbContext,
+            new FixedDateTimeProvider(new DateTime(2026, 2, 12, 12, 0, 0, DateTimeKind.Utc)),
+            Options.Create(new LearningSettings { PassingScorePercent = 80 })
+        );
+
+        service.CheckAndGrantSceneAchievements(userId);
+
+        var streak30 = dbContext.Achievements.FirstOrDefault(x => x.Title == "Streak 30");
+        Assert.NotNull(streak30);
+
+        var userStreak30 = dbContext.UserAchievements.FirstOrDefault(x => x.UserId == userId && x.AchievementId == streak30!.Id);
+        Assert.NotNull(userStreak30);
     }
 
 }
