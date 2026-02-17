@@ -89,6 +89,9 @@ namespace Lumino.Api.Data
 
             modelBuilder.Entity<LessonResult>(entity =>
             {
+                entity.Property(x => x.IdempotencyKey)
+                    .HasMaxLength(64);
+
                 entity.HasOne<User>()
                     .WithMany()
                     .HasForeignKey(x => x.UserId)
@@ -100,6 +103,11 @@ namespace Lumino.Api.Data
                     .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasIndex(x => new { x.UserId, x.LessonId });
+
+                // idempotency key must be unique per user (when provided)
+                entity.HasIndex(x => new { x.UserId, x.IdempotencyKey })
+                    .IsUnique()
+                    .HasFilter("[IdempotencyKey] IS NOT NULL");
             });
 
             modelBuilder.Entity<UserProgress>(entity =>

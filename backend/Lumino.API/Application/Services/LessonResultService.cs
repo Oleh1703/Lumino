@@ -5,6 +5,7 @@ using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Domain.Enums;
 using Lumino.Api.Utils;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
 using System.Collections.Generic;
@@ -50,6 +51,19 @@ namespace Lumino.Api.Application.Services
             if (progress == null || !progress.IsUnlocked)
             {
                 throw new ForbiddenAccessException("Lesson is locked");
+            }
+
+            var idempotencyKey = NormalizeIdempotencyKey(request.IdempotencyKey);
+
+            if (idempotencyKey != null)
+            {
+                var existingResult = _dbContext.LessonResults
+                    .FirstOrDefault(x => x.UserId == userId && x.LessonId == lesson.Id && x.IdempotencyKey == idempotencyKey);
+
+                if (existingResult != null)
+                {
+                    return BuildResponseFromExistingResult(existingResult);
+                }
             }
 
             var exercises = _dbContext.Exercises
@@ -119,12 +133,33 @@ namespace Lumino.Api.Application.Services
                 LessonId = lesson.Id,
                 Score = correct,
                 TotalQuestions = exercises.Count,
+                IdempotencyKey = idempotencyKey,
                 MistakesJson = JsonSerializer.Serialize(detailsJson),
                 CompletedAt = _dateTimeProvider.UtcNow
             };
 
             _dbContext.LessonResults.Add(result);
-            _dbContext.SaveChanges();
+
+            try
+            {
+                _dbContext.SaveChanges();
+            }
+            catch (DbUpdateException)
+            {
+                // якщо паралельно прилетів такий самий submit з тим самим ключем
+                if (idempotencyKey != null)
+                {
+                    var existingResult = _dbContext.LessonResults
+                        .FirstOrDefault(x => x.UserId == userId && x.LessonId == lesson.Id && x.IdempotencyKey == idempotencyKey);
+
+                    if (existingResult != null)
+                    {
+                        return BuildResponseFromExistingResult(existingResult);
+                    }
+                }
+
+                throw;
+            }
 
             UpdateUserProgress(userId, shouldIncrementCompletedLessons);
 
@@ -144,6 +179,54 @@ namespace Lumino.Api.Application.Services
                 MistakeExerciseIds = mistakeExerciseIds,
                 Answers = answers
             };
+        }
+
+        private SubmitLessonResponse BuildResponseFromExistingResult(LessonResult result)
+        {
+            var passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
+            var isPassed = LessonPassingRules.IsPassed(result.Score, result.TotalQuestions, passingScorePercent);
+
+            var mistakeExerciseIds = new List<int>();
+            var answers = new List<LessonAnswerResultDto>();
+
+            if (!string.IsNullOrWhiteSpace(result.MistakesJson))
+            {
+                try
+                {
+                    var details = JsonSerializer.Deserialize<LessonResultDetailsJson>(result.MistakesJson);
+
+                    if (details != null)
+                    {
+                        mistakeExerciseIds = details.MistakeExerciseIds ?? new List<int>();
+                        answers = details.Answers ?? new List<LessonAnswerResultDto>();
+                    }
+                }
+                catch
+                {
+                    // ignore broken json - keep empty arrays (backward-compatible)
+                }
+            }
+
+            return new SubmitLessonResponse
+            {
+                TotalExercises = result.TotalQuestions,
+                CorrectAnswers = result.Score,
+                IsPassed = isPassed,
+                MistakeExerciseIds = mistakeExerciseIds,
+                Answers = answers
+            };
+        }
+
+        private string? NormalizeIdempotencyKey(string? key)
+        {
+            if (key == null)
+            {
+                return null;
+            }
+
+            var normalized = key.Trim();
+
+            return normalized.Length == 0 ? null : normalized;
         }
 
         private bool IsExerciseCorrect(Exercise exercise, string userAnswerText)
