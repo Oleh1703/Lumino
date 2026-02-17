@@ -677,6 +677,8 @@ namespace Lumino.Api.Application.Services
 
             _dbContext.SaveChanges();
 
+            AddSceneVocabularyIfNeeded(userId, sceneId, detailsJson: null);
+
             UpdateUserProgressAfterScene(userId);
 
             _achievementService.CheckAndGrantSceneAchievements(userId);
@@ -815,9 +817,121 @@ namespace Lumino.Api.Application.Services
 
             if (markCompleted && !wasCompleted)
             {
+                AddSceneVocabularyIfNeeded(userId, sceneId, detailsJson);
+
                 UpdateUserProgressAfterScene(userId);
                 _achievementService.CheckAndGrantSceneAchievements(userId);
             }
+        }
+
+
+        private void AddSceneVocabularyIfNeeded(int userId, int sceneId, string? detailsJson)
+        {
+            var now = _dateTimeProvider.UtcNow;
+
+            var steps = _dbContext.SceneSteps
+                .Where(x => x.SceneId == sceneId)
+                .OrderBy(x => x.Order <= 0 ? int.MaxValue : x.Order)
+                .ThenBy(x => x.Id)
+                .ToList();
+
+            if (steps.Count == 0)
+            {
+                return;
+            }
+
+            var mistakeStepIds = new HashSet<int>();
+
+            if (!string.IsNullOrWhiteSpace(detailsJson))
+            {
+                try
+                {
+                    var details = JsonSerializer.Deserialize<SceneAttemptDetailsJson>(detailsJson, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+
+                    if (details != null && details.MistakeStepIds != null)
+                    {
+                        mistakeStepIds = details.MistakeStepIds
+                            .Distinct()
+                            .ToHashSet();
+                    }
+                }
+                catch
+                {
+                    // ignore invalid json
+                }
+            }
+
+            var allKeys = SceneVocabularyExtractor.ExtractVocabularyKeys(steps);
+
+            if (allKeys.Count == 0)
+            {
+                return;
+            }
+
+            HashSet<string> mistakeKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            if (mistakeStepIds.Count > 0)
+            {
+                var mistakeSteps = steps
+                    .Where(x => mistakeStepIds.Contains(x.Id))
+                    .ToList();
+
+                mistakeKeys = SceneVocabularyExtractor.ExtractVocabularyKeys(mistakeSteps);
+            }
+
+            var vocabItems = _dbContext.VocabularyItems
+                .AsEnumerable()
+                .Where(x => !string.IsNullOrWhiteSpace(x.Word)
+                    && allKeys.Contains(x.Word.Trim().ToLowerInvariant()))
+                .ToList();
+
+            if (vocabItems.Count == 0)
+            {
+                return;
+            }
+
+            var existing = _dbContext.UserVocabularies
+                .Where(x => x.UserId == userId)
+                .Select(x => x.VocabularyItemId)
+                .ToHashSet();
+
+            foreach (var item in vocabItems)
+            {
+                bool isMistake = mistakeKeys.Contains(item.Word.Trim().ToLowerInvariant());
+
+                if (!existing.Contains(item.Id))
+                {
+                    _dbContext.UserVocabularies.Add(new UserVocabulary
+                    {
+                        UserId = userId,
+                        VocabularyItemId = item.Id,
+                        AddedAt = now,
+                        LastReviewedAt = null,
+                        NextReviewAt = isMistake ? now : now.AddDays(1),
+                        ReviewCount = 0
+                    });
+
+                    continue;
+                }
+
+                if (!isMistake)
+                {
+                    continue;
+                }
+
+                var userWord = _dbContext.UserVocabularies
+                    .FirstOrDefault(x => x.UserId == userId && x.VocabularyItemId == item.Id);
+
+                if (userWord != null && userWord.NextReviewAt > now)
+                {
+                    userWord.NextReviewAt = now;
+                }
+            }
+
+            _dbContext.SaveChanges();
         }
 
 

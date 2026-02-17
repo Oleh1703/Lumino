@@ -1124,6 +1124,159 @@ public class SceneServiceTests
         });
     }
 
+
+
+    [Fact]
+    public void SubmitScene_WhenCompleted_ShouldAddVocabularyFromScene_AndScheduleMistakeWordsAsDueNow()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Users.Add(new User
+        {
+            Id = 1,
+            Email = "vocab@mail.com",
+            PasswordHash = "hash",
+            CreatedAt = DateTime.UtcNow
+        });
+
+        dbContext.VocabularyItems.Add(new VocabularyItem { Id = 1, Word = "coffee", Translation = "кава", Example = "Coffee, please." });
+        dbContext.VocabularyItems.Add(new VocabularyItem { Id = 2, Word = "thank you", Translation = "дякую", Example = "Thank you!" });
+
+        dbContext.Scenes.Add(new Scene
+        {
+            Id = 1,
+            Title = "Cafe",
+            Description = "Desc",
+            SceneType = "Dialog",
+            Order = 1
+        });
+
+        dbContext.SceneSteps.Add(new SceneStep
+        {
+            Id = 10,
+            SceneId = 1,
+            Order = 1,
+            Speaker = "Quiz",
+            Text = "What did you order?",
+            StepType = "Choice",
+            MediaUrl = null,
+            ChoicesJson = "[{\"text\": \"Coffee\", \"isCorrect\": true}, {\"text\": \"Tea\", \"isCorrect\": false}]"
+        });
+
+        dbContext.SceneSteps.Add(new SceneStep
+        {
+            Id = 11,
+            SceneId = 1,
+            Order = 2,
+            Speaker = "Quiz",
+            Text = "Type: Thank you",
+            StepType = "Input",
+            MediaUrl = null,
+            ChoicesJson = "{\"correctAnswer\": \"Thank you\", \"acceptableAnswers\": [\"Thanks\"]}"
+        });
+
+        dbContext.SaveChanges();
+
+        var now = new DateTime(2026, 2, 12, 18, 40, 0, DateTimeKind.Utc);
+        var dateTimeProvider = new FixedDateTimeProvider(now);
+
+        var achievementService = new FakeAchievementService();
+
+        var settings = Options.Create(new LearningSettings
+        {
+            SceneCompletionScore = 5,
+            SceneUnlockEveryLessons = 1,
+            ScenePassingPercent = 50
+        });
+
+        var service = new SceneService(dbContext, dateTimeProvider, achievementService, settings);
+
+        var response = service.SubmitScene(1, 1, new SubmitSceneRequest
+        {
+            Answers = new List<SubmitSceneAnswerRequest>
+            {
+                new SubmitSceneAnswerRequest { StepId = 10, Answer = "Tea" }, // wrong
+                new SubmitSceneAnswerRequest { StepId = 11, Answer = "Thank you" } // correct
+            }
+        });
+
+        Assert.True(response.IsCompleted);
+
+        var userWords = dbContext.UserVocabularies
+            .Where(x => x.UserId == 1)
+            .ToList();
+
+        Assert.Equal(2, userWords.Count);
+
+        var coffee = userWords.First(x => x.VocabularyItemId == 1);
+        var thanks = userWords.First(x => x.VocabularyItemId == 2);
+
+        Assert.Equal(now, coffee.NextReviewAt); // mistake => due now
+        Assert.Equal(now.AddDays(1), thanks.NextReviewAt); // ok => due tomorrow
+    }
+
+    [Fact]
+    public void MarkCompleted_WhenNoQuestions_ShouldAddVocabularyFromLines()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Users.Add(new User
+        {
+            Id = 1,
+            Email = "vocab2@mail.com",
+            PasswordHash = "hash",
+            CreatedAt = DateTime.UtcNow
+        });
+
+        dbContext.VocabularyItems.Add(new VocabularyItem { Id = 1, Word = "hello", Translation = "привіт", Example = "Hello!" });
+        dbContext.VocabularyItems.Add(new VocabularyItem { Id = 2, Word = "goodbye", Translation = "до побачення", Example = "Goodbye!" });
+
+        dbContext.Scenes.Add(new Scene
+        {
+            Id = 1,
+            Title = "Intro",
+            Description = "Desc",
+            SceneType = "Dialog",
+            Order = 1
+        });
+
+        dbContext.SceneSteps.Add(new SceneStep
+        {
+            Id = 10,
+            SceneId = 1,
+            Order = 1,
+            Speaker = "Guide",
+            Text = "Hello and goodbye!",
+            StepType = "Line",
+            MediaUrl = null,
+            ChoicesJson = null
+        });
+
+        dbContext.SaveChanges();
+
+        var now = new DateTime(2026, 2, 12, 19, 0, 0, DateTimeKind.Utc);
+        var dateTimeProvider = new FixedDateTimeProvider(now);
+
+        var achievementService = new FakeAchievementService();
+
+        var settings = Options.Create(new LearningSettings
+        {
+            SceneCompletionScore = 5,
+            SceneUnlockEveryLessons = 1
+        });
+
+        var service = new SceneService(dbContext, dateTimeProvider, achievementService, settings);
+
+        service.MarkCompleted(1, 1);
+
+        var userWords = dbContext.UserVocabularies
+            .Where(x => x.UserId == 1)
+            .ToList();
+
+        Assert.Equal(2, userWords.Count);
+        Assert.Contains(userWords, x => x.VocabularyItemId == 1);
+        Assert.Contains(userWords, x => x.VocabularyItemId == 2);
+    }
     private class CountingAchievementService : IAchievementService
     {
         public int SceneChecksCount { get; private set; }
