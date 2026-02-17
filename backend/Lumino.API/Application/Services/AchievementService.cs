@@ -3,6 +3,9 @@ using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Utils;
 using Microsoft.Extensions.Options;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Lumino.Api.Application.Services
 {
@@ -38,7 +41,14 @@ namespace Lumino.Api.Application.Services
             GrantFiveLessons(userId);
             GrantPerfectLesson(userId, lessonScore, totalQuestions);
             GrantHundredXp(userId);
+
+            // Streak achievements (study days)
             GrantStreakStarter(userId);
+            GrantStreak7(userId);
+            GrantStreak30(userId);
+
+            // Daily goal
+            GrantDailyGoal(userId);
         }
 
         public void CheckAndGrantSceneAchievements(int userId)
@@ -50,7 +60,14 @@ namespace Lumino.Api.Application.Services
 
             GrantFirstScene(userId);
             GrantFiveScenes(userId);
+
+            // Streak achievements (study days)
             GrantStreakStarter(userId);
+            GrantStreak7(userId);
+            GrantStreak30(userId);
+
+            // Daily goal
+            GrantDailyGoal(userId);
         }
 
         private void GrantFirstLesson(int userId)
@@ -178,7 +195,95 @@ namespace Lumino.Api.Application.Services
             GrantToUserIfNotExists(userId, achievement.Id);
         }
 
+        private void GrantDailyGoal(int userId)
+        {
+            var nowUtc = _dateTimeProvider.UtcNow;
+            var todayUtc = nowUtc.Date;
+            var tomorrowUtc = todayUtc.AddDays(1);
+
+            int passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
+
+            var todayPassedLessons = _dbContext.LessonResults
+                .Where(x =>
+                    x.UserId == userId &&
+                    x.CompletedAt >= todayUtc &&
+                    x.CompletedAt < tomorrowUtc &&
+                    x.TotalQuestions > 0 &&
+                    x.Score * 100 >= x.TotalQuestions * passingScorePercent
+                )
+                .ToList();
+
+            var todayCompletedScenes = _dbContext.SceneAttempts
+                .Where(x =>
+                    x.UserId == userId &&
+                    x.IsCompleted &&
+                    x.CompletedAt >= todayUtc &&
+                    x.CompletedAt < tomorrowUtc
+                )
+                .ToList();
+
+            int todayScore = todayPassedLessons.Sum(x => x.Score) + todayCompletedScenes.Sum(x => x.Score);
+
+            int targetScore = _learningSettings.DailyGoalScoreTarget;
+
+            if (targetScore < 1)
+            {
+                targetScore = 1;
+            }
+
+            if (todayScore < targetScore) return;
+
+            var achievement = GetOrCreateAchievement(
+                "Daily Goal",
+                "Reach your daily goal"
+            );
+
+            GrantToUserIfNotExists(userId, achievement.Id);
+        }
+
         private void GrantStreakStarter(int userId)
+        {
+            int maxStreak = CalculateUserMaxStreak(userId);
+
+            if (maxStreak < 3) return;
+
+            var achievement = GetOrCreateAchievement(
+                "Streak Starter",
+                "Study 3 days in a row"
+            );
+
+            GrantToUserIfNotExists(userId, achievement.Id);
+        }
+
+        private void GrantStreak7(int userId)
+        {
+            int maxStreak = CalculateUserMaxStreak(userId);
+
+            if (maxStreak < 7) return;
+
+            var achievement = GetOrCreateAchievement(
+                "Streak 7",
+                "Study 7 days in a row"
+            );
+
+            GrantToUserIfNotExists(userId, achievement.Id);
+        }
+
+        private void GrantStreak30(int userId)
+        {
+            int maxStreak = CalculateUserMaxStreak(userId);
+
+            if (maxStreak < 30) return;
+
+            var achievement = GetOrCreateAchievement(
+                "Streak 30",
+                "Study 30 days in a row"
+            );
+
+            GrantToUserIfNotExists(userId, achievement.Id);
+        }
+
+        private int CalculateUserMaxStreak(int userId)
         {
             int passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
 
@@ -202,16 +307,7 @@ namespace Lumino.Api.Application.Services
                 .OrderBy(x => x)
                 .ToList();
 
-            int maxStreak = CalculateMaxStreak(dates);
-
-            if (maxStreak < 3) return;
-
-            var achievement = GetOrCreateAchievement(
-                "Streak Starter",
-                "Study 3 days in a row"
-            );
-
-            GrantToUserIfNotExists(userId, achievement.Id);
+            return CalculateMaxStreak(dates);
         }
 
         private static int CalculateMaxStreak(List<DateTime> datesSortedAsc)

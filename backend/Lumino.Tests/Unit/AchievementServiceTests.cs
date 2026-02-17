@@ -197,4 +197,109 @@ public class AchievementServiceTests
         var a = dbContext.Achievements.FirstOrDefault(x => x.Title == "100 XP");
         Assert.Null(a);
     }
+    [Fact]
+    public void GrantDailyGoal_ShouldGrant_WhenTodayScoreMeetsTarget()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Topics.Add(new Topic
+        {
+            Id = 1,
+            CourseId = 1,
+            Title = "Basics",
+            Order = 1
+        });
+
+        dbContext.Lessons.Add(new Lesson
+        {
+            Id = 1,
+            TopicId = 1,
+            Title = "Lesson 1",
+            Theory = "T",
+            Order = 1
+        });
+
+        var userId = 10;
+
+        // Сьогодні passed урок на 100% (Score=2) -> виконує DailyGoalScoreTarget=2
+        dbContext.LessonResults.Add(new LessonResult
+        {
+            UserId = userId,
+            LessonId = 1,
+            Score = 2,
+            TotalQuestions = 2,
+            CompletedAt = new DateTime(2026, 2, 10, 10, 0, 0, DateTimeKind.Utc)
+        });
+
+        dbContext.SaveChanges();
+
+        var service = new AchievementService(
+            dbContext,
+            new FixedDateTimeProvider(new DateTime(2026, 2, 10, 12, 0, 0, DateTimeKind.Utc)),
+            Options.Create(new LearningSettings { PassingScorePercent = 80, DailyGoalScoreTarget = 2 })
+        );
+
+        service.CheckAndGrantAchievements(userId, 2, 2);
+
+        var daily = dbContext.Achievements.FirstOrDefault(x => x.Title == "Daily Goal");
+        Assert.NotNull(daily);
+
+        var userDaily = dbContext.UserAchievements.FirstOrDefault(x => x.UserId == userId && x.AchievementId == daily!.Id);
+        Assert.NotNull(userDaily);
+    }
+
+    [Fact]
+    public void GrantStreakSeven_ShouldGrant_WhenSevenConsecutiveDays()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Topics.Add(new Topic
+        {
+            Id = 1,
+            CourseId = 1,
+            Title = "Basics",
+            Order = 1
+        });
+
+        dbContext.Lessons.Add(new Lesson
+        {
+            Id = 1,
+            TopicId = 1,
+            Title = "Lesson 1",
+            Theory = "T",
+            Order = 1
+        });
+
+        var userId = 10;
+
+        // 7 днів підряд passed урок (може бути один і той самий LessonId)
+        for (int i = 0; i < 7; i++)
+        {
+            dbContext.LessonResults.Add(new LessonResult
+            {
+                UserId = userId,
+                LessonId = 1,
+                Score = 1,
+                TotalQuestions = 1,
+                CompletedAt = new DateTime(2026, 2, 1 + i, 10, 0, 0, DateTimeKind.Utc)
+            });
+        }
+
+        dbContext.SaveChanges();
+
+        var service = new AchievementService(
+            dbContext,
+            new FixedDateTimeProvider(new DateTime(2026, 2, 7, 12, 0, 0, DateTimeKind.Utc)),
+            Options.Create(new LearningSettings { PassingScorePercent = 80 })
+        );
+
+        service.CheckAndGrantAchievements(userId, 1, 1);
+
+        var streak7 = dbContext.Achievements.FirstOrDefault(x => x.Title == "Streak 7");
+        Assert.NotNull(streak7);
+
+        var userStreak7 = dbContext.UserAchievements.FirstOrDefault(x => x.UserId == userId && x.AchievementId == streak7!.Id);
+        Assert.NotNull(userStreak7);
+    }
+
 }
