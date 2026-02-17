@@ -410,6 +410,17 @@ namespace Lumino.Api.Data
                 new VocabularyItem { Word = "welcome", Translation = "ласкаво просимо", Example = "Welcome to our city!" },
                 new VocabularyItem { Word = "good morning", Translation = "добрий ранок", Example = "Good morning! Have a nice day." },
                 new VocabularyItem { Word = "good evening", Translation = "добрий вечір", Example = "Good evening! Nice to see you." },
+new VocabularyItem { Word = "one", Translation = "один", Example = "One plus one is two." },
+new VocabularyItem { Word = "two", Translation = "два", Example = "Two cups of tea, please." },
+new VocabularyItem { Word = "three", Translation = "три", Example = "Three days ago." },
+new VocabularyItem { Word = "four", Translation = "чотири", Example = "Four people." },
+new VocabularyItem { Word = "five", Translation = "п'ять", Example = "Five minutes." },
+new VocabularyItem { Word = "six", Translation = "шість", Example = "Six tickets." },
+new VocabularyItem { Word = "seven", Translation = "сім", Example = "Seven o'clock." },
+new VocabularyItem { Word = "eight", Translation = "вісім", Example = "Eight apples." },
+new VocabularyItem { Word = "nine", Translation = "дев'ять", Example = "Nine rooms." },
+new VocabularyItem { Word = "ten", Translation = "десять", Example = "Ten dollars." },
+
 
                 new VocabularyItem { Word = "water", Translation = "вода", Example = "I want water." },
                 new VocabularyItem { Word = "coffee", Translation = "кава", Example = "Coffee, please." },
@@ -694,6 +705,44 @@ namespace Lumino.Api.Data
                     .Where(x => !string.IsNullOrWhiteSpace(x))
                     .ToList();
 
+                bool hasPairs = lines.Any(x => x.Contains('='));
+
+                if (!hasPairs)
+                {
+                    var words = TheoryVocabularyExtractor.ExtractNonPairWords(lesson.Theory);
+
+                    foreach (var w in words)
+                    {
+                        var key = NormalizeWord(w);
+
+                        if (string.IsNullOrWhiteSpace(key))
+                        {
+                            continue;
+                        }
+
+                        if (!vocabMap.TryGetValue(key, out var existing))
+                        {
+                            continue;
+                        }
+
+                        var exists = dbContext.LessonVocabularies
+                            .Any(x => x.LessonId == lesson.Id && x.VocabularyItemId == existing.Id);
+
+                        if (exists)
+                        {
+                            continue;
+                        }
+
+                        dbContext.LessonVocabularies.Add(new LessonVocabulary
+                        {
+                            LessonId = lesson.Id,
+                            VocabularyItemId = existing.Id
+                        });
+                    }
+
+                    continue;
+                }
+
                 foreach (var line in lines)
                 {
                     if (!line.Contains('='))
@@ -731,6 +780,7 @@ namespace Lumino.Api.Data
                         VocabularyItemId = item.Id
                     });
                 }
+
             }
 
             dbContext.SaveChanges();

@@ -1,0 +1,36 @@
+# Normalize line endings across platforms
+# Default: treat files as text and normalize according to attributes below
+* text=auto
+
+# C# / .NET
+*.cs          text eol=lf
+*.csproj      text eol=lf
+*.props       text eol=lf
+*.targets     text eol=lf
+*.sln         text eol=crlf
+*.config      text eol=lf
+
+# Web / config / docs
+*.json        text eol=lf
+*.md          text eol=lf
+*.yml         text eol=lf
+*.yaml        text eol=lf
+*.xml         text eol=lf
+
+# Scripts
+*.sh          text eol=lf
+*.ps1         text eol=lf
+*.bat         text eol=crlf
+*.cmd         text eol=crlf
+
+# Binary files
+*.png         binary
+*.jpg         binary
+*.jpeg        binary
+*.gif         binary
+*.webp        binary
+*.ico         binary
+*.pdf         binary
+*.zip         binary
+*.dll         binary
+*.exe         binary
