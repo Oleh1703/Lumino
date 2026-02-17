@@ -6,6 +6,9 @@ namespace Lumino.Api.Utils
     {
         public int PassingScorePercent { get; set; } = 80;
 
+        // щоденна ціль (як у Duolingo): скільки "очок" (правильних відповідей) треба набрати за день.
+        public int DailyGoalScoreTarget { get; set; } = 20;
+
         public int SceneCompletionScore { get; set; } = 5;
 
         // поріг проходження сцени у відсотках (як у Duolingo). 100 = без помилок.

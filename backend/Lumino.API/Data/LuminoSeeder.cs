@@ -366,7 +366,7 @@ namespace Lumino.Api.Data
 
         private static void LinkScenesToDefaultCourse(LuminoDbContext dbContext)
         {
-            // Step3: link scenes to the default course (published first, otherwise any).
+            // link scenes to the default course (published first, otherwise any).
             // Safe to call multiple times.
             var defaultCourse = dbContext.Courses.FirstOrDefault(x => x.IsPublished) ?? dbContext.Courses.FirstOrDefault();
             if (defaultCourse == null)
@@ -410,16 +410,16 @@ namespace Lumino.Api.Data
                 new VocabularyItem { Word = "welcome", Translation = "ласкаво просимо", Example = "Welcome to our city!" },
                 new VocabularyItem { Word = "good morning", Translation = "добрий ранок", Example = "Good morning! Have a nice day." },
                 new VocabularyItem { Word = "good evening", Translation = "добрий вечір", Example = "Good evening! Nice to see you." },
-new VocabularyItem { Word = "one", Translation = "один", Example = "One plus one is two." },
-new VocabularyItem { Word = "two", Translation = "два", Example = "Two cups of tea, please." },
-new VocabularyItem { Word = "three", Translation = "три", Example = "Three days ago." },
-new VocabularyItem { Word = "four", Translation = "чотири", Example = "Four people." },
-new VocabularyItem { Word = "five", Translation = "п'ять", Example = "Five minutes." },
-new VocabularyItem { Word = "six", Translation = "шість", Example = "Six tickets." },
-new VocabularyItem { Word = "seven", Translation = "сім", Example = "Seven o'clock." },
-new VocabularyItem { Word = "eight", Translation = "вісім", Example = "Eight apples." },
-new VocabularyItem { Word = "nine", Translation = "дев'ять", Example = "Nine rooms." },
-new VocabularyItem { Word = "ten", Translation = "десять", Example = "Ten dollars." },
+                new VocabularyItem { Word = "one", Translation = "один", Example = "One plus one is two." },
+                new VocabularyItem { Word = "two", Translation = "два", Example = "Two cups of tea, please." },
+                new VocabularyItem { Word = "three", Translation = "три", Example = "Three days ago." },
+                new VocabularyItem { Word = "four", Translation = "чотири", Example = "Four people." },
+                new VocabularyItem { Word = "five", Translation = "п'ять", Example = "Five minutes." },
+                new VocabularyItem { Word = "six", Translation = "шість", Example = "Six tickets." },
+                new VocabularyItem { Word = "seven", Translation = "сім", Example = "Seven o'clock." },
+                new VocabularyItem { Word = "eight", Translation = "вісім", Example = "Eight apples." },
+                new VocabularyItem { Word = "nine", Translation = "дев'ять", Example = "Nine rooms." },
+                new VocabularyItem { Word = "ten", Translation = "десять", Example = "Ten dollars." },
 
 
                 new VocabularyItem { Word = "water", Translation = "вода", Example = "I want water." },

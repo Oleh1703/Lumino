@@ -109,6 +109,62 @@ namespace Lumino.Api.Application.Services
             };
         }
 
+
+        public DailyGoalResponse GetMyDailyGoal(int userId)
+        {
+            var nowUtc = _dateTimeProvider.UtcNow;
+            var todayUtc = nowUtc.Date;
+            var tomorrowUtc = todayUtc.AddDays(1);
+
+            int passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
+
+            var todayPassedLessons = _dbContext.LessonResults
+                .Where(x =>
+                    x.UserId == userId &&
+                    x.CompletedAt >= todayUtc &&
+                    x.CompletedAt < tomorrowUtc &&
+                    x.TotalQuestions > 0 &&
+                    x.Score * 100 >= x.TotalQuestions * passingScorePercent
+                )
+                .ToList();
+
+            var todayCompletedScenes = _dbContext.SceneAttempts
+                .Where(x =>
+                    x.UserId == userId &&
+                    x.IsCompleted &&
+                    x.CompletedAt >= todayUtc &&
+                    x.CompletedAt < tomorrowUtc
+                )
+                .ToList();
+
+            int todayScore = todayPassedLessons.Sum(x => x.Score) + todayCompletedScenes.Sum(x => x.Score);
+
+            int targetScore = _learningSettings.DailyGoalScoreTarget;
+
+            if (targetScore < 1)
+            {
+                targetScore = 1;
+            }
+
+            int remaining = targetScore - todayScore;
+
+            if (remaining < 0)
+            {
+                remaining = 0;
+            }
+
+            return new DailyGoalResponse
+            {
+                DateUtc = todayUtc,
+                TargetScore = targetScore,
+                TodayScore = todayScore,
+                RemainingScore = remaining,
+                IsGoalMet = todayScore >= targetScore,
+                TodayPassedLessons = todayPassedLessons.Select(x => x.LessonId).Distinct().Count(),
+                TodayCompletedScenes = todayCompletedScenes.Select(x => x.SceneId).Distinct().Count()
+            };
+        }
+
         private static (int streakDays, DateTime? lastStudyAt) CalculateCurrentStreak(List<DateTime> studyCompletedAtUtc, DateTime nowUtc)
         {
             if (studyCompletedAtUtc == null || studyCompletedAtUtc.Count == 0)

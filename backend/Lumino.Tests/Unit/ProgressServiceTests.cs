@@ -192,4 +192,112 @@ public class ProgressServiceTests
         Assert.Equal(0, result.CurrentStreakDays);
         Assert.Equal(new DateTime(2026, 2, 7, 0, 0, 0, DateTimeKind.Utc), result.LastStudyAt);
     }
+    [Fact]
+    public void GetMyDailyGoal_WhenHasStudyToday_CalculatesTodayScoreAndRemaining()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Courses.Add(new Course
+        {
+            Id = 1,
+            Title = "English A1",
+            Description = "Demo",
+            IsPublished = true
+        });
+
+        dbContext.Topics.Add(new Topic
+        {
+            Id = 1,
+            CourseId = 1,
+            Title = "Basics",
+            Order = 1
+        });
+
+        dbContext.Lessons.AddRange(
+            new Lesson { Id = 1, TopicId = 1, Title = "L1", Theory = "T1", Order = 1 },
+            new Lesson { Id = 2, TopicId = 1, Title = "L2", Theory = "T2", Order = 2 }
+        );
+
+        var now = new DateTime(2026, 2, 9, 12, 0, 0, DateTimeKind.Utc);
+        var dateTimeProvider = new FixedDateTimeProvider(now);
+
+        // Passing 80%:
+        // today: L1 (6/6 passed), L2 (3/4 not passed)
+        // today: Scene1 completed (5/5)
+        dbContext.LessonResults.AddRange(
+            new LessonResult
+            {
+                UserId = 1,
+                LessonId = 1,
+                Score = 6,
+                TotalQuestions = 6,
+                CompletedAt = new DateTime(2026, 2, 9, 9, 0, 0, DateTimeKind.Utc)
+            },
+            new LessonResult
+            {
+                UserId = 1,
+                LessonId = 2,
+                Score = 3,
+                TotalQuestions = 4,
+                CompletedAt = new DateTime(2026, 2, 9, 10, 0, 0, DateTimeKind.Utc)
+            },
+            new LessonResult
+            {
+                UserId = 1,
+                LessonId = 2,
+                Score = 4,
+                TotalQuestions = 4,
+                CompletedAt = new DateTime(2026, 2, 8, 10, 0, 0, DateTimeKind.Utc)
+            }
+        );
+
+        dbContext.SceneAttempts.AddRange(
+            new SceneAttempt
+            {
+                UserId = 1,
+                SceneId = 1,
+                IsCompleted = true,
+                Score = 5,
+                TotalQuestions = 5,
+                CompletedAt = new DateTime(2026, 2, 9, 11, 0, 0, DateTimeKind.Utc)
+            },
+            new SceneAttempt
+            {
+                UserId = 1,
+                SceneId = 2,
+                IsCompleted = false,
+                Score = 10,
+                TotalQuestions = 10,
+                CompletedAt = new DateTime(2026, 2, 9, 11, 30, 0, DateTimeKind.Utc)
+            }
+        );
+
+        dbContext.SaveChanges();
+
+        var service = new ProgressService(
+            dbContext,
+            dateTimeProvider,
+            Options.Create(new LearningSettings
+            {
+                PassingScorePercent = 80,
+                DailyGoalScoreTarget = 12
+            })
+        );
+
+        var result = service.GetMyDailyGoal(1);
+
+        Assert.Equal(new DateTime(2026, 2, 9, 0, 0, 0, DateTimeKind.Utc), result.DateUtc);
+        Assert.Equal(12, result.TargetScore);
+
+        // Only passed lessons + completed scenes today:
+        // L1 passed (6) + Scene1 completed (5) = 11
+        Assert.Equal(11, result.TodayScore);
+        Assert.Equal(1, result.RemainingScore);
+        Assert.False(result.IsGoalMet);
+
+        Assert.Equal(1, result.TodayPassedLessons);
+        Assert.Equal(1, result.TodayCompletedScenes);
+    }
+
+
 }

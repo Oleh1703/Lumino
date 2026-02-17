@@ -24,5 +24,14 @@ namespace Lumino.Api.Controllers
             var result = _progressService.GetMyProgress(userId);
             return Ok(result);
         }
+
+        [HttpGet("daily-goal")]
+        public IActionResult GetMyDailyGoal()
+        {
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
+            var result = _progressService.GetMyDailyGoal(userId);
+            return Ok(result);
+        }
+
     }
 }
