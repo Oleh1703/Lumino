@@ -6,6 +6,10 @@ namespace Lumino.Api.Application.DTOs
 
         public string CourseTitle { get; set; } = null!;
 
+        public List<LearningPathSceneResponse> Scenes { get; set; } = new();
+
+        public LearningPathNextPointersResponse NextPointers { get; set; } = new();
+
         public List<LearningPathTopicResponse> Topics { get; set; } = new();
     }
 
@@ -37,5 +41,37 @@ namespace Lumino.Api.Application.DTOs
         public int? TotalQuestions { get; set; }
 
         public int? BestPercent { get; set; }
+    }
+
+    public class LearningPathSceneResponse
+    {
+        public int Id { get; set; }
+
+        public int? CourseId { get; set; }
+
+        public int Order { get; set; }
+
+        public string Title { get; set; } = null!;
+
+        public string Description { get; set; } = null!;
+
+        public string SceneType { get; set; } = null!;
+
+        public bool IsCompleted { get; set; }
+
+        public bool IsUnlocked { get; set; }
+
+        public string? UnlockReason { get; set; }
+
+        public int PassedLessons { get; set; }
+
+        public int RequiredPassedLessons { get; set; }
+    }
+
+    public class LearningPathNextPointersResponse
+    {
+        public int? NextLessonId { get; set; }
+
+        public int? NextSceneId { get; set; }
     }
 }

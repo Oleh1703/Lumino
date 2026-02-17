@@ -109,11 +109,111 @@ namespace Lumino.Api.Application.Services
                 })
                 .ToList();
 
+
+            var lessonIds = orderedLessons.Select(x => x.LessonId).ToList();
+
+            // scenes (learning map)
+            var passedLessons = progressDict
+                .Where(x => lessonIds.Contains(x.Key))
+                .Count(x => x.Value.IsCompleted);
+
+            var unlockEvery = SceneUnlockRules.NormalizeUnlockEveryLessons(_learningSettings.SceneUnlockEveryLessons);
+
+            var completedSceneIds = _dbContext.SceneAttempts
+                .Where(x => x.UserId == userId && x.IsCompleted)
+                .Select(x => x.SceneId)
+                .Distinct()
+                .ToList();
+
+            bool hasCourseScenes = _dbContext.Scenes.Any(x => x.CourseId == course.Id);
+
+            var scenesQuery = _dbContext.Scenes.AsQueryable();
+
+            if (hasCourseScenes)
+            {
+                scenesQuery = scenesQuery.Where(x => x.CourseId == course.Id);
+            }
+            else
+            {
+                scenesQuery = scenesQuery.Where(x => x.CourseId == null);
+            }
+
+            var orderedScenes = scenesQuery
+                .AsEnumerable()
+                .OrderBy(x => x.Order > 0 ? x.Order : x.Id)
+                .ThenBy(x => x.Id)
+                .ToList();
+
+            var scenes = new List<LearningPathSceneResponse>();
+
+            for (int i = 0; i < orderedScenes.Count; i++)
+            {
+                var s = orderedScenes[i];
+
+                int scenePosition = i + 1;
+
+                var required = SceneUnlockRules.GetRequiredPassedLessons(scenePosition, unlockEvery);
+                var isUnlocked = SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, unlockEvery);
+                var unlockReason = isUnlocked ? null : $"Pass {required} lessons to unlock";
+
+                scenes.Add(new LearningPathSceneResponse
+                {
+                    Id = s.Id,
+                    CourseId = s.CourseId,
+                    Order = s.Order,
+                    Title = s.Title,
+                    Description = s.Description,
+                    SceneType = s.SceneType,
+                    IsCompleted = completedSceneIds.Contains(s.Id),
+                    IsUnlocked = isUnlocked,
+                    UnlockReason = unlockReason,
+                    PassedLessons = passedLessons,
+                    RequiredPassedLessons = required
+                });
+            }
+
+            // next pointers for UI
+            int? nextLessonId = null;
+
+            for (int i = 0; i < orderedLessons.Count; i++)
+            {
+                var l = orderedLessons[i];
+
+                progressDict.TryGetValue(l.LessonId, out var p);
+
+                if (p != null && p.IsUnlocked && !p.IsCompleted)
+                {
+                    nextLessonId = l.LessonId;
+                    break;
+                }
+            }
+
+            int? nextSceneId = null;
+
+            for (int i = 0; i < scenes.Count; i++)
+            {
+                var s = scenes[i];
+
+                if (s.IsUnlocked && !s.IsCompleted)
+                {
+                    nextSceneId = s.Id;
+                    break;
+                }
+            }
+
+            var nextPointers = new LearningPathNextPointersResponse
+            {
+                NextLessonId = nextLessonId,
+                NextSceneId = nextSceneId
+            };
+
             return new LearningPathResponse
             {
                 CourseId = course.Id,
                 CourseTitle = course.Title,
-                Topics = topics
+                Topics = topics,
+                Scenes = scenes,
+                NextPointers = nextPointers
             };
         }
 

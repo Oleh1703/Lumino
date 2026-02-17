@@ -884,7 +884,9 @@ new VocabularyItem { Word = "ten", Translation = "десять", Example = "Ten 
         {
             if (!vocabMap.TryGetValue(word, out var item))
             {
-                item = dbContext.VocabularyItems.FirstOrDefault(x => NormalizeWord(x.Word) == word);
+                item = dbContext.VocabularyItems
+                    .AsEnumerable()
+                    .FirstOrDefault(x => NormalizeWord(x.Word) == word);
 
                 if (item == null)
                 {
