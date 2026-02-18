@@ -16,6 +16,20 @@ namespace Lumino.Api.Application.Validators
                 throw new ArgumentException("Answers are required");
             }
 
+
+            if (request.IdempotencyKey != null)
+            {
+                if (string.IsNullOrWhiteSpace(request.IdempotencyKey))
+                {
+                    throw new ArgumentException("IdempotencyKey is invalid");
+                }
+
+                if (request.IdempotencyKey.Length > 64)
+                {
+                    throw new ArgumentException("IdempotencyKey is too long");
+                }
+            }
+
             foreach (var answer in request.Answers)
             {
                 if (answer == null)

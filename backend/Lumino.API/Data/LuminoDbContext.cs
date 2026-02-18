@@ -218,6 +218,9 @@ namespace Lumino.Api.Data
 
             modelBuilder.Entity<SceneAttempt>(entity =>
             {
+                entity.Property(x => x.IdempotencyKey)
+                    .HasMaxLength(64);
+
                 entity.HasOne<User>()
                     .WithMany()
                     .HasForeignKey(x => x.UserId)

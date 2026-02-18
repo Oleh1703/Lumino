@@ -16,6 +16,8 @@ namespace Lumino.Api.Domain.Entities
 
         public int TotalQuestions { get; set; }
 
+        public string? IdempotencyKey { get; set; }
+
         public string? DetailsJson { get; set; }
     }
 }

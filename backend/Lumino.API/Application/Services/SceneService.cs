@@ -269,11 +269,25 @@ namespace Lumino.Api.Application.Services
                 throw new ForbiddenAccessException("Scene is locked");
             }
 
+
+            if (!string.IsNullOrWhiteSpace(request.IdempotencyKey))
+            {
+                var existingAttempt = _dbContext.SceneAttempts
+                    .FirstOrDefault(x => x.UserId == userId && x.SceneId == sceneId);
+
+                if (existingAttempt != null
+                    && !string.IsNullOrWhiteSpace(existingAttempt.IdempotencyKey)
+                    && string.Equals(existingAttempt.IdempotencyKey, request.IdempotencyKey, StringComparison.Ordinal))
+                {
+                    return BuildSubmitSceneResponseFromAttempt(sceneId, existingAttempt);
+                }
+            }
+
             var steps = _dbContext.SceneSteps
-                .Where(x => x.SceneId == sceneId)
-                .OrderBy(x => x.Order <= 0 ? int.MaxValue : x.Order)
-                .ThenBy(x => x.Id)
-                .ToList();
+                            .Where(x => x.SceneId == sceneId)
+                            .OrderBy(x => x.Order <= 0 ? int.MaxValue : x.Order)
+                            .ThenBy(x => x.Id)
+                            .ToList();
 
             var questionSteps = steps
                 .Where(x => !string.IsNullOrWhiteSpace(x.ChoicesJson))
@@ -284,7 +298,7 @@ namespace Lumino.Api.Application.Services
             if (totalQuestions == 0)
             {
                 // якщо питань немає — просто завершуємо сцену
-                EnsureCompletedAttempt(userId, sceneId, score: 0, totalQuestions: 0, detailsJson: null);
+                EnsureCompletedAttempt(userId, sceneId, score: 0, totalQuestions: 0, detailsJson: null, idempotencyKey: request.IdempotencyKey);
                 return new SubmitSceneResponse
                 {
                     SceneId = sceneId,
@@ -351,7 +365,8 @@ namespace Lumino.Api.Application.Services
                     score: correctCount,
                     totalQuestions: totalQuestions,
                     detailsJson: detailsJsonNoChange,
-                    markCompleted: isCompleted
+                    markCompleted: isCompleted,
+                    idempotencyKey: request.IdempotencyKey
                 );
 
                 return new SubmitSceneResponse
@@ -454,7 +469,8 @@ namespace Lumino.Api.Application.Services
                 score: correct,
                 totalQuestions: totalQuestions,
                 detailsJson: detailsJson,
-                markCompleted: completed
+                markCompleted: completed,
+                idempotencyKey: request.IdempotencyKey
             );
 
             return new SubmitSceneResponse
@@ -521,11 +537,25 @@ namespace Lumino.Api.Application.Services
                 throw new ForbiddenAccessException("Scene is locked");
             }
 
+
+            if (!string.IsNullOrWhiteSpace(request.IdempotencyKey))
+            {
+                var existingAttempt = _dbContext.SceneAttempts
+                    .FirstOrDefault(x => x.UserId == userId && x.SceneId == sceneId);
+
+                if (existingAttempt != null
+                    && !string.IsNullOrWhiteSpace(existingAttempt.IdempotencyKey)
+                    && string.Equals(existingAttempt.IdempotencyKey, request.IdempotencyKey, StringComparison.Ordinal))
+                {
+                    return BuildSubmitSceneResponseFromAttempt(sceneId, existingAttempt);
+                }
+            }
+
             var steps = _dbContext.SceneSteps
-                .Where(x => x.SceneId == sceneId)
-                .OrderBy(x => x.Order <= 0 ? int.MaxValue : x.Order)
-                .ThenBy(x => x.Id)
-                .ToList();
+                            .Where(x => x.SceneId == sceneId)
+                            .OrderBy(x => x.Order <= 0 ? int.MaxValue : x.Order)
+                            .ThenBy(x => x.Id)
+                            .ToList();
 
             var questionSteps = steps
                 .Where(x => !string.IsNullOrWhiteSpace(x.ChoicesJson))
@@ -536,7 +566,7 @@ namespace Lumino.Api.Application.Services
             // якщо в сцені немає choices (тільки діалоги/контент) — submit завершує сцену як “пройдено”
             if (totalQuestions == 0)
             {
-                EnsureCompletedAttempt(userId, sceneId, score: 0, totalQuestions: 0, detailsJson: null);
+                EnsureCompletedAttempt(userId, sceneId, score: 0, totalQuestions: 0, detailsJson: null, idempotencyKey: request.IdempotencyKey);
                 return new SubmitSceneResponse
                 {
                     SceneId = sceneId,
@@ -611,7 +641,8 @@ namespace Lumino.Api.Application.Services
                 score: correct,
                 totalQuestions: totalQuestions,
                 detailsJson: detailsJson,
-                markCompleted: isCompleted
+                markCompleted: isCompleted,
+                idempotencyKey: request.IdempotencyKey
             );
 
             return new SubmitSceneResponse
@@ -764,7 +795,66 @@ namespace Lumino.Api.Application.Services
             return index + 1;
         }
 
-        private void EnsureCompletedAttempt(int userId, int sceneId, int score, int totalQuestions, string? detailsJson, bool markCompleted = true)
+
+        private SubmitSceneResponse BuildSubmitSceneResponseFromAttempt(int sceneId, SceneAttempt attempt)
+        {
+            if (attempt == null)
+            {
+                return new SubmitSceneResponse
+                {
+                    SceneId = sceneId,
+                    TotalQuestions = 0,
+                    CorrectAnswers = 0,
+                    IsCompleted = false
+                };
+            }
+
+            var mistakeStepIds = new List<int>();
+            var answers = new List<SceneStepAnswerResultDto>();
+
+            if (!string.IsNullOrWhiteSpace(attempt.DetailsJson))
+            {
+                try
+                {
+                    var details = JsonSerializer.Deserialize<SceneAttemptDetailsJson>(attempt.DetailsJson, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+
+                    if (details != null)
+                    {
+                        if (details.MistakeStepIds != null)
+                        {
+                            mistakeStepIds = details.MistakeStepIds
+                                .Distinct()
+                                .ToList();
+                        }
+
+                        if (details.Answers != null)
+                        {
+                            answers = details.Answers
+                                .ToList();
+                        }
+                    }
+                }
+                catch
+                {
+                    // ignore invalid json
+                }
+            }
+
+            return new SubmitSceneResponse
+            {
+                SceneId = sceneId,
+                TotalQuestions = attempt.TotalQuestions,
+                CorrectAnswers = attempt.Score,
+                IsCompleted = attempt.IsCompleted,
+                MistakeStepIds = mistakeStepIds,
+                Answers = answers
+            };
+        }
+
+        private void EnsureCompletedAttempt(int userId, int sceneId, int score, int totalQuestions, string? detailsJson, bool markCompleted = true, string? idempotencyKey = null)
         {
             var now = _dateTimeProvider.UtcNow;
 
@@ -778,6 +868,11 @@ namespace Lumino.Api.Application.Services
                 attempt.Score = score;
                 attempt.TotalQuestions = totalQuestions;
                 attempt.DetailsJson = detailsJson;
+
+                if (!string.IsNullOrWhiteSpace(idempotencyKey))
+                {
+                    attempt.IdempotencyKey = idempotencyKey;
+                }
 
                 _dbContext.SaveChanges();
                 return;
@@ -804,6 +899,11 @@ namespace Lumino.Api.Application.Services
             attempt.Score = score;
             attempt.TotalQuestions = totalQuestions;
             attempt.DetailsJson = detailsJson;
+
+            if (!string.IsNullOrWhiteSpace(idempotencyKey))
+            {
+                attempt.IdempotencyKey = idempotencyKey;
+            }
 
             // фіксуємо час останньої здачі (навіть якщо ще не completed)
             attempt.CompletedAt = now;
