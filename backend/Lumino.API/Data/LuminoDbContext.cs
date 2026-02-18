@@ -92,6 +92,11 @@ namespace Lumino.Api.Data
                 entity.Property(x => x.IdempotencyKey)
                     .HasMaxLength(64);
 
+                // idempotency key must be unique per user (when provided)
+                entity.HasIndex(x => new { x.UserId, x.IdempotencyKey })
+                    .IsUnique()
+                    .HasFilter("[IdempotencyKey] IS NOT NULL");
+
                 entity.HasOne<User>()
                     .WithMany()
                     .HasForeignKey(x => x.UserId)
