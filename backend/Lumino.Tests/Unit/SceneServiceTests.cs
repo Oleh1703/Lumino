@@ -1291,6 +1291,54 @@ public class SceneServiceTests
         }
     }
     [Fact]
+    public void MarkCompleted_WhenSaveChangesThrowsDbUpdateExceptionOnFirstInsert_ShouldNotCrash()
+    {
+        var options = new DbContextOptionsBuilder<LuminoDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        var dbContext = new ThrowOnceOnSceneAttemptInsertDbContext(options);
+
+        dbContext.Users.Add(new User
+        {
+            Id = 1,
+            Email = "scene@mail.com",
+            PasswordHash = "hash",
+            CreatedAt = DateTime.UtcNow
+        });
+
+        dbContext.Scenes.Add(new Scene
+        {
+            Id = 1,
+            Title = "Scene 1",
+            Description = "Desc",
+            SceneType = "intro",
+            CourseId = null,
+            Order = 1
+        });
+
+        dbContext.SaveChanges();
+
+        var service = new SceneService(
+            dbContext,
+            new FakeDateTimeProvider(),
+            new FakeAchievementService(),
+            Options.Create(new LearningSettings
+            {
+                PassingScorePercent = 80,
+                SceneCompletionScore = 5,
+                ScenePassingPercent = 100,
+                DailyGoalScoreTarget = 20
+            }));
+
+        service.MarkCompleted(1, 1);
+
+        var attempt = dbContext.SceneAttempts.FirstOrDefault(x => x.UserId == 1 && x.SceneId == 1);
+        Assert.NotNull(attempt);
+        Assert.True(attempt!.IsCompleted);
+    }
+
+[Fact]
     public void SubmitScene_WhenSaveChangesThrowsDbUpdateExceptionOnFirstInsert_ShouldNotCrash()
     {
         var options = new DbContextOptionsBuilder<LuminoDbContext>()
@@ -1362,50 +1410,6 @@ public class SceneServiceTests
         Assert.NotNull(attempt);
         Assert.True(attempt!.IsCompleted);
     }
-    [Fact]
-    public void MarkCompleted_WhenSaveChangesThrowsDbUpdateExceptionOnFirstInsert_ShouldNotCrash()
-    {
-        var options = new DbContextOptionsBuilder<LuminoDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-
-        var dbContext = new ThrowOnceOnSceneAttemptInsertDbContext(options);
-
-        dbContext.Users.Add(new User
-        {
-            Id = 1,
-            Email = "mark@mail.com",
-            PasswordHash = "hash",
-            CreatedAt = DateTime.UtcNow
-        });
-
-        dbContext.Scenes.Add(new Scene
-        {
-            Id = 1,
-            Title = "Scene 1",
-            Description = "Desc",
-            SceneType = "intro"
-        });
-
-        dbContext.SaveChanges();
-
-        var service = new SceneService(
-            dbContext,
-            new FakeDateTimeProvider(),
-            new FakeAchievementService(),
-            Options.Create(new LearningSettings
-            {
-                SceneCompletionScore = 5,
-                SceneUnlockEveryLessons = 1
-            }));
-
-        service.MarkCompleted(userId: 1, sceneId: 1);
-
-        var attempt = dbContext.SceneAttempts.FirstOrDefault(x => x.UserId == 1 && x.SceneId == 1);
-        Assert.NotNull(attempt);
-        Assert.True(attempt!.IsCompleted);
-    }
-
 
     private class ThrowOnceOnSceneAttemptInsertDbContext : LuminoDbContext
     {

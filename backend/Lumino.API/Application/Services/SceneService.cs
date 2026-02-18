@@ -715,7 +715,7 @@ namespace Lumino.Api.Application.Services
                 return;
             }
 
-            var newAttempt = new SceneAttempt
+            _dbContext.SceneAttempts.Add(new SceneAttempt
             {
                 UserId = userId,
                 SceneId = sceneId,
@@ -724,9 +724,7 @@ namespace Lumino.Api.Application.Services
                 Score = 0,
                 TotalQuestions = 0,
                 DetailsJson = null
-            };
-
-            _dbContext.SceneAttempts.Add(newAttempt);
+            });
 
             try
             {
@@ -734,24 +732,27 @@ namespace Lumino.Api.Application.Services
             }
             catch (DbUpdateException)
             {
-                // паралельний запит міг встигнути створити attempt (унікальний індекс UserId+SceneId)
-                _dbContext.Entry(newAttempt).State = EntityState.Detached;
-
-                attempt = _dbContext.SceneAttempts
+                // Захист від паралельних/повторних запитів:
+                // якщо інший запит вже встиг створити SceneAttempt (унікальний індекс UserId+SceneId),
+                // то перечитуємо існуючий запис і завершуємо його, замість падіння.
+                var existingAttempt = _dbContext.SceneAttempts
                     .FirstOrDefault(x => x.UserId == userId && x.SceneId == sceneId);
 
-                if (attempt == null)
+                if (existingAttempt == null)
                 {
                     throw;
                 }
 
-                if (attempt.IsCompleted) return;
+                if (existingAttempt.IsCompleted)
+                {
+                    return;
+                }
 
-                attempt.IsCompleted = true;
-                attempt.CompletedAt = _dateTimeProvider.UtcNow;
-                attempt.Score = 0;
-                attempt.TotalQuestions = 0;
-                attempt.DetailsJson = null;
+                existingAttempt.IsCompleted = true;
+                existingAttempt.CompletedAt = _dateTimeProvider.UtcNow;
+                existingAttempt.Score = 0;
+                existingAttempt.TotalQuestions = 0;
+                existingAttempt.DetailsJson = null;
 
                 _dbContext.SaveChanges();
             }
