@@ -715,7 +715,7 @@ namespace Lumino.Api.Application.Services
                 return;
             }
 
-            _dbContext.SceneAttempts.Add(new SceneAttempt
+            var newAttempt = new SceneAttempt
             {
                 UserId = userId,
                 SceneId = sceneId,
@@ -724,9 +724,37 @@ namespace Lumino.Api.Application.Services
                 Score = 0,
                 TotalQuestions = 0,
                 DetailsJson = null
-            });
+            };
 
-            _dbContext.SaveChanges();
+            _dbContext.SceneAttempts.Add(newAttempt);
+
+            try
+            {
+                _dbContext.SaveChanges();
+            }
+            catch (DbUpdateException)
+            {
+                // паралельний запит міг встигнути створити attempt (унікальний індекс UserId+SceneId)
+                _dbContext.Entry(newAttempt).State = EntityState.Detached;
+
+                attempt = _dbContext.SceneAttempts
+                    .FirstOrDefault(x => x.UserId == userId && x.SceneId == sceneId);
+
+                if (attempt == null)
+                {
+                    throw;
+                }
+
+                if (attempt.IsCompleted) return;
+
+                attempt.IsCompleted = true;
+                attempt.CompletedAt = _dateTimeProvider.UtcNow;
+                attempt.Score = 0;
+                attempt.TotalQuestions = 0;
+                attempt.DetailsJson = null;
+
+                _dbContext.SaveChanges();
+            }
 
             AddSceneVocabularyIfNeeded(userId, sceneId, detailsJson: null);
 
