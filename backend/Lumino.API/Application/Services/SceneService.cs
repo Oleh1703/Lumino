@@ -690,10 +690,29 @@ namespace Lumino.Api.Application.Services
                 throw new ForbiddenAccessException("Scene is locked");
             }
 
-            var exists = _dbContext.SceneAttempts
-                .Any(x => x.UserId == userId && x.SceneId == sceneId);
+            var attempt = _dbContext.SceneAttempts
+                .FirstOrDefault(x => x.UserId == userId && x.SceneId == sceneId);
 
-            if (exists) return;
+            if (attempt != null)
+            {
+                if (attempt.IsCompleted) return;
+
+                attempt.IsCompleted = true;
+                attempt.CompletedAt = _dateTimeProvider.UtcNow;
+                attempt.Score = 0;
+                attempt.TotalQuestions = 0;
+                attempt.DetailsJson = null;
+
+                _dbContext.SaveChanges();
+
+                AddSceneVocabularyIfNeeded(userId, sceneId, detailsJson: null);
+
+                UpdateUserProgressAfterScene(userId);
+
+                _achievementService.CheckAndGrantSceneAchievements(userId);
+
+                return;
+            }
 
             _dbContext.SceneAttempts.Add(new SceneAttempt
             {
