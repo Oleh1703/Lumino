@@ -4,6 +4,7 @@ using Lumino.Api.Application.Validators;
 using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Utils;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
 
@@ -899,6 +900,8 @@ namespace Lumino.Api.Application.Services
 
             bool wasCompleted = attempt != null && attempt.IsCompleted;
 
+            bool createdNewAttempt = false;
+
             if (attempt == null)
             {
                 attempt = new SceneAttempt
@@ -913,6 +916,7 @@ namespace Lumino.Api.Application.Services
                 };
 
                 _dbContext.SceneAttempts.Add(attempt);
+                createdNewAttempt = true;
             }
 
             attempt.Score = score;
@@ -932,7 +936,48 @@ namespace Lumino.Api.Application.Services
                 attempt.IsCompleted = true;
             }
 
-            _dbContext.SaveChanges();
+            try
+            {
+                _dbContext.SaveChanges();
+            }
+            catch (DbUpdateException)
+            {
+                // Захист від паралельних/повторних запитів:
+                // якщо інший запит вже встиг створити SceneAttempt (унікальний індекс UserId+SceneId),
+                // то перечитуємо існуючий запис і оновлюємо його, замість падіння.
+                if (!createdNewAttempt)
+                {
+                    throw;
+                }
+
+                attempt = _dbContext.SceneAttempts
+                    .FirstOrDefault(x => x.UserId == userId && x.SceneId == sceneId);
+
+                if (attempt == null)
+                {
+                    throw;
+                }
+
+                wasCompleted = attempt.IsCompleted;
+
+                attempt.Score = score;
+                attempt.TotalQuestions = totalQuestions;
+                attempt.DetailsJson = detailsJson;
+
+                if (!string.IsNullOrWhiteSpace(idempotencyKey))
+                {
+                    attempt.IdempotencyKey = idempotencyKey;
+                }
+
+                attempt.CompletedAt = now;
+
+                if (markCompleted)
+                {
+                    attempt.IsCompleted = true;
+                }
+
+                _dbContext.SaveChanges();
+            }
 
             if (markCompleted && !wasCompleted)
             {

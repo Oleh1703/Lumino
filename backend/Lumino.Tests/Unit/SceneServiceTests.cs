@@ -1,9 +1,11 @@
 ﻿using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Application.Services;
+using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Utils;
 using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace Lumino.Tests;
@@ -1286,6 +1288,105 @@ public class SceneServiceTests
         public void CheckAndGrantSceneAchievements(int userId)
         {
             SceneChecksCount++;
+        }
+    }
+    [Fact]
+    public void SubmitScene_WhenSaveChangesThrowsDbUpdateExceptionOnFirstInsert_ShouldNotCrash()
+    {
+        var options = new DbContextOptionsBuilder<LuminoDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        var dbContext = new ThrowOnceOnSceneAttemptInsertDbContext(options);
+
+        dbContext.Users.Add(new User
+        {
+            Id = 1,
+            Email = "scene@mail.com",
+            PasswordHash = "hash",
+            CreatedAt = DateTime.UtcNow
+        });
+
+        dbContext.Scenes.Add(new Scene
+        {
+            Id = 1,
+            Title = "Scene 1",
+            Description = "Desc",
+            SceneType = "intro",
+            CourseId = null,
+            Order = 1
+        });
+
+        // 1 питання Choice
+        dbContext.SceneSteps.Add(new SceneStep
+        {
+            Id = 11,
+            SceneId = 1,
+            Order = 1,
+            Speaker = "System",
+            Text = "Q1",
+            StepType = "Choice",
+            ChoicesJson = "[{\"text\":\"A\",\"isCorrect\":true},{\"text\":\"B\",\"isCorrect\":false}]"
+        });
+
+        dbContext.SaveChanges();
+
+        var service = new SceneService(
+            dbContext,
+            new FakeDateTimeProvider(),
+            new FakeAchievementService(),
+            Options.Create(new LearningSettings
+            {
+                PassingScorePercent = 80,
+                SceneCompletionScore = 5,
+                ScenePassingPercent = 100,
+                DailyGoalScoreTarget = 20
+            }));
+
+        var result = service.SubmitScene(1, 1, new SubmitSceneRequest
+        {
+            IdempotencyKey = null,
+            Answers =
+            {
+                new SubmitSceneAnswerRequest
+                {
+                    StepId = 11,
+                    Answer = "A"
+                }
+            }
+        });
+
+        Assert.True(result.IsCompleted);
+
+        var attempt = dbContext.SceneAttempts.FirstOrDefault(x => x.UserId == 1 && x.SceneId == 1);
+        Assert.NotNull(attempt);
+        Assert.True(attempt!.IsCompleted);
+    }
+
+    private class ThrowOnceOnSceneAttemptInsertDbContext : LuminoDbContext
+    {
+        private bool _hasThrown;
+
+        public ThrowOnceOnSceneAttemptInsertDbContext(DbContextOptions<LuminoDbContext> options)
+            : base(options)
+        {
+        }
+
+        public override int SaveChanges()
+        {
+            // симулюємо ситуацію, коли інший запит “встиг” створити SceneAttempt,
+            // і наша вставка ловить DbUpdateException на унікальному індексі UserId+SceneId
+            if (!_hasThrown && ChangeTracker.Entries<SceneAttempt>().Any(x => x.State == EntityState.Added))
+            {
+                _hasThrown = true;
+
+                // спочатку зберігаємо вставку, щоб запис реально існував у БД,
+                // а потім кидаємо DbUpdateException — так ми детерміновано перевіряємо catch-гілку в сервісі
+                base.SaveChanges();
+                throw new DbUpdateException("Simulated concurrent insert");
+            }
+
+            return base.SaveChanges();
         }
     }
 }
