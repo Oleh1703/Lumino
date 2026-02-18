@@ -1,4 +1,5 @@
 using Lumino.Api.Application.DTOs;
+using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Domain.Enums;
@@ -381,9 +382,142 @@ public class LessonMistakesServiceTests
         Assert.Equal(4, userProgress.TotalScore);
     }
 
+    [Fact]
+    public void SubmitLessonMistakes_WhenNowPassed_ShouldAddVocabulary_AndCallAchievements()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Courses.Add(new Course
+        {
+            Id = 1,
+            Title = "Course",
+            Description = "Desc",
+            IsPublished = true
+        });
+
+        dbContext.Topics.Add(new Topic
+        {
+            Id = 1,
+            CourseId = 1,
+            Title = "Topic",
+            Order = 1
+        });
+
+        dbContext.Lessons.AddRange(
+            new Lesson
+            {
+                Id = 1,
+                TopicId = 1,
+                Title = "Lesson 1",
+                Theory = "Theory",
+                Order = 1
+            },
+            new Lesson
+            {
+                Id = 2,
+                TopicId = 1,
+                Title = "Lesson 2",
+                Theory = "Theory",
+                Order = 2
+            }
+        );
+
+        dbContext.Exercises.AddRange(
+            new Exercise { Id = 1, LessonId = 1, Order = 1, Type = ExerciseType.Input, Question = "Q1", CorrectAnswer = "a", Data = "{}" },
+            new Exercise { Id = 2, LessonId = 1, Order = 2, Type = ExerciseType.Input, Question = "Q2", CorrectAnswer = "b", Data = "{}" },
+            new Exercise { Id = 3, LessonId = 1, Order = 3, Type = ExerciseType.Input, Question = "Q3", CorrectAnswer = "c", Data = "{}" },
+            new Exercise { Id = 4, LessonId = 1, Order = 4, Type = ExerciseType.Input, Question = "Q4", CorrectAnswer = "d", Data = "{}" },
+            new Exercise { Id = 5, LessonId = 1, Order = 5, Type = ExerciseType.Input, Question = "Q5", CorrectAnswer = "e", Data = "{}" }
+        );
+
+        dbContext.UserLessonProgresses.Add(new UserLessonProgress
+        {
+            UserId = 1,
+            LessonId = 1,
+            IsUnlocked = true,
+            IsCompleted = false
+        });
+
+        dbContext.VocabularyItems.AddRange(
+            new VocabularyItem { Id = 100, Word = "theory", Translation = "t", Example = null },
+            new VocabularyItem { Id = 101, Word = "mistake", Translation = "m", Example = null }
+        );
+
+        dbContext.LessonVocabularies.Add(new LessonVocabulary
+        {
+            LessonId = 1,
+            VocabularyItemId = 100
+        });
+
+        dbContext.ExerciseVocabularies.Add(new ExerciseVocabulary
+        {
+            ExerciseId = 5,
+            VocabularyItemId = 101
+        });
+
+        var details = new LessonResultDetailsJson
+        {
+            MistakeExerciseIds = new() { 4, 5 },
+            Answers = new()
+            {
+                new LessonAnswerResultDto { ExerciseId = 1, UserAnswer = "a", CorrectAnswer = "a", IsCorrect = true },
+                new LessonAnswerResultDto { ExerciseId = 2, UserAnswer = "b", CorrectAnswer = "b", IsCorrect = true },
+                new LessonAnswerResultDto { ExerciseId = 3, UserAnswer = "c", CorrectAnswer = "c", IsCorrect = true },
+                new LessonAnswerResultDto { ExerciseId = 4, UserAnswer = "WRONG", CorrectAnswer = "d", IsCorrect = false },
+                new LessonAnswerResultDto { ExerciseId = 5, UserAnswer = "WRONG", CorrectAnswer = "e", IsCorrect = false }
+            }
+        };
+
+        dbContext.LessonResults.Add(new LessonResult
+        {
+            Id = 1,
+            UserId = 1,
+            LessonId = 1,
+            Score = 3,
+            TotalQuestions = 5,
+            CompletedAt = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc),
+            MistakesJson = JsonSerializer.Serialize(details)
+        });
+
+        dbContext.SaveChanges();
+
+        var service = CreateService(dbContext, out var achievementService);
+
+        service.SubmitLessonMistakes(userId: 1, lessonId: 1, new SubmitLessonMistakesRequest
+        {
+            Answers = new()
+            {
+                new SubmitExerciseAnswerRequest { ExerciseId = 4, Answer = "d" }
+            }
+        });
+
+        var now = new DateTime(2026, 02, 16, 12, 0, 0, DateTimeKind.Utc);
+
+        var theoryUserWord = dbContext.UserVocabularies.FirstOrDefault(x => x.UserId == 1 && x.VocabularyItemId == 100);
+        Assert.NotNull(theoryUserWord);
+        Assert.Equal(now.AddDays(1), theoryUserWord!.NextReviewAt);
+
+        var mistakeUserWord = dbContext.UserVocabularies.FirstOrDefault(x => x.UserId == 1 && x.VocabularyItemId == 101);
+        Assert.NotNull(mistakeUserWord);
+        Assert.Equal(now, mistakeUserWord!.NextReviewAt);
+
+        Assert.Equal(1, achievementService.CallsCount);
+        Assert.Equal(1, achievementService.LastUserId);
+        Assert.Equal(4, achievementService.LastLessonScore);
+        Assert.Equal(5, achievementService.LastTotalQuestions);
+    }
+
+
     private static LessonMistakesService CreateService(Lumino.Api.Data.LuminoDbContext dbContext)
     {
+        return CreateService(dbContext, out _);
+    }
+
+    private static LessonMistakesService CreateService(Lumino.Api.Data.LuminoDbContext dbContext, out FakeAchievementService achievementService)
+    {
         var now = new DateTime(2026, 02, 16, 12, 0, 0, DateTimeKind.Utc);
+
+        achievementService = new FakeAchievementService();
 
         var settings = Options.Create(new LearningSettings
         {
@@ -391,7 +525,30 @@ public class LessonMistakesServiceTests
             SceneUnlockEveryLessons = 1
         });
 
-        return new LessonMistakesService(dbContext, new FixedDateTimeProvider(now), settings);
+        return new LessonMistakesService(dbContext, achievementService, new FixedDateTimeProvider(now), settings);
+    }
+
+    private class FakeAchievementService : IAchievementService
+    {
+        public int CallsCount { get; private set; }
+
+        public int LastUserId { get; private set; }
+
+        public int LastLessonScore { get; private set; }
+
+        public int LastTotalQuestions { get; private set; }
+
+        public void CheckAndGrantAchievements(int userId, int lessonScore, int totalQuestions)
+        {
+            CallsCount++;
+            LastUserId = userId;
+            LastLessonScore = lessonScore;
+            LastTotalQuestions = totalQuestions;
+        }
+
+        public void CheckAndGrantSceneAchievements(int userId)
+        {
+        }
     }
 
     private static void SeedLessonBase(Lumino.Api.Data.LuminoDbContext dbContext, int lessonId, bool isUnlocked)

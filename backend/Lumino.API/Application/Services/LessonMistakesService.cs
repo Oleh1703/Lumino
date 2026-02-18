@@ -15,17 +15,20 @@ namespace Lumino.Api.Application.Services
     public class LessonMistakesService : ILessonMistakesService
     {
         private readonly LuminoDbContext _dbContext;
+        private readonly IAchievementService _achievementService;
         private readonly IDateTimeProvider _dateTimeProvider;
         private readonly LearningSettings _learningSettings;
 
         public LessonMistakesService(
             LuminoDbContext dbContext,
+            IAchievementService achievementService,
             IDateTimeProvider dateTimeProvider,
             IOptions<LearningSettings> learningSettings)
         {
             _dbContext = dbContext;
+            _achievementService = achievementService;
             _dateTimeProvider = dateTimeProvider;
-            _learningSettings = learningSettings.Value;
+            _learningSettings = learningSettings?.Value ?? new LearningSettings();
         }
 
         public LessonMistakesResponse GetLessonMistakes(int userId, int lessonId)
@@ -141,17 +144,6 @@ namespace Lumino.Api.Application.Services
                 .ToList();
 
             var totalExercises = allExercises.Count;
-            int passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
-
-            bool wasEverPassed = _dbContext.LessonResults
-                .Where(x =>
-                    x.UserId == userId
-                    && x.LessonId == lesson.Id
-                    && x.TotalQuestions > 0
-                    && x.Score * 100 >= x.TotalQuestions * passingScorePercent
-                )
-                .Any();
-
 
             var lastResult = _dbContext.LessonResults
                 .Where(x => x.UserId == userId && x.LessonId == lesson.Id)
@@ -171,6 +163,12 @@ namespace Lumino.Api.Application.Services
                     Answers = new List<LessonAnswerResultDto>()
                 };
             }
+
+            var passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
+
+            var prevScore = lastResult.Score;
+            var prevTotal = lastResult.TotalQuestions;
+            var prevIsPassed = LessonPassingRules.IsPassed(prevScore, prevTotal, passingScorePercent);
 
             var details = ParseDetails(lastResult.MistakesJson);
 
@@ -196,6 +194,9 @@ namespace Lumino.Api.Application.Services
                 .Distinct()
                 .ToList();
 
+            // зберігаємо "попередні помилки" для Vocabulary (щоб слова з помилок стали due одразу)
+            var mistakeIdsForVocabulary = targetMistakeIds.ToList();
+
             if (targetMistakeIds.Count == 0)
             {
                 EnsureDetailsContainsAllExercises(details, allExercises);
@@ -215,7 +216,16 @@ namespace Lumino.Api.Application.Services
 
                 _dbContext.SaveChanges();
 
-                ApplyProgressAfterMistakesSubmit(userId, lesson.Id, correctCount, totalExercises, passingScorePercent, wasEverPassed);
+                ApplyPostSubmitSideEffects(
+                    userId,
+                    lesson,
+                    allExercises,
+                    details.Answers,
+                    mistakeIdsForVocabulary,
+                    correctCount,
+                    totalExercises,
+                    prevIsPassed,
+                    passingScorePercent);
 
                 return new SubmitLessonMistakesResponse
                 {
@@ -302,7 +312,16 @@ namespace Lumino.Api.Application.Services
 
             _dbContext.SaveChanges();
 
-            ApplyProgressAfterMistakesSubmit(userId, lesson.Id, correct, totalExercises, passingScorePercent, wasEverPassed);
+            ApplyPostSubmitSideEffects(
+                userId,
+                lesson,
+                allExercises,
+                details.Answers,
+                mistakeIdsForVocabulary,
+                correct,
+                totalExercises,
+                prevIsPassed,
+                passingScorePercent);
 
             return new SubmitLessonMistakesResponse
             {
@@ -315,31 +334,40 @@ namespace Lumino.Api.Application.Services
             };
         }
 
-
-        private void ApplyProgressAfterMistakesSubmit(
+        private void ApplyPostSubmitSideEffects(
             int userId,
-            int lessonId,
+            Lesson lesson,
+            List<Exercise> exercises,
+            List<LessonAnswerResultDto> answers,
+            List<int> mistakeExerciseIdsForVocabulary,
             int score,
-            int totalExercises,
-            int passingScorePercent,
-            bool wasEverPassed)
+            int totalQuestions,
+            bool prevIsPassed,
+            int passingScorePercent)
         {
-            // LessonPassed = 80%+ (як у SubmitLesson)
-            bool isPassed = totalExercises > 0
-                && LessonPassingRules.IsPassed(score, totalExercises, passingScorePercent);
+            var isPassed = LessonPassingRules.IsPassed(score, totalQuestions, passingScorePercent);
 
-            // TotalScore потрібно оновлювати після зміни результату,
-            // CompletedLessons інкрементуємо тільки при ПЕРШОМУ проходженні.
-            UpdateUserProgress(userId, shouldIncrementCompletedLessons: isPassed && !wasEverPassed);
+            var shouldIncrementCompletedLessons = isPassed && !prevIsPassed;
 
-            // Після проходження (або покращення) — синхронізуємо активний курс, прогрес уроку і unlock наступного.
-            UpdateCourseProgressAfterLesson(userId, lessonId, isPassed, score);
+            UpdateUserProgress(userId, shouldIncrementCompletedLessons);
+
+            if (isPassed && !prevIsPassed)
+            {
+                AddLessonVocabularyIfNeeded(userId, lesson, exercises, answers, mistakeExerciseIdsForVocabulary, isPassed);
+            }
+
+            // активний курс + прогрес уроків + unlock наступного + перенос LastLessonId
+            UpdateCourseProgressAfterLesson(userId, lesson.Id, isPassed, score);
+
+            _achievementService.CheckAndGrantAchievements(userId, score, totalQuestions);
         }
 
         private void UpdateUserProgress(int userId, bool shouldIncrementCompletedLessons)
         {
             var progress = _dbContext.UserProgresses
                 .FirstOrDefault(x => x.UserId == userId);
+
+            var now = _dateTimeProvider.UtcNow;
 
             if (progress == null)
             {
@@ -348,7 +376,7 @@ namespace Lumino.Api.Application.Services
                     UserId = userId,
                     CompletedLessons = shouldIncrementCompletedLessons ? 1 : 0,
                     TotalScore = CalculateBestTotalScore(userId),
-                    LastUpdatedAt = _dateTimeProvider.UtcNow
+                    LastUpdatedAt = now
                 };
 
                 _dbContext.UserProgresses.Add(progress);
@@ -360,9 +388,8 @@ namespace Lumino.Api.Application.Services
                     progress.CompletedLessons++;
                 }
 
-                // TotalScore = сума найкращих результатів по кожному уроку
                 progress.TotalScore = CalculateBestTotalScore(userId);
-                progress.LastUpdatedAt = _dateTimeProvider.UtcNow;
+                progress.LastUpdatedAt = now;
             }
 
             _dbContext.SaveChanges();
@@ -396,6 +423,117 @@ namespace Lumino.Api.Application.Services
             }
 
             return bestByLesson.Values.Sum();
+        }
+
+        private void AddLessonVocabularyIfNeeded(
+            int userId,
+            Lesson lesson,
+            List<Exercise> exercises,
+            List<LessonAnswerResultDto> answers,
+            List<int> mistakeExerciseIds,
+            bool isPassed)
+        {
+            if (!isPassed)
+            {
+                return;
+            }
+
+            var now = _dateTimeProvider.UtcNow;
+
+            var lessonVocabItemIds = _dbContext.LessonVocabularies
+                .Where(x => x.LessonId == lesson.Id)
+                .Select(x => x.VocabularyItemId)
+                .Distinct()
+                .ToList();
+
+            var theoryPairs = lessonVocabItemIds.Count > 0
+                ? _dbContext.VocabularyItems
+                    .Where(x => lessonVocabItemIds.Contains(x.Id))
+                    .ToList()
+                    .Select(x => (x.Word, x.Translation))
+                    .ToList()
+                : ExtractPairsFromTheory(lesson.Theory);
+
+            var mistakeExerciseVocabItemIds = _dbContext.ExerciseVocabularies
+                .Where(x => mistakeExerciseIds.Contains(x.ExerciseId))
+                .Select(x => x.VocabularyItemId)
+                .Distinct()
+                .ToList();
+
+            var mistakePairs = mistakeExerciseVocabItemIds.Count > 0
+                ? _dbContext.VocabularyItems
+                    .Where(x => mistakeExerciseVocabItemIds.Contains(x.Id))
+                    .ToList()
+                    .Select(x => (x.Word, x.Translation))
+                    .ToList()
+                : ExtractPairsFromMistakes(exercises, answers, mistakeExerciseIds);
+
+            var allPairs = theoryPairs
+                .Concat(mistakePairs)
+                .Distinct()
+                .ToList();
+
+            if (allPairs.Count == 0)
+            {
+                return;
+            }
+
+            var mistakeSet = new HashSet<(string Word, string Translation)>(mistakePairs);
+
+            foreach (var pair in allPairs)
+            {
+                var word = Normalize(pair.Word);
+                var translation = Normalize(pair.Translation);
+
+                if (string.IsNullOrWhiteSpace(word) || string.IsNullOrWhiteSpace(translation))
+                {
+                    continue;
+                }
+
+                var item = _dbContext.VocabularyItems
+                    .FirstOrDefault(x => x.Word == word && x.Translation == translation);
+
+                if (item == null)
+                {
+                    item = new VocabularyItem
+                    {
+                        Word = word,
+                        Translation = translation,
+                        Example = null
+                    };
+
+                    _dbContext.VocabularyItems.Add(item);
+                    _dbContext.SaveChanges();
+                }
+
+                var userWord = _dbContext.UserVocabularies
+                    .FirstOrDefault(x => x.UserId == userId && x.VocabularyItemId == item.Id);
+
+                var isMistake = mistakeSet.Contains(pair);
+
+                if (userWord == null)
+                {
+                    userWord = new UserVocabulary
+                    {
+                        UserId = userId,
+                        VocabularyItemId = item.Id,
+                        AddedAt = now,
+                        LastReviewedAt = null,
+                        NextReviewAt = isMistake ? now : now.AddDays(1),
+                        ReviewCount = 0
+                    };
+
+                    _dbContext.UserVocabularies.Add(userWord);
+                    continue;
+                }
+
+                if (isMistake && userWord.NextReviewAt > now)
+                {
+                    userWord.NextReviewAt = now;
+                }
+            }
+
+            _dbContext.SaveChanges();
         }
 
         // курс визначаємо через Lesson -> Topic -> Course
@@ -433,7 +571,6 @@ namespace Lumino.Api.Application.Services
             {
                 nextLessonId = UnlockNextLesson(userId, courseId.Value, lessonId, now);
 
-                // після Passed переносимо "де продовжувати" на наступний урок
                 if (userCourse != null && nextLessonId != null)
                 {
                     userCourse.LastLessonId = nextLessonId.Value;
@@ -609,7 +746,6 @@ namespace Lumino.Api.Application.Services
                 return;
             }
 
-            // Враховуємо завершені уроки з БД
             var completedLessonIds = _dbContext.UserLessonProgresses
                 .Where(x => x.UserId == userId && x.IsCompleted)
                 .Where(x => lessonIds.Contains(x.LessonId))
@@ -619,8 +755,6 @@ namespace Lumino.Api.Application.Services
 
             var completedSet = new HashSet<int>(completedLessonIds);
 
-            // Враховуємо зміни в поточному DbContext (до SaveChanges),
-            // щоб поточний PASSED урок також врахувався при завершенні курсу
             foreach (var progress in _dbContext.UserLessonProgresses.Local)
             {
                 if (progress.UserId != userId)
@@ -652,6 +786,143 @@ namespace Lumino.Api.Application.Services
                     userCourse.CompletedAt = now;
                 }
             }
+        }
+
+        private static List<(string Word, string Translation)> ExtractPairsFromTheory(string? theory)
+        {
+            var result = new List<(string Word, string Translation)>();
+
+            if (string.IsNullOrWhiteSpace(theory))
+            {
+                return result;
+            }
+
+            var lines = theory.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var rawLine in lines)
+            {
+                var line = rawLine.Trim();
+
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    continue;
+                }
+
+                var idx = line.IndexOf('=');
+
+                if (idx <= 0)
+                {
+                    continue;
+                }
+
+                var left = line.Substring(0, idx).Trim();
+                var right = line.Substring(idx + 1).Trim();
+
+                if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right))
+                {
+                    continue;
+                }
+
+                result.Add((left, right));
+            }
+
+            return result;
+        }
+
+        private static List<(string Word, string Translation)> ExtractPairsFromMistakes(
+            List<Exercise> exercises,
+            List<LessonAnswerResultDto> answers,
+            List<int> mistakeExerciseIds)
+        {
+            var result = new List<(string Word, string Translation)>();
+
+            if (mistakeExerciseIds == null || mistakeExerciseIds.Count == 0)
+            {
+                return result;
+            }
+
+            foreach (var exId in mistakeExerciseIds)
+            {
+                var exercise = exercises.FirstOrDefault(x => x.Id == exId);
+
+                if (exercise == null)
+                {
+                    continue;
+                }
+
+                if (TryExtractPairFromExercise(exercise, out var pair))
+                {
+                    result.Add(pair);
+                }
+            }
+
+            return result;
+        }
+
+        private static bool TryExtractPairFromExercise(Exercise exercise, out (string Word, string Translation) pair)
+        {
+            pair = (string.Empty, string.Empty);
+
+            var q = (exercise.Question ?? string.Empty).Trim();
+            var correct = (exercise.CorrectAnswer ?? string.Empty).Trim();
+
+            if (string.IsNullOrWhiteSpace(q) || string.IsNullOrWhiteSpace(correct))
+            {
+                return false;
+            }
+
+            // Pattern: "Hello = ?"
+            if (q.Contains("= ?"))
+            {
+                var idx = q.IndexOf('=');
+
+                if (idx > 0)
+                {
+                    var left = q.Substring(0, idx).Trim();
+
+                    if (!string.IsNullOrWhiteSpace(left))
+                    {
+                        pair = (left, correct);
+                        return true;
+                    }
+                }
+            }
+
+            // Pattern: "Write Ukrainian for: Goodbye"
+            if (q.StartsWith("Write Ukrainian for:", StringComparison.OrdinalIgnoreCase))
+            {
+                var idx = q.IndexOf(':');
+
+                if (idx >= 0 && idx + 1 < q.Length)
+                {
+                    var word = q.Substring(idx + 1).Trim();
+
+                    if (!string.IsNullOrWhiteSpace(word))
+                    {
+                        pair = (word, correct);
+                        return true;
+                    }
+                }
+            }
+
+            // Pattern: "Write English: У мене все добре"
+            if (q.StartsWith("Write English:", StringComparison.OrdinalIgnoreCase))
+            {
+                var idx = q.IndexOf(':');
+
+                if (idx >= 0 && idx + 1 < q.Length)
+                {
+                    var translation = q.Substring(idx + 1).Trim();
+
+                    if (!string.IsNullOrWhiteSpace(translation))
+                    {
+                        pair = (correct, translation);
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
 
         private static LessonResultDetailsJson? ParseDetails(string? json)
