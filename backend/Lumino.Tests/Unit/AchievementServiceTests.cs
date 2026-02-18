@@ -1,7 +1,9 @@
+﻿using Lumino.Api.Data;
 ﻿using Lumino.Api.Application.Services;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Utils;
 using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace Lumino.Tests;
@@ -392,4 +394,91 @@ public class AchievementServiceTests
         Assert.NotNull(userStreak30);
     }
 
+
+    [Fact]
+    public void CheckAndGrantSceneAchievements_WhenSaveChangesThrowsDbUpdateExceptionOnUserAchievementInsert_ShouldNotCrash()
+    {
+        var options = new DbContextOptionsBuilder<LuminoDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        var dbContext = new ThrowOnceOnUserAchievementInsertDbContext(options);
+
+        dbContext.Users.Add(new User
+        {
+            Id = 1,
+            Email = "ach@mail.com",
+            PasswordHash = "hash",
+            CreatedAt = DateTime.UtcNow
+        });
+
+        dbContext.Scenes.Add(new Scene
+        {
+            Id = 1,
+            Title = "Scene 1",
+            Description = "Desc",
+            SceneType = "intro",
+            CourseId = null,
+            Order = 1
+        });
+
+        dbContext.SceneAttempts.Add(new SceneAttempt
+        {
+            UserId = 1,
+            SceneId = 1,
+            IsCompleted = true,
+            CompletedAt = DateTime.UtcNow,
+            Score = 1,
+            TotalQuestions = 1,
+            DetailsJson = null
+        });
+
+        dbContext.SaveChanges();
+
+        var service = new AchievementService(
+            dbContext,
+            new FixedDateTimeProvider(new DateTime(2026, 2, 18, 10, 0, 0, DateTimeKind.Utc)),
+            Options.Create(new LearningSettings
+            {
+                PassingScorePercent = 80,
+                DailyGoalScoreTarget = 20
+            })
+        );
+
+        // Не має падати навіть якщо паралельний запит “встиг” вставити UserAchievement
+        service.CheckAndGrantSceneAchievements(1);
+
+        var achievement = dbContext.Achievements.FirstOrDefault(x => x.Title == "First Scene");
+        Assert.NotNull(achievement);
+
+        bool hasUserAchievement = dbContext.UserAchievements
+            .Any(x => x.UserId == 1 && x.AchievementId == achievement!.Id);
+
+        Assert.True(hasUserAchievement);
+    }
+
+    private class ThrowOnceOnUserAchievementInsertDbContext : LuminoDbContext
+    {
+        private bool _hasThrown;
+
+        public ThrowOnceOnUserAchievementInsertDbContext(DbContextOptions<LuminoDbContext> options)
+            : base(options)
+        {
+        }
+
+        public override int SaveChanges()
+        {
+            if (!_hasThrown && ChangeTracker.Entries<UserAchievement>().Any(x => x.State == EntityState.Added))
+            {
+                _hasThrown = true;
+
+                // Імітуємо конкурентну вставку: запис успішно збережено,
+                // але ми отримали DbUpdateException (як при unique index гонці)
+                base.SaveChanges();
+                throw new DbUpdateException("Simulated concurrent UserAchievement insert");
+            }
+
+            return base.SaveChanges();
+        }
+    }
 }

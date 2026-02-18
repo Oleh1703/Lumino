@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.EntityFrameworkCore;
 
 namespace Lumino.Api.Application.Services
 {
@@ -376,7 +377,19 @@ namespace Lumino.Api.Application.Services
                 EarnedAt = _dateTimeProvider.UtcNow
             });
 
-            _dbContext.SaveChanges();
+            try
+            {
+                _dbContext.SaveChanges();
+            }
+            catch (DbUpdateException)
+            {
+                // Якщо паралельний запит встиг додати цей самий (UserId, AchievementId),
+                // то в БД вже є запис і ми просто не падаємо.
+                bool exists = _dbContext.UserAchievements
+                    .Any(x => x.UserId == userId && x.AchievementId == achievementId);
+
+                if (!exists) throw;
+            }
         }
     }
 }
