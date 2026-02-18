@@ -2,32 +2,32 @@
 # Default behavior
 ###############################################################################
 
-# Усі текстові файли зберігати в репозиторії як LF
-* text=auto eol=lf
+# Усі текстові файли зберігати в репозиторії як CRLF
+* text=auto eol=crlf
 
 ###############################################################################
 # C# / .NET
 ###############################################################################
 
-*.cs      text eol=lf
-*.csproj  text eol=lf
-*.sln     text eol=lf
-*.props   text eol=lf
-*.targets text eol=lf
-*.json    text eol=lf
-*.xml     text eol=lf
-*.config  text eol=lf
-*.yml     text eol=lf
-*.yaml    text eol=lf
-*.md      text eol=lf
-*.txt     text eol=lf
+*.cs      text eol=crlf
+*.csproj  text eol=crlf
+*.sln     text eol=crlf
+*.props   text eol=crlf
+*.targets text eol=crlf
+*.json    text eol=crlf
+*.xml     text eol=crlf
+*.config  text eol=crlf
+*.yml     text eol=crlf
+*.yaml    text eol=crlf
+*.md      text eol=crlf
+*.txt     text eol=crlf
 
 ###############################################################################
 # Scripts
 ###############################################################################
 
 *.sh      text eol=lf
-*.ps1     text eol=lf
+*.ps1     text eol=crlf
 *.bat     text eol=crlf
 
 ###############################################################################
