@@ -203,6 +203,7 @@ namespace Lumino.Api.Data
                 .GroupBy(x => x.Title)
                 .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
 
+            var orderUpdates = new Dictionary<int, int>();
             foreach (var item in scenes)
             {
                 if (!fromDbMap.TryGetValue(item.Title, out var fromDb))
@@ -232,12 +233,40 @@ namespace Lumino.Api.Data
                 }
                 if (item.Order > 0 && fromDb.Order != item.Order)
                 {
-                    fromDb.Order = item.Order;
+                    // Safe update for unique index (CourseId, Order) where Order > 0:
+                    // if the scene is already linked to a course, change order in 2 steps to avoid collisions.
+                    if (fromDb.CourseId != null && fromDb.CourseId > 0 && fromDb.Order > 0)
+                    {
+                        fromDb.Order = 0;
+                        orderUpdates[fromDb.Id] = item.Order;
+                    }
+                    else
+                    {
+                        fromDb.Order = item.Order;
+                    }
                 }
-
             }
 
             dbContext.SaveChanges();
+
+            if (orderUpdates.Count > 0)
+            {
+                var ids = orderUpdates.Keys.ToList();
+
+                var toFix = dbContext.Scenes
+                    .Where(x => ids.Contains(x.Id))
+                    .ToList();
+
+                foreach (var s in toFix)
+                {
+                    if (orderUpdates.TryGetValue(s.Id, out var newOrder))
+                    {
+                        s.Order = newOrder;
+                    }
+                }
+
+                dbContext.SaveChanges();
+            }
 
             var sceneMap = dbContext.Scenes
                 .ToList()
@@ -368,7 +397,9 @@ namespace Lumino.Api.Data
         {
             // link scenes to the default course (published first, otherwise any).
             // Safe to call multiple times.
-            var defaultCourse = dbContext.Courses.FirstOrDefault(x => x.IsPublished) ?? dbContext.Courses.FirstOrDefault();
+            var defaultCourse = dbContext.Courses.FirstOrDefault(x => x.Title == "English A1")
+                ?? dbContext.Courses.FirstOrDefault(x => x.IsPublished)
+                ?? dbContext.Courses.FirstOrDefault();
             if (defaultCourse == null)
             {
                 return;

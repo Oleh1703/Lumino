@@ -24,4 +24,24 @@ public class DbContextIndexesTests
         Assert.NotNull(index);
         Assert.True(index!.IsUnique);
     }
+
+
+    [Fact]
+    public void SceneAttempt_ShouldHaveUniqueIndex_OnUserIdAndSceneId()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        var entity = dbContext.Model.FindEntityType(typeof(SceneAttempt));
+        Assert.NotNull(entity);
+
+        var index = entity!.GetIndexes()
+            .FirstOrDefault(x =>
+                x.Properties.Count == 2
+                && x.Properties.Any(p => p.Name == nameof(SceneAttempt.UserId))
+                && x.Properties.Any(p => p.Name == nameof(SceneAttempt.SceneId))
+            );
+
+        Assert.NotNull(index);
+        Assert.True(index!.IsUnique);
+    }
 }

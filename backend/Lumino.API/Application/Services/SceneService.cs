@@ -351,7 +351,7 @@ namespace Lumino.Api.Application.Services
                 EnsureDetailsContainsAllQuestionSteps(details, questionSteps);
 
                 var correctCount = details.Answers.Count(x => x.IsCorrect);
-                var isCompleted = correctCount == totalQuestions;
+                bool isCompleted = LessonPassingRules.IsPassed(correctCount, totalQuestions, _learningSettings.ScenePassingPercent);
 
                 var detailsJsonNoChange = JsonSerializer.Serialize(details, new JsonSerializerOptions
                 {

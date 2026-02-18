@@ -2,7 +2,7 @@ root = true
 
 [*]
 charset = utf-8
-end_of_line = crlf
+end_of_line = lf
 insert_final_newline = true
 indent_style = space
 indent_size = 4
@@ -12,36 +12,36 @@ trim_trailing_whitespace = true
 # .NET / Visual Studio
 # ===============================
 [*.sln]
-end_of_line = crlf
+end_of_line = lf
 
 [*.csproj]
-end_of_line = crlf
+end_of_line = lf
 
 [*.props]
-end_of_line = crlf
+end_of_line = lf
 
 [*.targets]
-end_of_line = crlf
+end_of_line = lf
 
 # ===============================
 # C#
 # ===============================
 [*.{cs,csx}]
-end_of_line = crlf
+end_of_line = lf
 indent_size = 4
 
 # ===============================
 # JSON
 # ===============================
 [*.json]
-end_of_line = crlf
+end_of_line = lf
 indent_size = 2
 
 # ===============================
 # JavaScript / TypeScript
 # ===============================
 [*.{js,jsx,ts,tsx}]
-end_of_line = crlf
+end_of_line = lf
 indent_size = 2
 
 # ===============================
@@ -52,8 +52,20 @@ end_of_line = lf
 indent_size = 2
 
 # ===============================
+# Windows scripts
+# ===============================
+[*.ps1]
+end_of_line = crlf
+
+[*.bat]
+end_of_line = crlf
+
+[*.cmd]
+end_of_line = crlf
+
+# ===============================
 # Markdown
 # ===============================
 [*.md]
-end_of_line = crlf
+end_of_line = lf
 trim_trailing_whitespace = false
