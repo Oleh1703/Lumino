@@ -4,6 +4,7 @@ using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Domain.Enums;
 using Lumino.Api.Utils;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,10 +15,17 @@ namespace Lumino.Api.Application.Services
     public class LessonMistakesService : ILessonMistakesService
     {
         private readonly LuminoDbContext _dbContext;
+        private readonly IDateTimeProvider _dateTimeProvider;
+        private readonly LearningSettings _learningSettings;
 
-        public LessonMistakesService(LuminoDbContext dbContext)
+        public LessonMistakesService(
+            LuminoDbContext dbContext,
+            IDateTimeProvider dateTimeProvider,
+            IOptions<LearningSettings> learningSettings)
         {
             _dbContext = dbContext;
+            _dateTimeProvider = dateTimeProvider;
+            _learningSettings = learningSettings.Value;
         }
 
         public LessonMistakesResponse GetLessonMistakes(int userId, int lessonId)
@@ -133,6 +141,17 @@ namespace Lumino.Api.Application.Services
                 .ToList();
 
             var totalExercises = allExercises.Count;
+            int passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
+
+            bool wasEverPassed = _dbContext.LessonResults
+                .Where(x =>
+                    x.UserId == userId
+                    && x.LessonId == lesson.Id
+                    && x.TotalQuestions > 0
+                    && x.Score * 100 >= x.TotalQuestions * passingScorePercent
+                )
+                .Any();
+
 
             var lastResult = _dbContext.LessonResults
                 .Where(x => x.UserId == userId && x.LessonId == lesson.Id)
@@ -195,6 +214,8 @@ namespace Lumino.Api.Application.Services
                 lastResult.MistakesJson = SerializeDetails(details);
 
                 _dbContext.SaveChanges();
+
+                ApplyProgressAfterMistakesSubmit(userId, lesson.Id, correctCount, totalExercises, passingScorePercent, wasEverPassed);
 
                 return new SubmitLessonMistakesResponse
                 {
@@ -281,6 +302,8 @@ namespace Lumino.Api.Application.Services
 
             _dbContext.SaveChanges();
 
+            ApplyProgressAfterMistakesSubmit(userId, lesson.Id, correct, totalExercises, passingScorePercent, wasEverPassed);
+
             return new SubmitLessonMistakesResponse
             {
                 LessonId = lessonId,
@@ -290,6 +313,345 @@ namespace Lumino.Api.Application.Services
                 MistakeExerciseIds = details.MistakeExerciseIds,
                 Answers = details.Answers
             };
+        }
+
+
+        private void ApplyProgressAfterMistakesSubmit(
+            int userId,
+            int lessonId,
+            int score,
+            int totalExercises,
+            int passingScorePercent,
+            bool wasEverPassed)
+        {
+            // LessonPassed = 80%+ (як у SubmitLesson)
+            bool isPassed = totalExercises > 0
+                && LessonPassingRules.IsPassed(score, totalExercises, passingScorePercent);
+
+            // TotalScore потрібно оновлювати після зміни результату,
+            // CompletedLessons інкрементуємо тільки при ПЕРШОМУ проходженні.
+            UpdateUserProgress(userId, shouldIncrementCompletedLessons: isPassed && !wasEverPassed);
+
+            // Після проходження (або покращення) — синхронізуємо активний курс, прогрес уроку і unlock наступного.
+            UpdateCourseProgressAfterLesson(userId, lessonId, isPassed, score);
+        }
+
+        private void UpdateUserProgress(int userId, bool shouldIncrementCompletedLessons)
+        {
+            var progress = _dbContext.UserProgresses
+                .FirstOrDefault(x => x.UserId == userId);
+
+            if (progress == null)
+            {
+                progress = new UserProgress
+                {
+                    UserId = userId,
+                    CompletedLessons = shouldIncrementCompletedLessons ? 1 : 0,
+                    TotalScore = CalculateBestTotalScore(userId),
+                    LastUpdatedAt = _dateTimeProvider.UtcNow
+                };
+
+                _dbContext.UserProgresses.Add(progress);
+            }
+            else
+            {
+                if (shouldIncrementCompletedLessons)
+                {
+                    progress.CompletedLessons++;
+                }
+
+                // TotalScore = сума найкращих результатів по кожному уроку
+                progress.TotalScore = CalculateBestTotalScore(userId);
+                progress.LastUpdatedAt = _dateTimeProvider.UtcNow;
+            }
+
+            _dbContext.SaveChanges();
+        }
+
+        private int CalculateBestTotalScore(int userId)
+        {
+            var results = _dbContext.LessonResults
+                .Where(x => x.UserId == userId)
+                .ToList();
+
+            if (results.Count == 0)
+            {
+                return 0;
+            }
+
+            var bestByLesson = new Dictionary<int, int>();
+
+            foreach (var r in results)
+            {
+                if (!bestByLesson.ContainsKey(r.LessonId))
+                {
+                    bestByLesson[r.LessonId] = r.Score;
+                    continue;
+                }
+
+                if (r.Score > bestByLesson[r.LessonId])
+                {
+                    bestByLesson[r.LessonId] = r.Score;
+                }
+            }
+
+            return bestByLesson.Values.Sum();
+        }
+
+        // курс визначаємо через Lesson -> Topic -> Course
+        private void UpdateCourseProgressAfterLesson(int userId, int lessonId, bool isPassed, int score)
+        {
+            var now = _dateTimeProvider.UtcNow;
+
+            var topicId = _dbContext.Lessons
+                .Where(x => x.Id == lessonId)
+                .Select(x => (int?)x.TopicId)
+                .FirstOrDefault();
+
+            if (topicId == null)
+            {
+                return;
+            }
+
+            var courseId = _dbContext.Topics
+                .Where(x => x.Id == topicId.Value)
+                .Select(x => (int?)x.CourseId)
+                .FirstOrDefault();
+
+            if (courseId == null)
+            {
+                return;
+            }
+
+            var userCourse = EnsureActiveCourse(userId, courseId.Value, lessonId, now);
+
+            UpsertLessonProgress(userId, lessonId, isPassed, score, now);
+
+            int? nextLessonId = null;
+
+            if (isPassed)
+            {
+                nextLessonId = UnlockNextLesson(userId, courseId.Value, lessonId, now);
+
+                // після Passed переносимо "де продовжувати" на наступний урок
+                if (userCourse != null && nextLessonId != null)
+                {
+                    userCourse.LastLessonId = nextLessonId.Value;
+                    userCourse.LastOpenedAt = now;
+                }
+
+                TryMarkCourseCompleted(userId, userCourse, courseId.Value, now);
+            }
+
+            _dbContext.SaveChanges();
+        }
+
+        private UserCourse? EnsureActiveCourse(int userId, int courseId, int lastLessonId, DateTime now)
+        {
+            var activeOther = _dbContext.UserCourses
+                .Where(x => x.UserId == userId && x.IsActive && x.CourseId != courseId)
+                .ToList();
+
+            foreach (var item in activeOther)
+            {
+                item.IsActive = false;
+                item.LastOpenedAt = now;
+            }
+
+            var userCourse = _dbContext.UserCourses
+                .FirstOrDefault(x => x.UserId == userId && x.CourseId == courseId);
+
+            if (userCourse == null)
+            {
+                userCourse = new UserCourse
+                {
+                    UserId = userId,
+                    CourseId = courseId,
+                    IsActive = true,
+                    LastLessonId = lastLessonId,
+                    StartedAt = now,
+                    LastOpenedAt = now
+                };
+
+                _dbContext.UserCourses.Add(userCourse);
+                return userCourse;
+            }
+
+            userCourse.IsActive = true;
+            userCourse.LastLessonId = lastLessonId;
+            userCourse.LastOpenedAt = now;
+
+            if (userCourse.StartedAt == default)
+            {
+                userCourse.StartedAt = now;
+            }
+
+            return userCourse;
+        }
+
+        private void UpsertLessonProgress(int userId, int lessonId, bool isPassed, int score, DateTime now)
+        {
+            var progress = _dbContext.UserLessonProgresses
+                .FirstOrDefault(x => x.UserId == userId && x.LessonId == lessonId);
+
+            if (progress == null)
+            {
+                progress = new UserLessonProgress
+                {
+                    UserId = userId,
+                    LessonId = lessonId,
+                    IsUnlocked = true,
+                    IsCompleted = isPassed,
+                    BestScore = score,
+                    LastAttemptAt = now
+                };
+
+                _dbContext.UserLessonProgresses.Add(progress);
+                return;
+            }
+
+            if (!progress.IsUnlocked)
+            {
+                progress.IsUnlocked = true;
+            }
+
+            if (score > progress.BestScore)
+            {
+                progress.BestScore = score;
+            }
+
+            if (isPassed)
+            {
+                progress.IsCompleted = true;
+            }
+
+            progress.LastAttemptAt = now;
+        }
+
+        private int? UnlockNextLesson(int userId, int courseId, int currentLessonId, DateTime now)
+        {
+            var orderedLessonIds =
+                (from t in _dbContext.Topics
+                 join l in _dbContext.Lessons on t.Id equals l.TopicId
+                 where t.CourseId == courseId
+                 orderby (t.Order <= 0 ? int.MaxValue : t.Order), t.Id, (l.Order <= 0 ? int.MaxValue : l.Order), l.Id
+                 select l.Id)
+                .ToList();
+
+            if (orderedLessonIds.Count == 0)
+            {
+                return null;
+            }
+
+            int index = orderedLessonIds.IndexOf(currentLessonId);
+
+            if (index < 0 || index + 1 >= orderedLessonIds.Count)
+            {
+                return null;
+            }
+
+            int nextLessonId = orderedLessonIds[index + 1];
+
+            var next = _dbContext.UserLessonProgresses
+                .FirstOrDefault(x => x.UserId == userId && x.LessonId == nextLessonId);
+
+            if (next == null)
+            {
+                next = new UserLessonProgress
+                {
+                    UserId = userId,
+                    LessonId = nextLessonId,
+                    IsUnlocked = true,
+                    IsCompleted = false,
+                    BestScore = 0,
+                    LastAttemptAt = now
+                };
+
+                _dbContext.UserLessonProgresses.Add(next);
+                return nextLessonId;
+            }
+
+            if (!next.IsUnlocked)
+            {
+                next.IsUnlocked = true;
+
+                if (next.LastAttemptAt == null)
+                {
+                    next.LastAttemptAt = now;
+                }
+            }
+
+            return nextLessonId;
+        }
+
+        private void TryMarkCourseCompleted(int userId, UserCourse? userCourse, int courseId, DateTime now)
+        {
+            if (userCourse == null)
+            {
+                return;
+            }
+
+            if (userCourse.IsCompleted)
+            {
+                return;
+            }
+
+            var lessonIds =
+                (from t in _dbContext.Topics
+                 join l in _dbContext.Lessons on t.Id equals l.TopicId
+                 where t.CourseId == courseId
+                 select l.Id)
+                .Distinct()
+                .ToList();
+
+            if (lessonIds.Count == 0)
+            {
+                return;
+            }
+
+            // Враховуємо завершені уроки з БД
+            var completedLessonIds = _dbContext.UserLessonProgresses
+                .Where(x => x.UserId == userId && x.IsCompleted)
+                .Where(x => lessonIds.Contains(x.LessonId))
+                .Select(x => x.LessonId)
+                .Distinct()
+                .ToList();
+
+            var completedSet = new HashSet<int>(completedLessonIds);
+
+            // Враховуємо зміни в поточному DbContext (до SaveChanges),
+            // щоб поточний PASSED урок також врахувався при завершенні курсу
+            foreach (var progress in _dbContext.UserLessonProgresses.Local)
+            {
+                if (progress.UserId != userId)
+                {
+                    continue;
+                }
+
+                if (!lessonIds.Contains(progress.LessonId))
+                {
+                    continue;
+                }
+
+                if (progress.IsCompleted)
+                {
+                    completedSet.Add(progress.LessonId);
+                }
+                else
+                {
+                    completedSet.Remove(progress.LessonId);
+                }
+            }
+
+            if (completedSet.Count >= lessonIds.Count)
+            {
+                userCourse.IsCompleted = true;
+
+                if (userCourse.CompletedAt == null)
+                {
+                    userCourse.CompletedAt = now;
+                }
+            }
         }
 
         private static LessonResultDetailsJson? ParseDetails(string? json)

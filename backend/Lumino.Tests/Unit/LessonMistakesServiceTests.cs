@@ -3,6 +3,7 @@ using Lumino.Api.Application.Services;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Domain.Enums;
 using Lumino.Api.Utils;
+using Microsoft.Extensions.Options;
 using System;
 using System.Linq;
 using System.Text.Json;
@@ -64,7 +65,7 @@ public class LessonMistakesServiceTests
 
         dbContext.SaveChanges();
 
-        var service = new LessonMistakesService(dbContext);
+        var service = CreateService(dbContext);
 
         var result = service.GetLessonMistakes(userId: 1, lessonId: 1);
 
@@ -129,7 +130,7 @@ public class LessonMistakesServiceTests
 
         dbContext.SaveChanges();
 
-        var service = new LessonMistakesService(dbContext);
+        var service = CreateService(dbContext);
 
         var response = service.SubmitLessonMistakes(userId: 1, lessonId: 1, new SubmitLessonMistakesRequest
         {
@@ -173,7 +174,7 @@ public class LessonMistakesServiceTests
 
         SeedLessonBase(dbContext, lessonId: 1, isUnlocked: false);
 
-        var service = new LessonMistakesService(dbContext);
+        var service = CreateService(dbContext);
 
         Assert.Throws<ForbiddenAccessException>(() => service.GetLessonMistakes(userId: 1, lessonId: 1));
     }
@@ -198,7 +199,7 @@ public class LessonMistakesServiceTests
 
         dbContext.SaveChanges();
 
-        var service = new LessonMistakesService(dbContext);
+        var service = CreateService(dbContext);
 
         var result = service.GetLessonMistakes(userId: 1, lessonId: 1);
 
@@ -248,7 +249,7 @@ public class LessonMistakesServiceTests
 
         dbContext.SaveChanges();
 
-        var service = new LessonMistakesService(dbContext);
+        var service = CreateService(dbContext);
 
         Assert.Throws<ArgumentException>(() => service.SubmitLessonMistakes(userId: 1, lessonId: 1, new SubmitLessonMistakesRequest
         {
@@ -260,24 +261,193 @@ public class LessonMistakesServiceTests
         }));
     }
 
-    private static void SeedLessonBase(Lumino.Api.Data.LuminoDbContext dbContext, int lessonId, bool isUnlocked)
+    
+
+    [Fact]
+    public void SubmitLessonMistakes_WhenNowPassed_ShouldUnlockNextLesson_AndUpdateProgress()
     {
-        dbContext.Lessons.Add(new Lesson
+        var dbContext = TestDbContextFactory.Create();
+
+        // course/topic + 2 lessons
+        dbContext.Courses.Add(new Course
         {
-            Id = lessonId,
-            TopicId = 1,
-            Title = "Lesson",
-            Theory = "Theory",
+            Id = 1,
+            Title = "Course",
+            Description = "Desc",
+            IsPublished = true
+        });
+
+        dbContext.Topics.Add(new Topic
+        {
+            Id = 1,
+            CourseId = 1,
+            Title = "Topic",
             Order = 1
         });
+
+        dbContext.Lessons.AddRange(
+            new Lesson
+            {
+                Id = 1,
+                TopicId = 1,
+                Title = "Lesson 1",
+                Theory = "Theory",
+                Order = 1
+            },
+            new Lesson
+            {
+                Id = 2,
+                TopicId = 1,
+                Title = "Lesson 2",
+                Theory = "Theory",
+                Order = 2
+            }
+        );
+
+        // 5 exercises -> 3 correct, 2 wrong (60%) initially
+        dbContext.Exercises.AddRange(
+            new Exercise { Id = 1, LessonId = 1, Order = 1, Type = ExerciseType.Input, Question = "Q1", CorrectAnswer = "a", Data = "{}" },
+            new Exercise { Id = 2, LessonId = 1, Order = 2, Type = ExerciseType.Input, Question = "Q2", CorrectAnswer = "b", Data = "{}" },
+            new Exercise { Id = 3, LessonId = 1, Order = 3, Type = ExerciseType.Input, Question = "Q3", CorrectAnswer = "c", Data = "{}" },
+            new Exercise { Id = 4, LessonId = 1, Order = 4, Type = ExerciseType.Input, Question = "Q4", CorrectAnswer = "d", Data = "{}" },
+            new Exercise { Id = 5, LessonId = 1, Order = 5, Type = ExerciseType.Input, Question = "Q5", CorrectAnswer = "e", Data = "{}" }
+        );
 
         dbContext.UserLessonProgresses.Add(new UserLessonProgress
         {
             UserId = 1,
-            LessonId = lessonId,
-            IsUnlocked = isUnlocked,
+            LessonId = 1,
+            IsUnlocked = true,
             IsCompleted = false
         });
+
+        var details = new LessonResultDetailsJson
+        {
+            MistakeExerciseIds = new() { 4, 5 },
+            Answers = new()
+            {
+                new LessonAnswerResultDto { ExerciseId = 1, UserAnswer = "a", CorrectAnswer = "a", IsCorrect = true },
+                new LessonAnswerResultDto { ExerciseId = 2, UserAnswer = "b", CorrectAnswer = "b", IsCorrect = true },
+                new LessonAnswerResultDto { ExerciseId = 3, UserAnswer = "c", CorrectAnswer = "c", IsCorrect = true },
+                new LessonAnswerResultDto { ExerciseId = 4, UserAnswer = "WRONG", CorrectAnswer = "d", IsCorrect = false },
+                new LessonAnswerResultDto { ExerciseId = 5, UserAnswer = "WRONG", CorrectAnswer = "e", IsCorrect = false }
+            }
+        };
+
+        dbContext.LessonResults.Add(new LessonResult
+        {
+            Id = 1,
+            UserId = 1,
+            LessonId = 1,
+            Score = 3,
+            TotalQuestions = 5,
+            CompletedAt = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc),
+            MistakesJson = JsonSerializer.Serialize(details)
+        });
+
+        dbContext.SaveChanges();
+
+        var service = CreateService(dbContext);
+
+        // fix only one mistake -> 4/5 = 80% pass, but still has 1 mistake left
+        var response = service.SubmitLessonMistakes(userId: 1, lessonId: 1, new SubmitLessonMistakesRequest
+        {
+            Answers = new()
+            {
+                new SubmitExerciseAnswerRequest { ExerciseId = 4, Answer = "d" }
+            }
+        });
+
+        Assert.False(response.IsCompleted);
+        Assert.Single(response.MistakeExerciseIds);
+        Assert.Equal(5, response.TotalExercises);
+        Assert.Equal(4, response.CorrectAnswers);
+
+        var progress1 = dbContext.UserLessonProgresses.FirstOrDefault(x => x.UserId == 1 && x.LessonId == 1);
+        Assert.NotNull(progress1);
+        Assert.True(progress1!.IsCompleted);
+
+        var progress2 = dbContext.UserLessonProgresses.FirstOrDefault(x => x.UserId == 1 && x.LessonId == 2);
+        Assert.NotNull(progress2);
+        Assert.True(progress2!.IsUnlocked);
+
+        var userCourse = dbContext.UserCourses.FirstOrDefault(x => x.UserId == 1 && x.CourseId == 1 && x.IsActive);
+        Assert.NotNull(userCourse);
+        Assert.Equal(2, userCourse!.LastLessonId);
+
+        var userProgress = dbContext.UserProgresses.FirstOrDefault(x => x.UserId == 1);
+        Assert.NotNull(userProgress);
+        Assert.Equal(1, userProgress!.CompletedLessons);
+        Assert.Equal(4, userProgress.TotalScore);
+    }
+
+    private static LessonMistakesService CreateService(Lumino.Api.Data.LuminoDbContext dbContext)
+    {
+        var now = new DateTime(2026, 02, 16, 12, 0, 0, DateTimeKind.Utc);
+
+        var settings = Options.Create(new LearningSettings
+        {
+            PassingScorePercent = 80,
+            SceneUnlockEveryLessons = 1
+        });
+
+        return new LessonMistakesService(dbContext, new FixedDateTimeProvider(now), settings);
+    }
+
+    private static void SeedLessonBase(Lumino.Api.Data.LuminoDbContext dbContext, int lessonId, bool isUnlocked)
+    {
+        if (!dbContext.Courses.Any(x => x.Id == 1))
+        {
+            dbContext.Courses.Add(new Course
+            {
+                Id = 1,
+                Title = "Course",
+                Description = "Desc",
+                IsPublished = true
+            });
+        }
+
+        if (!dbContext.Topics.Any(x => x.Id == 1))
+        {
+            dbContext.Topics.Add(new Topic
+            {
+                Id = 1,
+                CourseId = 1,
+                Title = "Topic",
+                Order = 1
+            });
+        }
+
+        if (!dbContext.Lessons.Any(x => x.Id == lessonId))
+        {
+            dbContext.Lessons.Add(new Lesson
+            {
+                Id = lessonId,
+                TopicId = 1,
+                Title = "Lesson",
+                Theory = "Theory",
+                Order = 1
+            });
+        }
+
+        var progress = dbContext.UserLessonProgresses
+            .FirstOrDefault(x => x.UserId == 1 && x.LessonId == lessonId);
+
+        if (progress == null)
+        {
+            dbContext.UserLessonProgresses.Add(new UserLessonProgress
+            {
+                UserId = 1,
+                LessonId = lessonId,
+                IsUnlocked = isUnlocked,
+                IsCompleted = false
+            });
+        }
+        else
+        {
+            progress.IsUnlocked = isUnlocked;
+            progress.IsCompleted = false;
+        }
 
         dbContext.SaveChanges();
     }
