@@ -40,7 +40,7 @@ namespace Lumino.API.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Achievements");
+                    b.ToTable("Achievements", (string)null);
                 });
 
             modelBuilder.Entity("Lumino.Api.Domain.Entities.Course", b =>
@@ -64,7 +64,7 @@ namespace Lumino.API.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Courses");
+                    b.ToTable("Courses", (string)null);
                 });
 
             modelBuilder.Entity("Lumino.Api.Domain.Entities.Exercise", b =>
@@ -100,7 +100,7 @@ namespace Lumino.API.Migrations
 
                     b.HasIndex("LessonId");
 
-                    b.ToTable("Exercises");
+                    b.ToTable("Exercises", (string)null);
                 });
 
             modelBuilder.Entity("Lumino.Api.Domain.Entities.ExerciseVocabulary", b =>
@@ -126,7 +126,7 @@ namespace Lumino.API.Migrations
                     b.HasIndex("ExerciseId", "VocabularyItemId")
                         .IsUnique();
 
-                    b.ToTable("ExerciseVocabularies");
+                    b.ToTable("ExerciseVocabularies", (string)null);
                 });
 
             modelBuilder.Entity("Lumino.Api.Domain.Entities.Lesson", b =>
@@ -155,7 +155,7 @@ namespace Lumino.API.Migrations
 
                     b.HasIndex("TopicId", "Order");
 
-                    b.ToTable("Lessons");
+                    b.ToTable("Lessons", (string)null);
                 });
 
             modelBuilder.Entity("Lumino.Api.Domain.Entities.LessonResult", b =>
@@ -198,7 +198,7 @@ namespace Lumino.API.Migrations
 
                     b.HasIndex("UserId", "LessonId");
 
-                    b.ToTable("LessonResults");
+                    b.ToTable("LessonResults", (string)null);
                 });
 
             modelBuilder.Entity("Lumino.Api.Domain.Entities.LessonVocabulary", b =>
@@ -224,7 +224,7 @@ namespace Lumino.API.Migrations
                     b.HasIndex("LessonId", "VocabularyItemId")
                         .IsUnique();
 
-                    b.ToTable("LessonVocabularies");
+                    b.ToTable("LessonVocabularies", (string)null);
                 });
 
             modelBuilder.Entity("Lumino.Api.Domain.Entities.RefreshToken", b =>
@@ -261,7 +261,7 @@ namespace Lumino.API.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("RefreshTokens");
+                    b.ToTable("RefreshTokens", (string)null);
                 });
 
             modelBuilder.Entity("Lumino.Api.Domain.Entities.Scene", b =>
@@ -304,7 +304,7 @@ namespace Lumino.API.Migrations
                         .IsUnique()
                         .HasFilter("[Order] > 0");
 
-                    b.ToTable("Scenes");
+                    b.ToTable("Scenes", (string)null);
                 });
 
             modelBuilder.Entity("Lumino.Api.Domain.Entities.SceneAttempt", b =>
@@ -347,7 +347,7 @@ namespace Lumino.API.Migrations
                     b.HasIndex("UserId", "SceneId")
                         .IsUnique();
 
-                    b.ToTable("SceneAttempts");
+                    b.ToTable("SceneAttempts", (string)null);
                 });
 
             modelBuilder.Entity("Lumino.Api.Domain.Entities.SceneStep", b =>
@@ -387,7 +387,7 @@ namespace Lumino.API.Migrations
                     b.HasIndex("SceneId", "Order")
                         .IsUnique();
 
-                    b.ToTable("SceneSteps");
+                    b.ToTable("SceneSteps", (string)null);
                 });
 
             modelBuilder.Entity("Lumino.Api.Domain.Entities.Topic", b =>
@@ -412,7 +412,7 @@ namespace Lumino.API.Migrations
 
                     b.HasIndex("CourseId", "Order");
 
-                    b.ToTable("Topics");
+                    b.ToTable("Topics", (string)null);
                 });
 
             modelBuilder.Entity("Lumino.Api.Domain.Entities.User", b =>
@@ -442,7 +442,7 @@ namespace Lumino.API.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("Lumino.Api.Domain.Entities.UserAchievement", b =>
@@ -469,7 +469,7 @@ namespace Lumino.API.Migrations
                     b.HasIndex("UserId", "AchievementId")
                         .IsUnique();
 
-                    b.ToTable("UserAchievements");
+                    b.ToTable("UserAchievements", (string)null);
                 });
 
             modelBuilder.Entity("Lumino.Api.Domain.Entities.UserCourse", b =>
@@ -513,7 +513,7 @@ namespace Lumino.API.Migrations
 
                     b.HasIndex("UserId", "IsActive");
 
-                    b.ToTable("UserCourses");
+                    b.ToTable("UserCourses", (string)null);
                 });
 
             modelBuilder.Entity("Lumino.Api.Domain.Entities.UserLessonProgress", b =>
@@ -549,7 +549,7 @@ namespace Lumino.API.Migrations
                     b.HasIndex("UserId", "LessonId")
                         .IsUnique();
 
-                    b.ToTable("UserLessonProgresses");
+                    b.ToTable("UserLessonProgresses", (string)null);
                 });
 
             modelBuilder.Entity("Lumino.Api.Domain.Entities.UserProgress", b =>
@@ -577,7 +577,7 @@ namespace Lumino.API.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("UserProgresses");
+                    b.ToTable("UserProgresses", (string)null);
                 });
 
             modelBuilder.Entity("Lumino.Api.Domain.Entities.UserVocabulary", b =>
@@ -613,7 +613,7 @@ namespace Lumino.API.Migrations
                     b.HasIndex("UserId", "VocabularyItemId")
                         .IsUnique();
 
-                    b.ToTable("UserVocabularies");
+                    b.ToTable("UserVocabularies", (string)null);
                 });
 
             modelBuilder.Entity("Lumino.Api.Domain.Entities.VocabularyItem", b =>
@@ -637,7 +637,7 @@ namespace Lumino.API.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("VocabularyItems");
+                    b.ToTable("VocabularyItems", (string)null);
                 });
 
             modelBuilder.Entity("Lumino.Api.Domain.Entities.Exercise", b =>

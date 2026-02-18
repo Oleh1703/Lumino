@@ -109,10 +109,6 @@ namespace Lumino.Api.Data
 
                 entity.HasIndex(x => new { x.UserId, x.LessonId });
 
-                // idempotency key must be unique per user (when provided)
-                entity.HasIndex(x => new { x.UserId, x.IdempotencyKey })
-                    .IsUnique()
-                    .HasFilter("[IdempotencyKey] IS NOT NULL");
             });
 
             modelBuilder.Entity<UserProgress>(entity =>
