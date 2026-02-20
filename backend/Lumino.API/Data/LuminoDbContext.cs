@@ -92,15 +92,20 @@ namespace Lumino.Api.Data
                 entity.Property(x => x.IdempotencyKey)
                     .HasMaxLength(64);
 
+                entity.Property(x => x.MistakesIdempotencyKey)
+                    .HasMaxLength(64);
                 // idempotency key must be unique per user (when provided)
                 entity.HasIndex(x => new { x.UserId, x.IdempotencyKey })
                     .IsUnique()
                     .HasFilter("[IdempotencyKey] IS NOT NULL");
 
+                entity.HasIndex(x => new { x.UserId, x.MistakesIdempotencyKey })
+                    .IsUnique()
+                    .HasFilter("[MistakesIdempotencyKey] IS NOT NULL");
                 entity.HasOne<User>()
-                    .WithMany()
-                    .HasForeignKey(x => x.UserId)
-                    .OnDelete(DeleteBehavior.Cascade);
+                                    .WithMany()
+                                    .HasForeignKey(x => x.UserId)
+                                    .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasOne<Lesson>()
                     .WithMany()
@@ -135,7 +140,6 @@ namespace Lumino.Api.Data
 
                 entity.HasIndex(x => new { x.UserId, x.VocabularyItemId }).IsUnique();
             });
-
 
             modelBuilder.Entity<LessonVocabulary>(entity =>
             {

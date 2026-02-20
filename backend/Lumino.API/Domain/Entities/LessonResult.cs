@@ -16,6 +16,8 @@ namespace Lumino.Api.Domain.Entities
 
         public string? MistakesJson { get; set; }
 
+        public string? MistakesIdempotencyKey { get; set; }
+
         public DateTime CompletedAt { get; set; }
     }
 }

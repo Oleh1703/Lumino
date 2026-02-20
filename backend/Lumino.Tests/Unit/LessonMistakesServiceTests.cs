@@ -508,10 +508,118 @@ public class LessonMistakesServiceTests
     }
 
 
+
     private static LessonMistakesService CreateService(Lumino.Api.Data.LuminoDbContext dbContext)
     {
         return CreateService(dbContext, out _);
     }
+
+
+    [Fact]
+    public void SubmitLessonMistakes_WhenSameIdempotencyKeyRepeated_ShouldBeIdempotent_AndNotDuplicateSideEffects()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Courses.Add(new Course
+        {
+            Id = 1,
+            Title = "Course",
+            Description = "Desc",
+            IsPublished = true
+        });
+
+        dbContext.Topics.Add(new Topic
+        {
+            Id = 1,
+            CourseId = 1,
+            Title = "Topic",
+            Order = 1
+        });
+
+        dbContext.Lessons.Add(new Lesson
+        {
+            Id = 1,
+            TopicId = 1,
+            Title = "Lesson 1",
+            Theory = "Theory",
+            Order = 1
+        });
+
+        dbContext.Exercises.AddRange(
+            new Exercise { Id = 1, LessonId = 1, Order = 1, Type = ExerciseType.Input, Question = "Q1", CorrectAnswer = "a", Data = "{}" },
+            new Exercise { Id = 2, LessonId = 1, Order = 2, Type = ExerciseType.Input, Question = "Q2", CorrectAnswer = "b", Data = "{}" }
+        );
+
+        dbContext.UserLessonProgresses.Add(new UserLessonProgress
+        {
+            UserId = 1,
+            LessonId = 1,
+            IsUnlocked = true,
+            IsCompleted = false
+        });
+
+        var details = new LessonResultDetailsJson
+        {
+            MistakeExerciseIds = new() { 2 },
+            Answers = new()
+            {
+                new LessonAnswerResultDto { ExerciseId = 1, UserAnswer = "a", CorrectAnswer = "a", IsCorrect = true },
+                new LessonAnswerResultDto { ExerciseId = 2, UserAnswer = "WRONG", CorrectAnswer = "b", IsCorrect = false }
+            }
+        };
+
+        dbContext.LessonResults.Add(new LessonResult
+        {
+            Id = 1,
+            UserId = 1,
+            LessonId = 1,
+            Score = 1,
+            TotalQuestions = 2,
+            CompletedAt = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc),
+            MistakesJson = JsonSerializer.Serialize(details)
+        });
+
+        dbContext.SaveChanges();
+
+        var service = CreateService(dbContext, out var achievementService);
+
+        var request = new SubmitLessonMistakesRequest
+        {
+            IdempotencyKey = "k1",
+            Answers = new()
+            {
+                new SubmitExerciseAnswerRequest { ExerciseId = 2, Answer = "b" }
+            }
+        };
+
+        var response1 = service.SubmitLessonMistakes(userId: 1, lessonId: 1, request);
+        var response2 = service.SubmitLessonMistakes(userId: 1, lessonId: 1, request);
+
+        Assert.True(response1.IsCompleted);
+        Assert.True(response2.IsCompleted);
+        Assert.Empty(response1.MistakeExerciseIds);
+        Assert.Empty(response2.MistakeExerciseIds);
+
+        Assert.Equal(1, achievementService.CallsCount);
+
+        var last = dbContext.LessonResults
+            .Where(x => x.UserId == 1 && x.LessonId == 1)
+            .OrderByDescending(x => x.CompletedAt)
+            .ThenByDescending(x => x.Id)
+            .FirstOrDefault();
+
+        Assert.NotNull(last);
+        Assert.False(string.IsNullOrWhiteSpace(last!.MistakesJson));
+
+        Assert.Equal("k1", last!.MistakesIdempotencyKey);
+
+
+        var json = JsonSerializer.Deserialize<LessonResultDetailsJson>(last.MistakesJson!);
+        Assert.NotNull(json);
+        Assert.Equal("k1", json!.MistakesIdempotencyKey);
+    }
+
+
 
     private static LessonMistakesService CreateService(Lumino.Api.Data.LuminoDbContext dbContext, out FakeAchievementService achievementService)
     {

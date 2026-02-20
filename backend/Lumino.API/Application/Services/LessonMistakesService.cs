@@ -197,6 +197,41 @@ namespace Lumino.Api.Application.Services
             // зберігаємо "попередні помилки" для Vocabulary (щоб слова з помилок стали due одразу)
             var mistakeIdsForVocabulary = targetMistakeIds.ToList();
 
+            var requestKey = NormalizeIdempotencyKey(request.IdempotencyKey);
+
+            if (!string.IsNullOrWhiteSpace(requestKey))
+            {
+                if (!string.IsNullOrWhiteSpace(lastResult.MistakesIdempotencyKey)
+                    && string.Equals(lastResult.MistakesIdempotencyKey, requestKey, StringComparison.Ordinal))
+                {
+                    EnsureDetailsContainsAllExercises(details, allExercises);
+
+                    details.MistakeExerciseIds = details.Answers
+                        .Where(x => !x.IsCorrect)
+                        .Select(x => x.ExerciseId)
+                        .Distinct()
+                        .ToList();
+
+                    var correctCount = details.Answers.Count(x => x.IsCorrect);
+                    var completed = details.MistakeExerciseIds.Count == 0;
+
+                    return new SubmitLessonMistakesResponse
+                    {
+                        LessonId = lessonId,
+                        TotalExercises = totalExercises,
+                        CorrectAnswers = correctCount,
+                        IsCompleted = completed,
+                        MistakeExerciseIds = details.MistakeExerciseIds,
+                        Answers = details.Answers
+                    };
+                }
+
+                lastResult.MistakesIdempotencyKey = requestKey;
+
+                details.MistakesIdempotencyKey = requestKey;
+            }
+
+
             if (targetMistakeIds.Count == 0)
             {
                 EnsureDetailsContainsAllExercises(details, allExercises);
@@ -949,7 +984,6 @@ namespace Lumino.Api.Application.Services
         {
             return JsonSerializer.Serialize(details, new JsonSerializerOptions
             {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
                 WriteIndented = false
             });
         }
@@ -989,6 +1023,24 @@ namespace Lumino.Api.Application.Services
                 .ToList();
         }
 
+
+
+        private static string? NormalizeIdempotencyKey(string? key)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return null;
+            }
+
+            key = key.Trim();
+
+            if (key.Length > 64)
+            {
+                key = key.Substring(0, 64);
+            }
+
+            return key;
+        }
         private static ExerciseResponse MapExercise(Exercise ex)
         {
             return new ExerciseResponse
