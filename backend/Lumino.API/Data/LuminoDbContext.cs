@@ -222,6 +222,12 @@ namespace Lumino.Api.Data
                 entity.Property(x => x.IdempotencyKey)
                     .HasMaxLength(64);
 
+                entity.Property(x => x.SubmitIdempotencyKey)
+                    .HasMaxLength(64);
+
+                entity.Property(x => x.MistakesIdempotencyKey)
+                    .HasMaxLength(64);
+
                 entity.HasOne<User>()
                     .WithMany()
                     .HasForeignKey(x => x.UserId)

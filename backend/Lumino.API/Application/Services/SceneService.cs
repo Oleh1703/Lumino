@@ -255,6 +255,8 @@ namespace Lumino.Api.Application.Services
         {
             _submitSceneRequestValidator.Validate(request);
 
+            var mistakesIdempotencyKey = NormalizeIdempotencyKey(request.IdempotencyKey);
+
             var scene = _dbContext.Scenes.FirstOrDefault(x => x.Id == sceneId);
 
             if (scene == null)
@@ -271,14 +273,14 @@ namespace Lumino.Api.Application.Services
             }
 
 
-            if (!string.IsNullOrWhiteSpace(request.IdempotencyKey))
+            if (!string.IsNullOrWhiteSpace(mistakesIdempotencyKey))
             {
                 var existingAttempt = _dbContext.SceneAttempts
                     .FirstOrDefault(x => x.UserId == userId && x.SceneId == sceneId);
 
                 if (existingAttempt != null
-                    && !string.IsNullOrWhiteSpace(existingAttempt.IdempotencyKey)
-                    && string.Equals(existingAttempt.IdempotencyKey, request.IdempotencyKey, StringComparison.Ordinal))
+                    && !string.IsNullOrWhiteSpace(existingAttempt.MistakesIdempotencyKey)
+                    && string.Equals(existingAttempt.MistakesIdempotencyKey, mistakesIdempotencyKey, StringComparison.Ordinal))
                 {
                     return BuildSubmitSceneResponseFromAttempt(sceneId, existingAttempt);
                 }
@@ -299,7 +301,7 @@ namespace Lumino.Api.Application.Services
             if (totalQuestions == 0)
             {
                 // якщо питань немає — просто завершуємо сцену
-                EnsureCompletedAttempt(userId, sceneId, score: 0, totalQuestions: 0, detailsJson: null, idempotencyKey: request.IdempotencyKey);
+                EnsureCompletedAttempt(userId, sceneId, score: 0, totalQuestions: 0, detailsJson: null, mistakesIdempotencyKey: mistakesIdempotencyKey);
                 return new SubmitSceneResponse
                 {
                     SceneId = sceneId,
@@ -367,7 +369,7 @@ namespace Lumino.Api.Application.Services
                     totalQuestions: totalQuestions,
                     detailsJson: detailsJsonNoChange,
                     markCompleted: isCompleted,
-                    idempotencyKey: request.IdempotencyKey
+                    mistakesIdempotencyKey: mistakesIdempotencyKey
                 );
 
                 return new SubmitSceneResponse
@@ -471,7 +473,7 @@ namespace Lumino.Api.Application.Services
                 totalQuestions: totalQuestions,
                 detailsJson: detailsJson,
                 markCompleted: completed,
-                idempotencyKey: request.IdempotencyKey
+                mistakesIdempotencyKey: mistakesIdempotencyKey
             );
 
             return new SubmitSceneResponse
@@ -523,6 +525,8 @@ namespace Lumino.Api.Application.Services
         {
             _submitSceneRequestValidator.Validate(request);
 
+            var submitIdempotencyKey = NormalizeIdempotencyKey(request.IdempotencyKey);
+
             var scene = _dbContext.Scenes.FirstOrDefault(x => x.Id == sceneId);
 
             if (scene == null)
@@ -539,14 +543,14 @@ namespace Lumino.Api.Application.Services
             }
 
 
-            if (!string.IsNullOrWhiteSpace(request.IdempotencyKey))
+            if (!string.IsNullOrWhiteSpace(submitIdempotencyKey))
             {
                 var existingAttempt = _dbContext.SceneAttempts
                     .FirstOrDefault(x => x.UserId == userId && x.SceneId == sceneId);
 
                 if (existingAttempt != null
-                    && !string.IsNullOrWhiteSpace(existingAttempt.IdempotencyKey)
-                    && string.Equals(existingAttempt.IdempotencyKey, request.IdempotencyKey, StringComparison.Ordinal))
+                    && !string.IsNullOrWhiteSpace(existingAttempt.SubmitIdempotencyKey)
+                    && string.Equals(existingAttempt.SubmitIdempotencyKey, submitIdempotencyKey, StringComparison.Ordinal))
                 {
                     return BuildSubmitSceneResponseFromAttempt(sceneId, existingAttempt);
                 }
@@ -567,7 +571,7 @@ namespace Lumino.Api.Application.Services
             // якщо в сцені немає choices (тільки діалоги/контент) — submit завершує сцену як “пройдено”
             if (totalQuestions == 0)
             {
-                EnsureCompletedAttempt(userId, sceneId, score: 0, totalQuestions: 0, detailsJson: null, idempotencyKey: request.IdempotencyKey);
+                EnsureCompletedAttempt(userId, sceneId, score: 0, totalQuestions: 0, detailsJson: null, submitIdempotencyKey: submitIdempotencyKey);
                 return new SubmitSceneResponse
                 {
                     SceneId = sceneId,
@@ -643,7 +647,7 @@ namespace Lumino.Api.Application.Services
                 totalQuestions: totalQuestions,
                 detailsJson: detailsJson,
                 markCompleted: isCompleted,
-                idempotencyKey: request.IdempotencyKey
+                submitIdempotencyKey: submitIdempotencyKey
             );
 
             return new SubmitSceneResponse
@@ -903,7 +907,55 @@ namespace Lumino.Api.Application.Services
             };
         }
 
-        private void EnsureCompletedAttempt(int userId, int sceneId, int score, int totalQuestions, string? detailsJson, bool markCompleted = true, string? idempotencyKey = null)
+        private static string? NormalizeIdempotencyKey(string? key)
+        {
+            if (string.IsNullOrWhiteSpace(key)) return null;
+
+            var normalized = key.Trim();
+
+            if (normalized.Length == 0)
+            {
+                return null;
+            }
+
+            if (normalized.Length > 64)
+            {
+                normalized = normalized.Substring(0, 64);
+            }
+
+            return normalized;
+        }
+
+        private static void ApplyAttemptIdempotencyKeys(SceneAttempt attempt, string? submitIdempotencyKey, string? mistakesIdempotencyKey)
+        {
+            if (!string.IsNullOrWhiteSpace(submitIdempotencyKey))
+            {
+                attempt.SubmitIdempotencyKey = submitIdempotencyKey;
+            }
+
+            if (!string.IsNullOrWhiteSpace(mistakesIdempotencyKey))
+            {
+                attempt.MistakesIdempotencyKey = mistakesIdempotencyKey;
+            }
+
+            var legacyKey = submitIdempotencyKey ?? mistakesIdempotencyKey;
+
+            if (!string.IsNullOrWhiteSpace(legacyKey) && string.IsNullOrWhiteSpace(attempt.IdempotencyKey))
+            {
+                attempt.IdempotencyKey = legacyKey;
+            }
+        }
+
+        private void EnsureCompletedAttempt(
+            int userId,
+            int sceneId,
+            int score,
+            int totalQuestions,
+            string? detailsJson,
+            bool markCompleted = true,
+            string? submitIdempotencyKey = null,
+            string? mistakesIdempotencyKey = null
+        )
         {
             var now = _dateTimeProvider.UtcNow;
 
@@ -918,10 +970,7 @@ namespace Lumino.Api.Application.Services
                 attempt.TotalQuestions = totalQuestions;
                 attempt.DetailsJson = detailsJson;
 
-                if (!string.IsNullOrWhiteSpace(idempotencyKey))
-                {
-                    attempt.IdempotencyKey = idempotencyKey;
-                }
+                ApplyAttemptIdempotencyKeys(attempt, submitIdempotencyKey, mistakesIdempotencyKey);
 
                 _dbContext.SaveChanges();
                 return;
@@ -952,10 +1001,7 @@ namespace Lumino.Api.Application.Services
             attempt.TotalQuestions = totalQuestions;
             attempt.DetailsJson = detailsJson;
 
-            if (!string.IsNullOrWhiteSpace(idempotencyKey))
-            {
-                attempt.IdempotencyKey = idempotencyKey;
-            }
+            ApplyAttemptIdempotencyKeys(attempt, submitIdempotencyKey, mistakesIdempotencyKey);
 
             // фіксуємо час останньої здачі (навіть якщо ще не completed)
             attempt.CompletedAt = now;
@@ -993,10 +1039,7 @@ namespace Lumino.Api.Application.Services
                 attempt.TotalQuestions = totalQuestions;
                 attempt.DetailsJson = detailsJson;
 
-                if (!string.IsNullOrWhiteSpace(idempotencyKey))
-                {
-                    attempt.IdempotencyKey = idempotencyKey;
-                }
+                ApplyAttemptIdempotencyKeys(attempt, submitIdempotencyKey, mistakesIdempotencyKey);
 
                 attempt.CompletedAt = now;
 

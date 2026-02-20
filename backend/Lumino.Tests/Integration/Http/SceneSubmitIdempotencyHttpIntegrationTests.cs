@@ -127,7 +127,9 @@ public class SceneSubmitIdempotencyHttpIntegrationTests : IClassFixture<ApiWebAp
             Assert.Equal(1, attempt!.Score);
             Assert.Equal(1, attempt.TotalQuestions);
             Assert.True(attempt.IsCompleted);
+            Assert.Equal("scene-key-1", attempt.SubmitIdempotencyKey);
             Assert.Equal("scene-key-1", attempt.IdempotencyKey);
+            Assert.True(string.IsNullOrWhiteSpace(attempt.MistakesIdempotencyKey));
 
             Assert.False(string.IsNullOrWhiteSpace(attempt.DetailsJson));
             Assert.Contains("Paris", attempt.DetailsJson!);

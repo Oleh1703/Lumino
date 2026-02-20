@@ -18,6 +18,10 @@ namespace Lumino.Api.Domain.Entities
 
         public string? IdempotencyKey { get; set; }
 
+        public string? SubmitIdempotencyKey { get; set; }
+
+        public string? MistakesIdempotencyKey { get; set; }
+
         public string? DetailsJson { get; set; }
     }
 }
