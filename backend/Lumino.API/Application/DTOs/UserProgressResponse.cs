@@ -21,5 +21,11 @@ namespace Lumino.Api.Application.DTOs
         public int TotalScenes { get; set; }
 
         public int CompletedDistinctScenes { get; set; }
+
+        public int TotalVocabulary { get; set; }
+
+        public int DueVocabulary { get; set; }
+
+        public DateTime? NextVocabularyReviewAt { get; set; }
     }
 }

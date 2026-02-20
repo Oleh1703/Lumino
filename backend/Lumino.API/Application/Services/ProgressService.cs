@@ -57,6 +57,20 @@ namespace Lumino.Api.Application.Services
 
             var nowUtc = _dateTimeProvider.UtcNow;
 
+
+            int totalVocabulary = _dbContext.UserVocabularies
+                .Count(x => x.UserId == userId);
+
+            int dueVocabulary = _dbContext.UserVocabularies
+                .Count(x => x.UserId == userId && x.NextReviewAt <= nowUtc);
+
+            DateTime? nextVocabularyReviewAt = _dbContext.UserVocabularies
+                .Where(x => x.UserId == userId)
+                .OrderBy(x => x.NextReviewAt)
+                .Select(x => (DateTime?)x.NextReviewAt)
+                .FirstOrDefault();
+
+
             var passedLessonDatesUtc = _dbContext.LessonResults
                 .Where(x =>
                     x.UserId == userId &&
@@ -90,7 +104,10 @@ namespace Lumino.Api.Application.Services
                     CurrentStreakDays = currentStreak,
                     LastStudyAt = lastStudyAt,
                     TotalScenes = totalScenes,
-                    CompletedDistinctScenes = completedDistinctScenes
+                    CompletedDistinctScenes = completedDistinctScenes,
+                    TotalVocabulary = totalVocabulary,
+                    DueVocabulary = dueVocabulary,
+                    NextVocabularyReviewAt = nextVocabularyReviewAt
                 };
             }
 
@@ -105,7 +122,10 @@ namespace Lumino.Api.Application.Services
                 CurrentStreakDays = currentStreak,
                 LastStudyAt = lastStudyAt,
                 TotalScenes = totalScenes,
-                CompletedDistinctScenes = completedDistinctScenes
+                CompletedDistinctScenes = completedDistinctScenes,
+                TotalVocabulary = totalVocabulary,
+                DueVocabulary = dueVocabulary,
+                NextVocabularyReviewAt = nextVocabularyReviewAt
             };
         }
 
