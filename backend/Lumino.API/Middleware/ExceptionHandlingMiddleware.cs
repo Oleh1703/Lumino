@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using Lumino.Api.Utils;
 using Microsoft.AspNetCore.Hosting;
+using System.Diagnostics;
 
 namespace Lumino.Api.Middleware
 {
@@ -69,16 +70,18 @@ namespace Lumino.Api.Middleware
 
             context.Response.Clear();
             context.Response.StatusCode = statusCode;
-            context.Response.ContentType = "application/json; charset=utf-8";
+            context.Response.ContentType = "application/problem+json; charset=utf-8";
 
-            var payload = new ApiErrorResponse
+            var traceId = Activity.Current?.Id ?? context.TraceIdentifier;
+
+            var payload = new ApiProblemDetails
             {
-                StatusCode = statusCode,
                 Type = type,
-                Message = message,
-                TraceId = context.TraceIdentifier,
-                Path = context.Request.Path.Value ?? "",
-                TimestampUtc = DateTime.UtcNow
+                Title = ToTitle(statusCode),
+                Status = statusCode,
+                Detail = message,
+                Instance = context.Request.Path.Value ?? "",
+                TraceId = traceId
             };
 
             var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
@@ -116,14 +119,23 @@ namespace Lumino.Api.Middleware
             return ((int)HttpStatusCode.InternalServerError, "server_error", "Unexpected server error.");
         }
 
-        private class ApiErrorResponse
+        private static string ToTitle(int statusCode)
         {
-            public int StatusCode { get; set; }
+            if (statusCode == (int)HttpStatusCode.BadRequest) return "Bad Request";
+            if (statusCode == (int)HttpStatusCode.Unauthorized) return "Unauthorized";
+            if (statusCode == (int)HttpStatusCode.Forbidden) return "Forbidden";
+            if (statusCode == (int)HttpStatusCode.NotFound) return "Not Found";
+            return "Server Error";
+        }
+
+        private class ApiProblemDetails
+        {
             public string Type { get; set; } = "";
-            public string Message { get; set; } = "";
+            public string Title { get; set; } = "";
+            public int Status { get; set; }
+            public string Detail { get; set; } = "";
+            public string Instance { get; set; } = "";
             public string TraceId { get; set; } = "";
-            public string Path { get; set; } = "";
-            public DateTime TimestampUtc { get; set; }
         }
     }
 }

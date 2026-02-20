@@ -5,6 +5,7 @@ using Lumino.Api.Data;
 using Lumino.Api.Middleware;
 using Lumino.Api.Utils;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -18,7 +19,39 @@ namespace Lumino.Api
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container
-            builder.Services.AddControllers();
+            builder.Services.AddControllers()
+                .ConfigureApiBehaviorOptions(options =>
+                {
+                    options.InvalidModelStateResponseFactory = context =>
+                    {
+                        var errors = context.ModelState
+                            .Where(x => x.Value != null && x.Value.Errors.Count > 0)
+                            .ToDictionary(
+                                x => x.Key,
+                                x => x.Value!.Errors
+                                    .Select(e => string.IsNullOrWhiteSpace(e.ErrorMessage) ? "Invalid value" : e.ErrorMessage)
+                                    .ToArray()
+                            );
+
+                        var traceId = System.Diagnostics.Activity.Current?.Id ?? context.HttpContext.TraceIdentifier;
+
+                        var payload = new
+                        {
+                            type = "bad_request",
+                            title = "Bad Request",
+                            status = StatusCodes.Status400BadRequest,
+                            detail = "Validation failed.",
+                            instance = context.HttpContext.Request.Path.Value ?? "",
+                            traceId = traceId,
+                            errors = errors
+                        };
+
+                        return new BadRequestObjectResult(payload)
+                        {
+                            ContentTypes = { "application/problem+json" }
+                        };
+                    };
+                });
 
             // CORS (Frontend)
             builder.Services.AddCors(options =>
@@ -161,6 +194,54 @@ namespace Lumino.Api
 
             app.UseAuthentication();
             app.UseAuthorization();
+
+            // Єдиний формат помилок для 401/403 (і тих випадків, де не кидаються винятки)
+            app.UseStatusCodePages(async statusCodeContext =>
+            {
+                var http = statusCodeContext.HttpContext;
+
+                if (http.Response.HasStarted)
+                {
+                    return;
+                }
+
+                if (http.Response.StatusCode != StatusCodes.Status401Unauthorized
+                    && http.Response.StatusCode != StatusCodes.Status403Forbidden)
+                {
+                    return;
+                }
+
+                // Якщо хтось вже записав тіло відповіді - не перезаписуємо
+                if (http.Response.ContentLength.HasValue && http.Response.ContentLength.Value > 0)
+                {
+                    return;
+                }
+
+                var traceId = System.Diagnostics.Activity.Current?.Id ?? http.TraceIdentifier;
+
+                var type = http.Response.StatusCode == StatusCodes.Status401Unauthorized ? "unauthorized" : "forbidden";
+                var title = http.Response.StatusCode == StatusCodes.Status401Unauthorized ? "Unauthorized" : "Forbidden";
+
+                var payload = new
+                {
+                    type = type,
+                    title = title,
+                    status = http.Response.StatusCode,
+                    detail = title,
+                    instance = http.Request.Path.Value ?? "",
+                    traceId = traceId
+                };
+
+                http.Response.ContentType = "application/problem+json; charset=utf-8";
+
+                var json = System.Text.Json.JsonSerializer.Serialize(payload, new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+                    WriteIndented = false
+                });
+
+                await http.Response.WriteAsync(json);
+            });
 
             app.MapControllers();
             app.Run();
