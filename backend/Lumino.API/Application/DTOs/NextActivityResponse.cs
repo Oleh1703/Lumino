@@ -4,6 +4,10 @@ namespace Lumino.Api.Application.DTOs
     {
         public string Type { get; set; } = string.Empty;
 
+        public int? CourseId { get; set; }
+
+        public bool IsLocked { get; set; }
+
         public int? LessonId { get; set; }
 
         public int? TopicId { get; set; }

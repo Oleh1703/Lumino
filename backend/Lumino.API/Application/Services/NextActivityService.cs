@@ -74,6 +74,8 @@ namespace Lumino.Api.Application.Services
             return new NextActivityResponse
             {
                 Type = "VocabularyReview",
+                CourseId = null,
+                IsLocked = false,
                 UserVocabularyId = uv.Id,
                 VocabularyItemId = item.Id,
                 Word = item.Word,
@@ -154,6 +156,8 @@ namespace Lumino.Api.Application.Services
                             return new NextActivityResponse
                             {
                                 Type = "Lesson",
+                                CourseId = courseIdToUse.Value,
+                                IsLocked = false,
                                 LessonId = lastLesson.LessonId,
                                 TopicId = lastLesson.TopicId,
                                 LessonTitle = lastLesson.LessonTitle
@@ -176,6 +180,8 @@ namespace Lumino.Api.Application.Services
                     return new NextActivityResponse
                     {
                         Type = "Lesson",
+                        CourseId = courseIdToUse.Value,
+                        IsLocked = false,
                         LessonId = item.LessonId,
                         TopicId = item.TopicId,
                         LessonTitle = item.LessonTitle
@@ -390,6 +396,8 @@ namespace Lumino.Api.Application.Services
             return new NextActivityResponse
             {
                 Type = "Scene",
+                CourseId = courseIdToUse.Value,
+                IsLocked = false,
                 SceneId = scene.Id,
                 SceneTitle = scene.Title
             };

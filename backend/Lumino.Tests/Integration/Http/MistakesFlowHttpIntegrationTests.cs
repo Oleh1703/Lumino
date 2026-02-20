@@ -99,6 +99,8 @@ public class MistakesFlowHttpIntegrationTests : IClassFixture<ApiWebApplicationF
         {
             Assert.Equal("Lesson", doc.RootElement.GetProperty("type").GetString());
             Assert.Equal(1, doc.RootElement.GetProperty("lessonId").GetInt32());
+            Assert.Equal(1, doc.RootElement.GetProperty("courseId").GetInt32());
+            Assert.False(doc.RootElement.GetProperty("isLocked").GetBoolean());
             Assert.True(doc.RootElement.TryGetProperty("topicId", out _));
             Assert.True(doc.RootElement.TryGetProperty("lessonTitle", out _));
         }
