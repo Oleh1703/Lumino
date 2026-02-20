@@ -95,7 +95,13 @@ public class CourseCompletedIntegrationTests
         // 3) Next -> nothing left
         var next = nextActivityService.GetNext(10);
 
-        Assert.Null(next);
+        Assert.NotNull(next);
+        Assert.Equal("CourseComplete", next!.Type);
+        Assert.Equal(1, next.CourseId);
+        Assert.False(next.IsLocked);
+        Assert.Null(next.LessonId);
+        Assert.Null(next.SceneId);
+        Assert.Null(next.UserVocabularyId);
 
         // 4) Completion endpoint logic -> Completed + persisted state
         var completion = courseCompletionService.GetMyCourseCompletion(10, 1);

@@ -48,7 +48,28 @@ namespace Lumino.Api.Application.Services
                 return nextScene;
             }
 
-            return null;
+            // ✅ доробка №17: якщо немає next lesson/scene і немає due-review — курс завершено
+            var activeCourse = _dbContext.UserCourses
+                .FirstOrDefault(x => x.UserId == userId && x.IsActive);
+
+            int? courseIdToUse = activeCourse?.CourseId;
+
+            if (courseIdToUse == null)
+            {
+                courseIdToUse = GetFirstPublishedCourseWithLessonsId();
+
+                if (courseIdToUse == null)
+                {
+                    return null;
+                }
+            }
+
+            return new NextActivityResponse
+            {
+                Type = "CourseComplete",
+                CourseId = courseIdToUse.Value,
+                IsLocked = false
+            };
         }
 
         private NextActivityResponse? GetNextDueVocabulary(int userId, DateTime nowUtc)

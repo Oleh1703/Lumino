@@ -152,7 +152,13 @@ public class SceneLockedIntegrationTests
         // 3) Next -> should not return Scene (scene #2 locked, scene #1 completed, lessons/vocab отсутствуют)
         var next = nextActivityService.GetNext(10);
 
-        Assert.Null(next);
+        Assert.NotNull(next);
+        Assert.Equal("CourseComplete", next!.Type);
+        Assert.Equal(1, next.CourseId);
+        Assert.False(next.IsLocked);
+        Assert.Null(next.LessonId);
+        Assert.Null(next.SceneId);
+        Assert.Null(next.UserVocabularyId);
 
         // 4) direct submit to locked scene must throw Forbidden
         Assert.Throws<ForbiddenAccessException>(() => sceneService.SubmitScene(10, 2, new SubmitSceneRequest

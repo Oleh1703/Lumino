@@ -171,6 +171,12 @@ public class SceneHappyPathIntegrationTests
         // 5) Next -> no lessons/vocab/scenes left
         var next2 = nextActivityService.GetNext(10);
 
-        Assert.Null(next2);
+        Assert.NotNull(next2);
+        Assert.Equal("CourseComplete", next2!.Type);
+        Assert.Equal(1, next2.CourseId);
+        Assert.False(next2.IsLocked);
+        Assert.Null(next2.LessonId);
+        Assert.Null(next2.SceneId);
+        Assert.Null(next2.UserVocabularyId);
     }
 }
