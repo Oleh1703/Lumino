@@ -179,6 +179,29 @@ namespace Lumino.Api.Application.Services
                 throw new KeyNotFoundException("Vocabulary word not found");
             }
 
+
+            var idempotencyKey = request.IdempotencyKey;
+
+            if (string.IsNullOrWhiteSpace(idempotencyKey) == false)
+            {
+                if (entity.ReviewIdempotencyKey == idempotencyKey)
+                {
+                    var existingItem = _dbContext.VocabularyItems.First(x => x.Id == entity.VocabularyItemId);
+
+                    return new VocabularyResponse
+                    {
+                        Id = entity.Id,
+                        VocabularyItemId = existingItem.Id,
+                        Word = existingItem.Word,
+                        Translation = existingItem.Translation,
+                        Example = existingItem.Example,
+                        AddedAt = entity.AddedAt,
+                        LastReviewedAt = entity.LastReviewedAt,
+                        NextReviewAt = entity.NextReviewAt,
+                        ReviewCount = entity.ReviewCount
+                    };
+                }
+            }
             var now = _dateTimeProvider.UtcNow;
 
             entity.LastReviewedAt = now;
@@ -192,6 +215,12 @@ namespace Lumino.Api.Application.Services
             {
                 entity.ReviewCount = 0;
                 entity.NextReviewAt = now.AddHours(_learningSettings.VocabularyWrongDelayHours);
+            }
+
+
+            if (string.IsNullOrWhiteSpace(idempotencyKey) == false)
+            {
+                entity.ReviewIdempotencyKey = idempotencyKey;
             }
 
             _dbContext.SaveChanges();

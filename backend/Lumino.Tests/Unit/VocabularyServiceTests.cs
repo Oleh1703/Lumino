@@ -1,4 +1,4 @@
-﻿﻿using Lumino.Api.Application.DTOs;
+﻿using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Utils;
 using Microsoft.Extensions.Options;
@@ -116,7 +116,47 @@ public class VocabularyServiceTests
         Assert.Empty(due);
     }
 
+    
     [Fact]
+    public void ReviewWord_WithSameIdempotencyKey_ShouldBeIdempotent()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        var now = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc);
+        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now), Options.Create(new LearningSettings()));
+
+        service.AddWord(userId: 1, new AddVocabularyRequest
+        {
+            Word = "fish",
+            Translation = "риба"
+        });
+
+        var entity = dbContext.UserVocabularies.First();
+
+        var first = service.ReviewWord(userId: 1, userVocabularyId: entity.Id, new ReviewVocabularyRequest
+        {
+            IsCorrect = true,
+            IdempotencyKey = "review-1"
+        });
+
+        var second = service.ReviewWord(userId: 1, userVocabularyId: entity.Id, new ReviewVocabularyRequest
+        {
+            IsCorrect = true,
+            IdempotencyKey = "review-1"
+        });
+
+        Assert.Equal(1, first.ReviewCount);
+        Assert.Equal(1, second.ReviewCount);
+
+        Assert.Equal(now, first.LastReviewedAt!.Value);
+        Assert.Equal(now, second.LastReviewedAt!.Value);
+
+        Assert.Equal(now.AddDays(1), first.NextReviewAt);
+        Assert.Equal(now.AddDays(1), second.NextReviewAt);
+    }
+
+
+[Fact]
     public void ReviewWord_Wrong_ShouldResetReviewCount_AndSetNextReviewAt12h()
     {
         var dbContext = TestDbContextFactory.Create();

@@ -128,10 +128,14 @@ namespace Lumino.Api.Data
 
             modelBuilder.Entity<UserVocabulary>(entity =>
             {
+
+                entity.Property(x => x.ReviewIdempotencyKey)
+                    .HasMaxLength(64);
+
                 entity.HasOne<User>()
-                    .WithMany()
-                    .HasForeignKey(x => x.UserId)
-                    .OnDelete(DeleteBehavior.Cascade);
+                                    .WithMany()
+                                    .HasForeignKey(x => x.UserId)
+                                    .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasOne<VocabularyItem>()
                     .WithMany()

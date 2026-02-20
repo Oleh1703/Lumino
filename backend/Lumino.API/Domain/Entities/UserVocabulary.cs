@@ -15,5 +15,7 @@ namespace Lumino.Api.Domain.Entities
         public DateTime NextReviewAt { get; set; }
 
         public int ReviewCount { get; set; }
+
+        public string? ReviewIdempotencyKey { get; set; }
     }
 }
