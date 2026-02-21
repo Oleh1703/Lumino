@@ -3,9 +3,11 @@ using Lumino.Api.Data;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
 
 namespace Lumino.Tests.Integration.Http;
 
@@ -17,11 +19,30 @@ public class ApiWebApplicationFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Testing");
 
+        builder.ConfigureAppConfiguration((context, config) =>
+        {
+            // Щоб тести не залежали від реального appsettings.json (Demo:LessonIds може змінитися),
+            // фіксуємо demo-уроки прямо тут.
+            // ВАЖЛИВО: AddInMemoryCollection приймає IEnumerable<KeyValuePair<string, string?>>,
+            // тому тут використовуємо string? щоб не ловити попередження CS8620 (nullability mismatch).
+            var demoConfig = new Dictionary<string, string?>
+            {
+                ["Demo:LessonIds:0"] = "1",
+                ["Demo:LessonIds:1"] = "2",
+                ["Demo:LessonIds:2"] = "3"
+            };
+
+            config.AddInMemoryCollection(demoConfig);
+        });
+
         // Прибираємо INFO-логи (EF Core "Saved X entities..." і т.д.) у тестах
         builder.ConfigureLogging(logging =>
         {
             logging.ClearProviders();
             logging.AddConsole();
+
+            // Глобально відсікаємо все нижче Warning, щоб у виводі dotnet test не було INFO-логів контролерів
+            logging.AddFilter((category, level) => level >= LogLevel.Warning);
 
             logging.SetMinimumLevel(LogLevel.Warning);
             logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning);

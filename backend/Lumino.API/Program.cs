@@ -106,6 +106,11 @@ namespace Lumino.Api
                 builder.Configuration.GetSection("Learning")
             );
 
+            // конфіг демо (уроки без авторизації)
+            builder.Services.Configure<DemoSettings>(
+                builder.Configuration.GetSection("Demo")
+            );
+
             builder.Services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
             builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
 
@@ -122,6 +127,7 @@ namespace Lumino.Api
             builder.Services.AddScoped<ILessonService, LessonService>();
             builder.Services.AddScoped<IAdminLessonService, AdminLessonService>();
             builder.Services.AddScoped<IExerciseService, ExerciseService>();
+            builder.Services.AddScoped<IDemoLessonService, DemoLessonService>();
             builder.Services.AddScoped<IAdminExerciseService, AdminExerciseService>();
             builder.Services.AddScoped<ILessonResultService, LessonResultService>();
             builder.Services.AddScoped<ILessonMistakesService, LessonMistakesService>();
