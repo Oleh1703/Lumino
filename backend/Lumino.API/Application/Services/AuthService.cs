@@ -7,6 +7,7 @@ using Lumino.Api.Domain.Entities;
 using Lumino.Api.Domain.Enums;
 using Lumino.Api.Utils;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -21,19 +22,28 @@ namespace Lumino.Api.Application.Services
         private readonly IConfiguration _configuration;
         private readonly IRegisterRequestValidator _registerRequestValidator;
         private readonly ILoginRequestValidator _loginRequestValidator;
+        private readonly IForgotPasswordRequestValidator _forgotPasswordRequestValidator;
+        private readonly IResetPasswordRequestValidator _resetPasswordRequestValidator;
         private readonly IPasswordHasher _passwordHasher;
+        private readonly IHostEnvironment _hostEnvironment;
 
         public AuthService(
             LuminoDbContext dbContext,
             IConfiguration configuration,
             IRegisterRequestValidator registerRequestValidator,
             ILoginRequestValidator loginRequestValidator,
+            IForgotPasswordRequestValidator forgotPasswordRequestValidator,
+            IResetPasswordRequestValidator resetPasswordRequestValidator,
+            IHostEnvironment hostEnvironment,
             IPasswordHasher passwordHasher)
         {
             _dbContext = dbContext;
             _configuration = configuration;
             _registerRequestValidator = registerRequestValidator;
             _loginRequestValidator = loginRequestValidator;
+            _forgotPasswordRequestValidator = forgotPasswordRequestValidator;
+            _resetPasswordRequestValidator = resetPasswordRequestValidator;
+            _hostEnvironment = hostEnvironment;
             _passwordHasher = passwordHasher;
         }
 
@@ -64,13 +74,27 @@ namespace Lumino.Api.Application.Services
 
             var user = new User
             {
+                Username = NormalizeUsernameOrNull(request.Username),
                 Email = request.Email,
                 PasswordHash = passwordHash,
                 Role = Role.User,
                 CreatedAt = DateTime.UtcNow,
                 NativeLanguageCode = native,
-                TargetLanguageCode = target
+                TargetLanguageCode = target,
+                AvatarUrl = string.IsNullOrWhiteSpace(request.AvatarUrl) ? SupportedAvatars.DefaultAvatarUrl : request.AvatarUrl!.Trim(),
+                Hearts = 5,
+                Crystals = 0,
+                Theme = "light"
             };
+
+            if (string.IsNullOrWhiteSpace(user.Username))
+            {
+                user.Username = GenerateUniqueUsernameFromEmail(request.Email);
+            }
+            else
+            {
+                EnsureUsernameIsUniqueOrThrow(user.Username);
+            }
 
             _dbContext.Users.Add(user);
             _dbContext.SaveChanges();
@@ -90,7 +114,20 @@ namespace Lumino.Api.Application.Services
         {
             _loginRequestValidator.Validate(request);
 
-            var user = _dbContext.Users.FirstOrDefault(x => x.Email == request.Email);
+            var login = !string.IsNullOrWhiteSpace(request.Login)
+                ? request.Login.Trim()
+                : request.Email.Trim();
+
+            User? user;
+
+            if (login.Contains('@'))
+            {
+                user = _dbContext.Users.FirstOrDefault(x => x.Email == login);
+            }
+            else
+            {
+                user = _dbContext.Users.FirstOrDefault(x => x.Username == login);
+            }
             if (user == null)
             {
                 throw new UnauthorizedAccessException("Invalid credentials");
@@ -118,6 +155,157 @@ namespace Lumino.Api.Application.Services
                 Token = accessToken,
                 RefreshToken = refreshToken
             };
+        }
+
+        public ForgotPasswordResponse ForgotPassword(ForgotPasswordRequest request, string? ip, string? userAgent)
+        {
+            _forgotPasswordRequestValidator.Validate(request);
+
+            var email = request.Email.Trim();
+
+            var user = _dbContext.Users.FirstOrDefault(x => x.Email == email);
+
+            // Always respond OK to avoid account enumeration
+            if (user == null)
+            {
+                return new ForgotPasswordResponse
+                {
+                    IsSent = true
+                };
+            }
+
+            var rawToken = GeneratePasswordResetToken();
+            var tokenHash = HashToken(rawToken);
+
+            var nowUtc = DateTime.UtcNow;
+            var expiresAtUtc = nowUtc.AddMinutes(30);
+
+            var entity = new PasswordResetToken
+            {
+                UserId = user.Id,
+                TokenHash = tokenHash,
+                CreatedAt = nowUtc,
+                ExpiresAt = expiresAtUtc,
+                Ip = string.IsNullOrWhiteSpace(ip) ? null : ip.Trim(),
+                UserAgent = string.IsNullOrWhiteSpace(userAgent) ? null : userAgent.Trim()
+            };
+
+            _dbContext.PasswordResetTokens.Add(entity);
+            _dbContext.SaveChanges();
+
+            // For diploma/testing we can return the token in Development/Testing.
+            var canExposeToken = _hostEnvironment.IsDevelopment() || _hostEnvironment.IsEnvironment("Testing");
+
+            return new ForgotPasswordResponse
+            {
+                IsSent = true,
+                ResetToken = canExposeToken ? rawToken : null,
+                ExpiresAtUtc = canExposeToken ? expiresAtUtc : null
+            };
+        }
+
+        public void ResetPassword(ResetPasswordRequest request)
+        {
+            _resetPasswordRequestValidator.Validate(request);
+
+            var token = request.Token.Trim();
+            var tokenHash = HashToken(token);
+
+            var nowUtc = DateTime.UtcNow;
+
+            var reset = _dbContext.PasswordResetTokens
+                .FirstOrDefault(x => x.TokenHash == tokenHash);
+
+            if (reset == null)
+            {
+                throw new UnauthorizedAccessException("Invalid token");
+            }
+
+            if (reset.UsedAt != null)
+            {
+                throw new UnauthorizedAccessException("Token already used");
+            }
+
+            if (reset.ExpiresAt <= nowUtc)
+            {
+                throw new UnauthorizedAccessException("Token expired");
+            }
+
+            var user = _dbContext.Users.FirstOrDefault(x => x.Id == reset.UserId);
+
+            if (user == null)
+            {
+                throw new UnauthorizedAccessException("Invalid token");
+            }
+
+            user.PasswordHash = _passwordHasher.Hash(request.NewPassword);
+            reset.UsedAt = nowUtc;
+
+            _dbContext.SaveChanges();
+        }
+
+        private string? NormalizeUsernameOrNull(string? username)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                return null;
+            }
+
+            return username.Trim();
+        }
+
+        private void EnsureUsernameIsUniqueOrThrow(string username)
+        {
+            var existing = _dbContext.Users.FirstOrDefault(x => x.Username == username);
+
+            if (existing != null)
+            {
+                throw new ArgumentException("Username already exists");
+            }
+        }
+
+        private string GenerateUniqueUsernameFromEmail(string email)
+        {
+            var local = email.Split('@')[0];
+
+            var baseName = new string(local
+                .Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '-')
+                .ToArray());
+
+            if (string.IsNullOrWhiteSpace(baseName))
+            {
+                baseName = "user";
+            }
+
+            if (baseName.Length > 20)
+            {
+                baseName = baseName.Substring(0, 20);
+            }
+
+            var candidate = baseName;
+            int suffix = 1;
+
+            while (_dbContext.Users.Any(x => x.Username == candidate))
+            {
+                suffix++;
+                candidate = $"{baseName}{suffix}";
+
+                if (candidate.Length > 32)
+                {
+                    candidate = candidate.Substring(0, 32);
+                }
+            }
+
+            return candidate;
+        }
+
+        private static string GeneratePasswordResetToken()
+        {
+            var bytes = new byte[32];
+            using var rng = RandomNumberGenerator.Create();
+            rng.GetBytes(bytes);
+
+            return Base64UrlEncode(bytes);
         }
 
         public AuthResponse Refresh(RefreshTokenRequest request)
@@ -283,6 +471,16 @@ namespace Lumino.Api.Application.Services
             var bytes = Encoding.UTF8.GetBytes(token);
             var hash = sha256.ComputeHash(bytes);
             return Convert.ToBase64String(hash);
+        }
+
+        private static string Base64UrlEncode(byte[] bytes)
+        {
+            var base64 = Convert.ToBase64String(bytes);
+
+            return base64
+                .Replace("+", "-")
+                .Replace("/", "_")
+                .Replace("=", "");
         }
 
         private string CreateRefreshToken(int userId)

@@ -27,5 +27,7 @@ namespace Lumino.Api.Application.DTOs
         public int DueVocabulary { get; set; }
 
         public DateTime? NextVocabularyReviewAt { get; set; }
+
+        public List<DailyScoreResponse> WeeklyScores { get; set; } = new List<DailyScoreResponse>();
     }
 }

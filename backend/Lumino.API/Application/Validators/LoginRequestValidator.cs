@@ -11,21 +11,24 @@ namespace Lumino.Api.Application.Validators
                 throw new ArgumentException("Request is required");
             }
 
-            if (string.IsNullOrWhiteSpace(request.Email))
+            var login = !string.IsNullOrWhiteSpace(request.Login)
+                ? request.Login
+                : request.Email;
+
+            if (string.IsNullOrWhiteSpace(login))
             {
-                throw new ArgumentException("Email is required");
+                throw new ArgumentException("Login is required");
             }
 
-            var email = request.Email.Trim();
+            var value = login.Trim();
 
-            if (email.Length < 5 || email.Length > 100)
+            if (value.Contains('@'))
             {
-                throw new ArgumentException("Email length must be between 5 and 100 characters");
+                ValidateEmail(value);
             }
-
-            if (!IsValidEmail(email))
+            else
             {
-                throw new ArgumentException("Email is invalid");
+                ValidateUsername(value);
             }
 
             if (string.IsNullOrWhiteSpace(request.Password))
@@ -43,6 +46,32 @@ namespace Lumino.Api.Application.Validators
             if (password.Length > 64)
             {
                 throw new ArgumentException("Password must be at most 64 characters");
+            }
+        }
+
+        private static void ValidateEmail(string email)
+        {
+            if (email.Length < 5 || email.Length > 100)
+            {
+                throw new ArgumentException("Email length must be between 5 and 100 characters");
+            }
+
+            if (!IsValidEmail(email))
+            {
+                throw new ArgumentException("Email is invalid");
+            }
+        }
+
+        private static void ValidateUsername(string username)
+        {
+            if (username.Length < 3 || username.Length > 32)
+            {
+                throw new ArgumentException("Username length must be between 3 and 32 characters");
+            }
+
+            if (username.Contains(" "))
+            {
+                throw new ArgumentException("Username must not contain spaces");
             }
         }
 

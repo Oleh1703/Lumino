@@ -29,6 +29,7 @@ namespace Lumino.Api.Data
         public DbSet<UserCourse> UserCourses => Set<UserCourse>();
         public DbSet<UserLessonProgress> UserLessonProgresses => Set<UserLessonProgress>();
         public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+        public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -38,11 +39,34 @@ namespace Lumino.Api.Data
             {
                 entity.HasIndex(x => x.Email).IsUnique();
 
+                entity.HasIndex(x => x.Username)
+                    .IsUnique()
+                    .HasFilter("[Username] IS NOT NULL");
+
                 entity.Property(x => x.Email).IsRequired();
                 entity.Property(x => x.PasswordHash).IsRequired();
 
                 entity.Property(x => x.NativeLanguageCode).HasMaxLength(10);
                 entity.Property(x => x.TargetLanguageCode).HasMaxLength(10);
+
+                entity.Property(x => x.Username).HasMaxLength(32);
+                entity.Property(x => x.AvatarUrl).HasMaxLength(256);
+                entity.Property(x => x.Theme).HasMaxLength(20).HasDefaultValue("light");
+            });
+
+            modelBuilder.Entity<PasswordResetToken>(entity =>
+            {
+                entity.Property(x => x.TokenHash).IsRequired().HasMaxLength(64);
+                entity.Property(x => x.Ip).HasMaxLength(100);
+                entity.Property(x => x.UserAgent).HasMaxLength(300);
+
+                entity.HasIndex(x => x.TokenHash).IsUnique();
+                entity.HasIndex(x => new { x.UserId, x.ExpiresAt });
+
+                entity.HasOne<User>()
+                    .WithMany()
+                    .HasForeignKey(x => x.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             modelBuilder.Entity<Course>(entity =>

@@ -19,6 +19,9 @@ public class AuthServiceTests
             configuration,
             new FakeRegisterValidator(),
             new FakeLoginValidator(),
+            new FakeForgotPasswordValidator(),
+            new FakeResetPasswordValidator(),
+            new FakeHostEnvironment(),
             new PasswordHasher()
         );
 
@@ -56,6 +59,9 @@ public class AuthServiceTests
             configuration,
             new FakeRegisterValidator(),
             new FakeLoginValidator(),
+            new FakeForgotPasswordValidator(),
+            new FakeResetPasswordValidator(),
+            new FakeHostEnvironment(),
             new PasswordHasher()
         );
 
@@ -81,6 +87,9 @@ public class AuthServiceTests
             configuration,
             new FakeRegisterValidator(),
             new FakeLoginValidator(),
+            new FakeForgotPasswordValidator(),
+            new FakeResetPasswordValidator(),
+            new FakeHostEnvironment(),
             new PasswordHasher()
         );
 
@@ -109,6 +118,9 @@ public class AuthServiceTests
             configuration,
             new FakeRegisterValidator(),
             new FakeLoginValidator(),
+            new FakeForgotPasswordValidator(),
+            new FakeResetPasswordValidator(),
+            new FakeHostEnvironment(),
             new PasswordHasher()
         );
 

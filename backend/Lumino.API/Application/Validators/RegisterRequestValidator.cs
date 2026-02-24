@@ -12,6 +12,11 @@ namespace Lumino.Api.Application.Validators
                 throw new ArgumentException("Request is required");
             }
 
+            if (!string.IsNullOrWhiteSpace(request.Username))
+            {
+                ValidateUsername(request.Username);
+            }
+
             if (string.IsNullOrWhiteSpace(request.Email))
             {
                 throw new ArgumentException("Email is required");
@@ -46,6 +51,8 @@ namespace Lumino.Api.Application.Validators
                 throw new ArgumentException("Password must be at most 64 characters");
             }
 
+            SupportedAvatars.Validate(request.AvatarUrl, "AvatarUrl");
+
             var hasNative = !string.IsNullOrWhiteSpace(request.NativeLanguageCode);
             var hasTarget = !string.IsNullOrWhiteSpace(request.TargetLanguageCode);
 
@@ -72,6 +79,21 @@ namespace Lumino.Api.Application.Validators
                         throw new ArgumentException("NativeLanguageCode and TargetLanguageCode must be different");
                     }
                 }
+            }
+        }
+
+        private static void ValidateUsername(string username)
+        {
+            var value = username.Trim();
+
+            if (value.Length < 3 || value.Length > 32)
+            {
+                throw new ArgumentException("Username length must be between 3 and 32 characters");
+            }
+
+            if (value.Contains(" "))
+            {
+                throw new ArgumentException("Username must not contain spaces");
             }
         }
 

@@ -4,6 +4,10 @@ namespace Lumino.Api.Application.DTOs
     {
         public int Id { get; set; }
 
+        public string? Username { get; set; }
+
+        public string? AvatarUrl { get; set; }
+
         public string Email { get; set; } = null!;
 
         public string Role { get; set; } = null!;
@@ -13,5 +17,11 @@ namespace Lumino.Api.Application.DTOs
         public string? NativeLanguageCode { get; set; }
 
         public string? TargetLanguageCode { get; set; }
+
+        public int Hearts { get; set; }
+
+        public int Crystals { get; set; }
+
+        public string Theme { get; set; } = null!;
     }
 }

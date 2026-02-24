@@ -29,6 +29,23 @@ namespace Lumino.Api.Controllers
             return Ok(result);
         }
 
+        [HttpPost("forgot-password")]
+        public IActionResult ForgotPassword(ForgotPasswordRequest request)
+        {
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var userAgent = Request.Headers.UserAgent.ToString();
+
+            var result = _authService.ForgotPassword(request, ip, userAgent);
+            return Ok(result);
+        }
+
+        [HttpPost("reset-password")]
+        public IActionResult ResetPassword(ResetPasswordRequest request)
+        {
+            _authService.ResetPassword(request);
+            return NoContent();
+        }
+
         [HttpPost("refresh")]
         public IActionResult Refresh(RefreshTokenRequest request)
         {

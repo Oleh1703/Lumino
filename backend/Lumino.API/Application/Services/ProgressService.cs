@@ -91,6 +91,8 @@ namespace Lumino.Api.Application.Services
 
             var (currentStreak, lastStudyAt) = CalculateCurrentStreak(studyDatesUtc, nowUtc);
 
+            var weekly = BuildWeeklyScores(userId, nowUtc);
+
             if (progress == null)
             {
                 return new UserProgressResponse
@@ -107,7 +109,8 @@ namespace Lumino.Api.Application.Services
                     CompletedDistinctScenes = completedDistinctScenes,
                     TotalVocabulary = totalVocabulary,
                     DueVocabulary = dueVocabulary,
-                    NextVocabularyReviewAt = nextVocabularyReviewAt
+                    NextVocabularyReviewAt = nextVocabularyReviewAt,
+                    WeeklyScores = weekly
                 };
             }
 
@@ -125,8 +128,50 @@ namespace Lumino.Api.Application.Services
                 CompletedDistinctScenes = completedDistinctScenes,
                 TotalVocabulary = totalVocabulary,
                 DueVocabulary = dueVocabulary,
-                NextVocabularyReviewAt = nextVocabularyReviewAt
+                NextVocabularyReviewAt = nextVocabularyReviewAt,
+                WeeklyScores = weekly
             };
+        }
+
+        private List<DailyScoreResponse> BuildWeeklyScores(int userId, DateTime nowUtc)
+        {
+            var todayUtc = nowUtc.Date;
+            var startUtc = todayUtc.AddDays(-6);
+            var endUtc = todayUtc.AddDays(1);
+
+            var lessonScores = _dbContext.LessonResults
+                .Where(x => x.UserId == userId && x.CompletedAt >= startUtc && x.CompletedAt < endUtc)
+                .Select(x => new { Date = x.CompletedAt.Date, x.Score })
+                .ToList();
+
+            var sceneScores = _dbContext.SceneAttempts
+                .Where(x => x.UserId == userId && x.IsCompleted && x.CompletedAt >= startUtc && x.CompletedAt < endUtc)
+                .Select(x => new { Date = x.CompletedAt.Date, x.Score })
+                .ToList();
+
+            var all = lessonScores
+                .Concat(sceneScores)
+                .ToList();
+
+            var byDate = all
+                .GroupBy(x => x.Date)
+                .ToDictionary(x => x.Key, x => x.Sum(v => v.Score));
+
+            var result = new List<DailyScoreResponse>();
+
+            for (int i = 0; i < 7; i++)
+            {
+                var date = startUtc.AddDays(i);
+                var score = byDate.TryGetValue(date, out var s) ? s : 0;
+
+                result.Add(new DailyScoreResponse
+                {
+                    DateUtc = date,
+                    Score = score
+                });
+            }
+
+            return result;
         }
 
 

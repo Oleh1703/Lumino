@@ -8,6 +8,10 @@ namespace Lumino.Api.Application.Interfaces
 
         AuthResponse Login(LoginRequest request);
 
+        ForgotPasswordResponse ForgotPassword(ForgotPasswordRequest request, string? ip, string? userAgent);
+
+        void ResetPassword(ResetPasswordRequest request);
+
         AuthResponse Refresh(RefreshTokenRequest request);
 
         void Logout(RefreshTokenRequest request);
