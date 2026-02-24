@@ -43,6 +43,7 @@ public class LessonResultServiceIntegrationTests
             dbContext,
             new FakeAchievementService(),
             new FakeDateTimeProvider(),
+	        new FakeUserEconomyService(),
             new SubmitLessonRequestValidator(),
             Options.Create(new LearningSettings { PassingScorePercent = 80 })
         );
@@ -112,6 +113,7 @@ public class LessonResultServiceIntegrationTests
             dbContext,
             new FakeAchievementService(),
             new FakeDateTimeProvider(),
+	        new FakeUserEconomyService(),
             new SubmitLessonRequestValidator(),
             Options.Create(new LearningSettings { PassingScorePercent = 80 })
         );
@@ -191,6 +193,7 @@ public class LessonResultServiceIntegrationTests
             dbContext,
             new FakeAchievementService(),
             new FakeDateTimeProvider(),
+	        new FakeUserEconomyService(),
             new SubmitLessonRequestValidator(),
             Options.Create(new LearningSettings { PassingScorePercent = 80 })
         );
@@ -224,6 +227,7 @@ public class LessonResultServiceIntegrationTests
             dbContext,
             new FakeAchievementService(),
             new FakeDateTimeProvider(),
+	        new FakeUserEconomyService(),
             new SubmitLessonRequestValidator(),
             Options.Create(new LearningSettings { PassingScorePercent = 80 })
         );
@@ -248,6 +252,7 @@ public class LessonResultServiceIntegrationTests
             dbContext,
             new FakeAchievementService(),
             new FakeDateTimeProvider(),
+	        new FakeUserEconomyService(),
             new SubmitLessonRequestValidator(),
             Options.Create(new LearningSettings { PassingScorePercent = 80 })
         );
@@ -318,6 +323,7 @@ public class LessonResultServiceIntegrationTests
             dbContext,
             new FakeAchievementService(),
             new FakeDateTimeProvider(),
+	        new FakeUserEconomyService(),
             new SubmitLessonRequestValidator(),
             Options.Create(new LearningSettings { PassingScorePercent = 80 })
         );
@@ -379,6 +385,7 @@ public class LessonResultServiceIntegrationTests
             dbContext,
             new FakeAchievementService(),
             new FakeDateTimeProvider(),
+	        new FakeUserEconomyService(),
             new SubmitLessonRequestValidator(),
             Options.Create(new LearningSettings { PassingScorePercent = 80 })
         );

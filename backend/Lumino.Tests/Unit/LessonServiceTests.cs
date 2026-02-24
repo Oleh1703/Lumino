@@ -11,7 +11,7 @@ public class LessonServiceTests
     public void GetLessonsByTopic_WhenTopicNotFound_Throws()
     {
         var dbContext = TestDbContextFactory.Create();
-        var service = new LessonService(dbContext);
+        var service = new LessonService(dbContext, new FakeUserEconomyService());
 
         Assert.Throws<KeyNotFoundException>(() => service.GetLessonsByTopic(999));
     }
@@ -43,7 +43,7 @@ public class LessonServiceTests
         dbContext.Topics.Add(topic);
         dbContext.SaveChanges();
 
-        var service = new LessonService(dbContext);
+        var service = new LessonService(dbContext, new FakeUserEconomyService());
 
         Assert.Throws<KeyNotFoundException>(() => service.GetLessonsByTopic(topic.Id));
     }
@@ -82,7 +82,7 @@ public class LessonServiceTests
         dbContext.Lessons.AddRange(lesson1, lesson2, lesson3);
         dbContext.SaveChanges();
 
-        var service = new LessonService(dbContext);
+        var service = new LessonService(dbContext, new FakeUserEconomyService());
 
         var result = service.GetLessonsByTopic(topic.Id);
 
@@ -99,7 +99,7 @@ public class LessonServiceTests
     public void GetLessonById_WhenLessonNotFound_Throws()
     {
         var dbContext = TestDbContextFactory.Create();
-        var service = new LessonService(dbContext);
+        var service = new LessonService(dbContext, new FakeUserEconomyService());
 
         Assert.Throws<KeyNotFoundException>(() => service.GetLessonById(10, 999));
     }
@@ -160,7 +160,7 @@ public class LessonServiceTests
 
         dbContext.SaveChanges();
 
-        var service = new LessonService(dbContext);
+        var service = new LessonService(dbContext, new FakeUserEconomyService());
 
         var ex = Assert.Throws<ForbiddenAccessException>(() => service.GetLessonById(10, lesson2.Id));
 
@@ -217,7 +217,7 @@ public class LessonServiceTests
 
         dbContext.SaveChanges();
 
-        var service = new LessonService(dbContext);
+        var service = new LessonService(dbContext, new FakeUserEconomyService());
 
         var result = service.GetLessonById(10, lesson.Id);
 

@@ -91,6 +91,7 @@ public class LearningHappyPathIntegrationTests
             dbContext,
             new FakeAchievementService(),
             dateTimeProvider,
+	        new FakeUserEconomyService(),
             new SubmitLessonRequestValidator(),
             settings
         );
@@ -253,6 +254,7 @@ public class LearningHappyPathIntegrationTests
             dbContext,
             new FakeAchievementService(),
             dateTimeProvider,
+	        new FakeUserEconomyService(),
             new SubmitLessonRequestValidator(),
             settings
         );

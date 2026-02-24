@@ -24,5 +24,23 @@ namespace Lumino.Api.Utils
         // SRS (Vocabulary): інтервали повторення в днях для правильних відповідей.
         // приклад: 1, 2, 4, 7, 14, 30, 60...
         public List<int> VocabularyReviewIntervalsDays { get; set; } = new List<int> { 1, 2, 4, 7, 14, 30, 60 };
+
+        // Hearts / Crystals (Duolingo-like economy)
+        public int HeartsMax { get; set; } = 5;
+
+        // Скільки "сердечок" знімаємо за 1 помилку. 1 = класичний варіант.
+        public int HeartsCostPerMistake { get; set; } = 1;
+
+        // Скільки кристалів коштує відновити 1 сердечко.
+        public int CrystalCostPerHeart { get; set; } = 10;
+
+        // Автовідновлення: через скільки хвилин відновлюється 1 сердечко.
+        public int HeartRegenMinutes { get; set; } = 30;
+
+        // Нагорода кристалами за перше проходження уроку (passed).
+        public int CrystalsRewardPerPassedLesson { get; set; } = 1;
+
+        // Нагорода кристалами за перше проходження сцени (completed).
+        public int CrystalsRewardPerCompletedScene { get; set; } = 1;
     }
 }

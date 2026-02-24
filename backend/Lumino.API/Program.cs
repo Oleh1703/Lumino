@@ -125,6 +125,7 @@ namespace Lumino.Api
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<IUserService, UserService>();
             builder.Services.AddScoped<IUserAccountService, UserAccountService>();
+            builder.Services.AddScoped<IUserEconomyService, UserEconomyService>();
             builder.Services.AddScoped<IOnboardingService, OnboardingService>();
             builder.Services.AddScoped<ICourseService, CourseService>();
             builder.Services.AddScoped<IAdminCourseService, AdminCourseService>();
@@ -206,6 +207,11 @@ namespace Lumino.Api
 
             app.UseAuthentication();
             app.UseAuthorization();
+
+            // Для інтеграційних тестів (Environment=Testing):
+            // якщо в Claims є userId, але в БД ще немає запису User - створюємо його автоматично.
+            // Це дозволяє бізнес-логіці (hearts/crystals/progress) працювати коректно в тестах.
+            app.UseMiddleware<EnsureTestUserMiddleware>();
 
             // Єдиний формат помилок для 401/403 (і тих випадків, де не кидаються винятки)
             app.UseStatusCodePages(async statusCodeContext =>

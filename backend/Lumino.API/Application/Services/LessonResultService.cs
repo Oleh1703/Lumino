@@ -17,6 +17,7 @@ namespace Lumino.Api.Application.Services
         private readonly LuminoDbContext _dbContext;
         private readonly IAchievementService _achievementService;
         private readonly IDateTimeProvider _dateTimeProvider;
+        private readonly IUserEconomyService _userEconomyService;
         private readonly ISubmitLessonRequestValidator _submitLessonRequestValidator;
         private readonly LearningSettings _learningSettings;
 
@@ -24,12 +25,14 @@ namespace Lumino.Api.Application.Services
             LuminoDbContext dbContext,
             IAchievementService achievementService,
             IDateTimeProvider dateTimeProvider,
+            IUserEconomyService userEconomyService,
             ISubmitLessonRequestValidator submitLessonRequestValidator,
             IOptions<LearningSettings> learningSettings)
         {
             _dbContext = dbContext;
             _achievementService = achievementService;
             _dateTimeProvider = dateTimeProvider;
+            _userEconomyService = userEconomyService;
             _submitLessonRequestValidator = submitLessonRequestValidator;
             _learningSettings = learningSettings.Value;
         }
@@ -161,6 +164,9 @@ namespace Lumino.Api.Application.Services
                 throw;
             }
 
+
+            _userEconomyService.ConsumeHeartsForMistakes(userId, mistakeExerciseIds.Count);
+
             UpdateUserProgress(userId, shouldIncrementCompletedLessons);
 
             // автододавання слів у Vocabulary після Passed
@@ -168,6 +174,12 @@ namespace Lumino.Api.Application.Services
 
             // активний курс + прогрес уроків + unlock наступного + перенос LastLessonId
             UpdateCourseProgressAfterLesson(userId, lesson.Id, isPassed, correct);
+
+
+            if (shouldIncrementCompletedLessons)
+            {
+                _userEconomyService.AwardCrystalsForPassedLessonIfNeeded(userId);
+            }
 
             _achievementService.CheckAndGrantAchievements(userId, correct, exercises.Count);
 

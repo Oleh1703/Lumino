@@ -69,6 +69,7 @@ public class CourseCompletedIntegrationTests
             dbContext,
             new FakeAchievementService(),
             dateTimeProvider,
+	        new FakeUserEconomyService(),
             new SubmitLessonRequestValidator(),
             settings
         );

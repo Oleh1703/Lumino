@@ -12,7 +12,7 @@ public class ExerciseServiceTests
     public void GetExercisesByLesson_WhenLessonNotFound_Throws()
     {
         var dbContext = TestDbContextFactory.Create();
-        var service = new ExerciseService(dbContext);
+        var service = new ExerciseService(dbContext, new FakeUserEconomyService());
 
         Assert.Throws<KeyNotFoundException>(() => service.GetExercisesByLesson(10, 999));
     }
@@ -33,7 +33,7 @@ public class ExerciseServiceTests
 
         dbContext.SaveChanges();
 
-        var service = new ExerciseService(dbContext);
+        var service = new ExerciseService(dbContext, new FakeUserEconomyService());
 
         Assert.Throws<KeyNotFoundException>(() => service.GetExercisesByLesson(10, 1));
     }
@@ -70,7 +70,7 @@ public class ExerciseServiceTests
 
         dbContext.SaveChanges();
 
-        var service = new ExerciseService(dbContext);
+        var service = new ExerciseService(dbContext, new FakeUserEconomyService());
 
         Assert.Throws<KeyNotFoundException>(() => service.GetExercisesByLesson(10, 1));
     }
@@ -118,7 +118,7 @@ public class ExerciseServiceTests
 
         dbContext.SaveChanges();
 
-        var service = new ExerciseService(dbContext);
+        var service = new ExerciseService(dbContext, new FakeUserEconomyService());
 
         Assert.Throws<ForbiddenAccessException>(() => service.GetExercisesByLesson(10, 1));
     }
@@ -208,7 +208,7 @@ public class ExerciseServiceTests
 
         dbContext.SaveChanges();
 
-        var service = new ExerciseService(dbContext);
+        var service = new ExerciseService(dbContext, new FakeUserEconomyService());
 
         var result = service.GetExercisesByLesson(10, 1);
 
@@ -292,7 +292,7 @@ public class ExerciseServiceTests
 
         dbContext.SaveChanges();
 
-        var service = new ExerciseService(dbContext);
+        var service = new ExerciseService(dbContext, new FakeUserEconomyService());
 
         var result = service.GetExercisesByLesson(10, 1);
 

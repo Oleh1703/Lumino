@@ -6,6 +6,8 @@ namespace Lumino.Api.Application.DTOs
     {
         public string? MistakesIdempotencyKey { get; set; }
 
+        public bool PracticeHeartGranted { get; set; }
+
         public List<int> MistakeExerciseIds { get; set; } = new();
 
         public List<LessonAnswerResultDto> Answers { get; set; } = new();

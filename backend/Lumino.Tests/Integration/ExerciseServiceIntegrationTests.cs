@@ -2,6 +2,7 @@ using Lumino.Api.Application.Services;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Domain.Enums;
 using Lumino.Api.Utils;
+using Lumino.Tests;
 using Xunit;
 
 namespace Lumino.Tests.Integration;
@@ -51,7 +52,7 @@ public class ExerciseServiceIntegrationTests
 
         dbContext.SaveChanges();
 
-        var service = new ExerciseService(dbContext);
+        var service = new ExerciseService(dbContext, new FakeUserEconomyService());
 
         Assert.Throws<ForbiddenAccessException>(() =>
         {
@@ -112,7 +113,7 @@ public class ExerciseServiceIntegrationTests
 
         dbContext.SaveChanges();
 
-        var service = new ExerciseService(dbContext);
+        var service = new ExerciseService(dbContext, new FakeUserEconomyService());
 
         var list = service.GetExercisesByLesson(10, 1);
 

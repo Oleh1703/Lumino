@@ -35,6 +35,7 @@ public class SceneMistakesLegacyPassingPercentTests
             dbContext,
             new FixedDateTimeProvider(DateTime.UtcNow),
             new FakeAchievementService(),
+	        new FakeUserEconomyService(),
             Options.Create(new LearningSettings
             {
                 ScenePassingPercent = 100,
@@ -81,6 +82,7 @@ public class SceneMistakesLegacyPassingPercentTests
             dbContext,
             new FixedDateTimeProvider(DateTime.UtcNow),
             new FakeAchievementService(),
+	        new FakeUserEconomyService(),
             Options.Create(new LearningSettings
             {
                 ScenePassingPercent = 100,

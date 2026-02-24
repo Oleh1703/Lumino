@@ -1,5 +1,6 @@
 ﻿using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Services;
+using Lumino.Api.Application.Validators;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Utils;
 using Xunit;
@@ -19,8 +20,8 @@ public class AuthServiceTests
             configuration,
             new FakeRegisterValidator(),
             new FakeLoginValidator(),
-            new FakeForgotPasswordValidator(),
-            new FakeResetPasswordValidator(),
+            new ForgotPasswordRequestValidator(),
+            new ResetPasswordRequestValidator(),
             new FakeHostEnvironment(),
             new PasswordHasher()
         );
@@ -59,8 +60,8 @@ public class AuthServiceTests
             configuration,
             new FakeRegisterValidator(),
             new FakeLoginValidator(),
-            new FakeForgotPasswordValidator(),
-            new FakeResetPasswordValidator(),
+            new ForgotPasswordRequestValidator(),
+            new ResetPasswordRequestValidator(),
             new FakeHostEnvironment(),
             new PasswordHasher()
         );
@@ -87,8 +88,8 @@ public class AuthServiceTests
             configuration,
             new FakeRegisterValidator(),
             new FakeLoginValidator(),
-            new FakeForgotPasswordValidator(),
-            new FakeResetPasswordValidator(),
+            new ForgotPasswordRequestValidator(),
+            new ResetPasswordRequestValidator(),
             new FakeHostEnvironment(),
             new PasswordHasher()
         );
@@ -118,8 +119,8 @@ public class AuthServiceTests
             configuration,
             new FakeRegisterValidator(),
             new FakeLoginValidator(),
-            new FakeForgotPasswordValidator(),
-            new FakeResetPasswordValidator(),
+            new ForgotPasswordRequestValidator(),
+            new ResetPasswordRequestValidator(),
             new FakeHostEnvironment(),
             new PasswordHasher()
         );

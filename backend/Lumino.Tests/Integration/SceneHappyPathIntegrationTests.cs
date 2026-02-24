@@ -120,6 +120,7 @@ public class SceneHappyPathIntegrationTests
             dbContext,
             new FakeAchievementService(),
             dateTimeProvider,
+	        new FakeUserEconomyService(),
             new SubmitLessonRequestValidator(),
             settings
         );
@@ -128,6 +129,7 @@ public class SceneHappyPathIntegrationTests
             dbContext,
             dateTimeProvider,
             new FakeAchievementService(),
+	        new FakeUserEconomyService(),
             settings
         );
 

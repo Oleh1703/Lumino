@@ -620,12 +620,95 @@ public class LessonMistakesServiceTests
     }
 
 
+    [Fact]
+    public void SubmitLessonMistakes_WhenPracticeCompleted_ShouldAwardHeartOnlyOnce_AndPersistFlag()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        SeedLessonBase(dbContext, lessonId: 1, isUnlocked: true);
+
+        dbContext.Exercises.AddRange(
+            new Exercise { Id = 1, LessonId = 1, Order = 1, Type = ExerciseType.Input, Question = "Q1", CorrectAnswer = "a", Data = "{}" },
+            new Exercise { Id = 2, LessonId = 1, Order = 2, Type = ExerciseType.Input, Question = "Q2", CorrectAnswer = "b", Data = "{}" }
+        );
+
+        dbContext.UserLessonProgresses.Add(new UserLessonProgress
+        {
+            UserId = 1,
+            LessonId = 1,
+            IsUnlocked = true,
+            IsCompleted = false
+        });
+
+        var details = new LessonResultDetailsJson
+        {
+            MistakeExerciseIds = new() { 2 },
+            Answers = new()
+            {
+                new LessonAnswerResultDto { ExerciseId = 1, UserAnswer = "a", CorrectAnswer = "a", IsCorrect = true },
+                new LessonAnswerResultDto { ExerciseId = 2, UserAnswer = "WRONG", CorrectAnswer = "b", IsCorrect = false }
+            }
+        };
+
+        dbContext.LessonResults.Add(new LessonResult
+        {
+            Id = 1,
+            UserId = 1,
+            LessonId = 1,
+            Score = 1,
+            TotalQuestions = 2,
+            CompletedAt = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc),
+            MistakesJson = JsonSerializer.Serialize(details)
+        });
+
+        dbContext.SaveChanges();
+
+        var service = CreateService(dbContext, out _, out var economy);
+
+        var request = new SubmitLessonMistakesRequest
+        {
+            IdempotencyKey = "p1",
+            Answers = new()
+            {
+                new SubmitExerciseAnswerRequest { ExerciseId = 2, Answer = "b" }
+            }
+        };
+
+        var response1 = service.SubmitLessonMistakes(userId: 1, lessonId: 1, request);
+        var response2 = service.SubmitLessonMistakes(userId: 1, lessonId: 1, request);
+
+        Assert.True(response1.IsCompleted);
+        Assert.True(response2.IsCompleted);
+        Assert.Equal(1, economy.AwardHeartForPracticeCallsCount);
+
+        var saved = dbContext.LessonResults.First(x => x.Id == 1);
+
+        var updated = JsonSerializer.Deserialize<LessonResultDetailsJson>(saved.MistakesJson!, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+
+        Assert.NotNull(updated);
+        Assert.True(updated!.PracticeHeartGranted);
+    }
+
+
 
     private static LessonMistakesService CreateService(Lumino.Api.Data.LuminoDbContext dbContext, out FakeAchievementService achievementService)
+    {
+        return CreateService(dbContext, out achievementService, out _);
+    }
+
+    private static LessonMistakesService CreateService(
+        Lumino.Api.Data.LuminoDbContext dbContext,
+        out FakeAchievementService achievementService,
+        out FakeUserEconomyService userEconomyService)
     {
         var now = new DateTime(2026, 02, 16, 12, 0, 0, DateTimeKind.Utc);
 
         achievementService = new FakeAchievementService();
+
+        userEconomyService = new FakeUserEconomyService();
 
         var settings = Options.Create(new LearningSettings
         {
@@ -633,7 +716,7 @@ public class LessonMistakesServiceTests
             SceneUnlockEveryLessons = 1
         });
 
-        return new LessonMistakesService(dbContext, achievementService, new FixedDateTimeProvider(now), settings);
+        return new LessonMistakesService(dbContext, achievementService, new FixedDateTimeProvider(now), settings, userEconomyService);
     }
 
     private class FakeAchievementService : IAchievementService

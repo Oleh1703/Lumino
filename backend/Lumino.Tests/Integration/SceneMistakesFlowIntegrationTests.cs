@@ -76,6 +76,7 @@ public class SceneMistakesFlowIntegrationTests
             dbContext,
             dateTimeProvider,
             new FakeAchievementService(),
+	        new FakeUserEconomyService(),
             settings
         );
 

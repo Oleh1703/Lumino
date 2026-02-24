@@ -15,6 +15,7 @@ namespace Lumino.Api.Application.Services
         private readonly LuminoDbContext _dbContext;
         private readonly IDateTimeProvider _dateTimeProvider;
         private readonly IAchievementService _achievementService;
+        private readonly IUserEconomyService _userEconomyService;
         private readonly ISubmitSceneRequestValidator _submitSceneRequestValidator;
         private readonly LearningSettings _learningSettings;
 
@@ -22,11 +23,13 @@ namespace Lumino.Api.Application.Services
             LuminoDbContext dbContext,
             IDateTimeProvider dateTimeProvider,
             IAchievementService achievementService,
+            IUserEconomyService userEconomyService,
             IOptions<LearningSettings> learningSettings)
             : this(
                 dbContext,
                 dateTimeProvider,
                 achievementService,
+                userEconomyService,
                 learningSettings,
                 new SubmitSceneRequestValidator())
         {
@@ -36,12 +39,14 @@ namespace Lumino.Api.Application.Services
             LuminoDbContext dbContext,
             IDateTimeProvider dateTimeProvider,
             IAchievementService achievementService,
+            IUserEconomyService userEconomyService,
             IOptions<LearningSettings> learningSettings,
             ISubmitSceneRequestValidator submitSceneRequestValidator)
         {
             _dbContext = dbContext;
             _dateTimeProvider = dateTimeProvider;
             _achievementService = achievementService;
+            _userEconomyService = userEconomyService;
             _learningSettings = learningSettings.Value;
             _submitSceneRequestValidator = submitSceneRequestValidator;
         }
@@ -466,6 +471,8 @@ namespace Lumino.Api.Application.Services
                 WriteIndented = false
             });
 
+            _userEconomyService.ConsumeHeartsForMistakes(userId, details.MistakeStepIds.Count);
+
             EnsureCompletedAttempt(
                 userId,
                 sceneId,
@@ -567,6 +574,11 @@ namespace Lumino.Api.Application.Services
                 .ToList();
 
             int totalQuestions = questionSteps.Count;
+
+            if (totalQuestions > 0)
+            {
+                _userEconomyService.EnsureHasHeartsOrThrow(userId);
+            }
 
             // якщо в сцені немає choices (тільки діалоги/контент) — submit завершує сцену як “пройдено”
             if (totalQuestions == 0)
@@ -1056,6 +1068,9 @@ namespace Lumino.Api.Application.Services
                 AddSceneVocabularyIfNeeded(userId, sceneId, detailsJson);
 
                 UpdateUserProgressAfterScene(userId);
+
+                _userEconomyService.AwardCrystalsForCompletedSceneIfNeeded(userId);
+
                 _achievementService.CheckAndGrantSceneAchievements(userId);
             }
         }

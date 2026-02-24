@@ -8,10 +8,12 @@ namespace Lumino.Api.Application.Services
     public class ExerciseService : IExerciseService
     {
         private readonly LuminoDbContext _dbContext;
+        private readonly IUserEconomyService _userEconomyService;
 
-        public ExerciseService(LuminoDbContext dbContext)
+        public ExerciseService(LuminoDbContext dbContext, IUserEconomyService userEconomyService)
         {
             _dbContext = dbContext;
+            _userEconomyService = userEconomyService;
         }
 
         public List<ExerciseResponse> GetExercisesByLesson(int userId, int lessonId)
@@ -45,19 +47,21 @@ namespace Lumino.Api.Application.Services
                 throw new ForbiddenAccessException("Lesson is locked");
             }
 
+            _userEconomyService.EnsureHasHeartsOrThrow(userId);
+
             return _dbContext.Exercises
-                .Where(x => x.LessonId == lesson.Id)
-                .OrderBy(x => x.Order <= 0 ? int.MaxValue : x.Order)
-                .ThenBy(x => x.Id)
-                .Select(x => new ExerciseResponse
-                {
-                    Id = x.Id,
-                    Type = x.Type.ToString(),
-                    Question = x.Question,
-                    Data = x.Data,
-                    Order = x.Order
-                })
-                .ToList();
+                            .Where(x => x.LessonId == lesson.Id)
+                            .OrderBy(x => x.Order <= 0 ? int.MaxValue : x.Order)
+                            .ThenBy(x => x.Id)
+                            .Select(x => new ExerciseResponse
+                            {
+                                Id = x.Id,
+                                Type = x.Type.ToString(),
+                                Question = x.Question,
+                                Data = x.Data,
+                                Order = x.Order
+                            })
+                            .ToList();
         }
     }
 }

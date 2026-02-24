@@ -67,7 +67,7 @@ public class SceneServiceTests
             SceneUnlockEveryLessons = 1
         });
 
-        var service = new SceneService(dbContext, dateTimeProvider, achievementService, settings);
+        var service = new SceneService(dbContext, dateTimeProvider, achievementService, new FakeUserEconomyService(), settings);
 
         service.MarkCompleted(userId: 1, sceneId: 1);
 
@@ -129,6 +129,7 @@ public class SceneServiceTests
             dbContext,
             new FixedDateTimeProvider(now),
             new FakeAchievementService(),
+            new FakeUserEconomyService(),
             Options.Create(new LearningSettings { SceneCompletionScore = 5, SceneUnlockEveryLessons = 1 })
         );
 
@@ -178,6 +179,7 @@ public class SceneServiceTests
             dbContext,
             new FixedDateTimeProvider(new DateTime(2026, 2, 12, 11, 30, 0, DateTimeKind.Utc)),
             new FakeAchievementService(),
+            new FakeUserEconomyService(),
             Options.Create(new LearningSettings { SceneCompletionScore = 5, SceneUnlockEveryLessons = 1 })
         );
 
@@ -239,6 +241,7 @@ public class SceneServiceTests
             dbContext,
             new FixedDateTimeProvider(now),
             achievementService,
+            new FakeUserEconomyService(),
             Options.Create(new LearningSettings { SceneCompletionScore = 5, SceneUnlockEveryLessons = 1 })
         );
 
@@ -329,6 +332,7 @@ public class SceneServiceTests
             dbContext,
             new FixedDateTimeProvider(now),
             new FakeAchievementService(),
+            new FakeUserEconomyService(),
             Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1 })
         );
 
@@ -387,6 +391,7 @@ public class SceneServiceTests
             dbContext,
             dateTimeProvider,
             achievementService,
+            new FakeUserEconomyService(),
             Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1, SceneCompletionScore = 5 })
         );
 
@@ -467,6 +472,7 @@ public class SceneServiceTests
             dbContext,
             dateTimeProvider,
             achievementService,
+            new FakeUserEconomyService(),
             Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1, SceneCompletionScore = 5 })
         );
 
@@ -557,6 +563,7 @@ public class SceneServiceTests
             dbContext,
             dateTimeProvider,
             achievementService,
+            new FakeUserEconomyService(),
             Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1, SceneCompletionScore = 5 })
         );
 
@@ -648,6 +655,7 @@ public class SceneServiceTests
             dbContext,
             dateTimeProvider,
             achievementService,
+            new FakeUserEconomyService(),
             Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1, SceneCompletionScore = 5 })
         );
 
@@ -746,6 +754,7 @@ public class SceneServiceTests
             dbContext,
             dateTimeProvider,
             achievementService,
+            new FakeUserEconomyService(),
             Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1, SceneCompletionScore = 5, ScenePassingPercent = 50 })
         );
 
@@ -838,6 +847,7 @@ public class SceneServiceTests
             dbContext,
             dateTimeProvider,
             achievementService,
+            new FakeUserEconomyService(),
             Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1, SceneCompletionScore = 5 })
         );
 
@@ -930,6 +940,7 @@ public class SceneServiceTests
             dbContext,
             dateTimeProvider,
             achievementService,
+            new FakeUserEconomyService(),
             Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1, SceneCompletionScore = 5 })
         );
 
@@ -1024,6 +1035,7 @@ public class SceneServiceTests
             dbContext,
             dateTimeProvider,
             achievementService,
+            new FakeUserEconomyService(),
             Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1, SceneCompletionScore = 5 })
         );
 
@@ -1107,6 +1119,7 @@ public class SceneServiceTests
             dbContext,
             new FixedDateTimeProvider(now),
             new FakeAchievementService(),
+            new FakeUserEconomyService(),
             Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1 })
         );
 
@@ -1191,7 +1204,7 @@ public class SceneServiceTests
             ScenePassingPercent = 50
         });
 
-        var service = new SceneService(dbContext, dateTimeProvider, achievementService, settings);
+        var service = new SceneService(dbContext, dateTimeProvider, achievementService, new FakeUserEconomyService(), settings);
 
         var response = service.SubmitScene(1, 1, new SubmitSceneRequest
         {
@@ -1267,7 +1280,7 @@ public class SceneServiceTests
             SceneUnlockEveryLessons = 1
         });
 
-        var service = new SceneService(dbContext, dateTimeProvider, achievementService, settings);
+        var service = new SceneService(dbContext, dateTimeProvider, achievementService, new FakeUserEconomyService(), settings);
 
         service.MarkCompleted(1, 1);
 
@@ -1323,6 +1336,7 @@ public class SceneServiceTests
             dbContext,
             new FakeDateTimeProvider(),
             new FakeAchievementService(),
+            new FakeUserEconomyService(),
             Options.Create(new LearningSettings
             {
                 PassingScorePercent = 80,
@@ -1383,6 +1397,7 @@ public class SceneServiceTests
             dbContext,
             new FakeDateTimeProvider(),
             new FakeAchievementService(),
+            new FakeUserEconomyService(),
             Options.Create(new LearningSettings
             {
                 PassingScorePercent = 80,

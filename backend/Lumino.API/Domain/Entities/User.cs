@@ -24,6 +24,8 @@ namespace Lumino.Api.Domain.Entities
 
         public int Hearts { get; set; } = 5;
 
+        public DateTime? HeartsUpdatedAtUtc { get; set; }
+
         public int Crystals { get; set; }
 
         public string Theme { get; set; } = "light";

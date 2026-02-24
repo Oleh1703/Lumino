@@ -83,6 +83,7 @@ namespace Lumino.Api.Application.Services
                 TargetLanguageCode = target,
                 AvatarUrl = string.IsNullOrWhiteSpace(request.AvatarUrl) ? SupportedAvatars.DefaultAvatarUrl : request.AvatarUrl!.Trim(),
                 Hearts = 5,
+                HeartsUpdatedAtUtc = DateTime.UtcNow,
                 Crystals = 0,
                 Theme = "light"
             };

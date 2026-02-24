@@ -18,17 +18,20 @@ namespace Lumino.Api.Application.Services
         private readonly IAchievementService _achievementService;
         private readonly IDateTimeProvider _dateTimeProvider;
         private readonly LearningSettings _learningSettings;
+        private readonly IUserEconomyService _userEconomyService;
 
         public LessonMistakesService(
             LuminoDbContext dbContext,
             IAchievementService achievementService,
             IDateTimeProvider dateTimeProvider,
-            IOptions<LearningSettings> learningSettings)
+            IOptions<LearningSettings> learningSettings,
+            IUserEconomyService userEconomyService)
         {
             _dbContext = dbContext;
             _achievementService = achievementService;
             _dateTimeProvider = dateTimeProvider;
             _learningSettings = learningSettings?.Value ?? new LearningSettings();
+            _userEconomyService = userEconomyService;
         }
 
         public LessonMistakesResponse GetLessonMistakes(int userId, int lessonId)
@@ -347,6 +350,8 @@ namespace Lumino.Api.Application.Services
 
             _dbContext.SaveChanges();
 
+            TryAwardHeartForPracticeIfNeeded(userId, targetMistakeIds.Count, completedAllMistakes, details, lastResult);
+
             ApplyPostSubmitSideEffects(
                 userId,
                 lesson,
@@ -367,6 +372,35 @@ namespace Lumino.Api.Application.Services
                 MistakeExerciseIds = details.MistakeExerciseIds,
                 Answers = details.Answers
             };
+        }
+
+        private void TryAwardHeartForPracticeIfNeeded(
+            int userId,
+            int practiceTargetMistakesCount,
+            bool completedAllMistakes,
+            LessonResultDetailsJson details,
+            LessonResult lastResult)
+        {
+            if (!completedAllMistakes)
+            {
+                return;
+            }
+
+            if (practiceTargetMistakesCount <= 0)
+            {
+                return;
+            }
+
+            if (details.PracticeHeartGranted)
+            {
+                return;
+            }
+
+            _userEconomyService.AwardHeartForPracticeIfPossible(userId);
+
+            details.PracticeHeartGranted = true;
+            lastResult.MistakesJson = SerializeDetails(details);
+            _dbContext.SaveChanges();
         }
 
         private void ApplyPostSubmitSideEffects(

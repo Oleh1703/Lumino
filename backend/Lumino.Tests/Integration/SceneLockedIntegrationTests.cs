@@ -121,6 +121,7 @@ public class SceneLockedIntegrationTests
             dbContext,
             new FakeAchievementService(),
             dateTimeProvider,
+	        new FakeUserEconomyService(),
             new SubmitLessonRequestValidator(),
             settings
         );
@@ -131,6 +132,7 @@ public class SceneLockedIntegrationTests
             dbContext,
             dateTimeProvider,
             new FakeAchievementService(),
+	        new FakeUserEconomyService(),
             settings
         );
 

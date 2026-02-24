@@ -2,6 +2,7 @@
 using System.Text;
 using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Services;
+using Lumino.Api.Application.Validators;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Utils;
 using Microsoft.Extensions.Configuration;
@@ -22,8 +23,8 @@ public class AuthServiceRefreshTests
             configuration,
             new FakeRegisterValidator(),
             new FakeLoginValidator(),
-            new FakeForgotPasswordValidator(),
-            new FakeResetPasswordValidator(),
+            new ForgotPasswordRequestValidator(),
+            new ResetPasswordRequestValidator(),
             new FakeHostEnvironment(),
             new PasswordHasher()
         );
@@ -64,8 +65,8 @@ public class AuthServiceRefreshTests
             configuration,
             new FakeRegisterValidator(),
             new FakeLoginValidator(),
-            new FakeForgotPasswordValidator(),
-            new FakeResetPasswordValidator(),
+            new ForgotPasswordRequestValidator(),
+            new ResetPasswordRequestValidator(),
             new FakeHostEnvironment(),
             new PasswordHasher()
         );
@@ -90,8 +91,8 @@ public class AuthServiceRefreshTests
             configuration,
             new FakeRegisterValidator(),
             new FakeLoginValidator(),
-            new FakeForgotPasswordValidator(),
-            new FakeResetPasswordValidator(),
+            new ForgotPasswordRequestValidator(),
+            new ResetPasswordRequestValidator(),
             new FakeHostEnvironment(),
             new PasswordHasher()
         );
@@ -127,8 +128,8 @@ public class AuthServiceRefreshTests
             configuration,
             new FakeRegisterValidator(),
             new FakeLoginValidator(),
-            new FakeForgotPasswordValidator(),
-            new FakeResetPasswordValidator(),
+            new ForgotPasswordRequestValidator(),
+            new ResetPasswordRequestValidator(),
             new FakeHostEnvironment(),
             new PasswordHasher()
         );
@@ -165,8 +166,8 @@ public class AuthServiceRefreshTests
             configuration,
             new FakeRegisterValidator(),
             new FakeLoginValidator(),
-            new FakeForgotPasswordValidator(),
-            new FakeResetPasswordValidator(),
+            new ForgotPasswordRequestValidator(),
+            new ResetPasswordRequestValidator(),
             new FakeHostEnvironment(),
             new PasswordHasher()
         );
@@ -209,8 +210,8 @@ public class AuthServiceRefreshTests
             configuration,
             new FakeRegisterValidator(),
             new FakeLoginValidator(),
-            new FakeForgotPasswordValidator(),
-            new FakeResetPasswordValidator(),
+            new ForgotPasswordRequestValidator(),
+            new ResetPasswordRequestValidator(),
             new FakeHostEnvironment(),
             new PasswordHasher()
         );
@@ -251,8 +252,8 @@ public class AuthServiceRefreshTests
             configuration,
             new FakeRegisterValidator(),
             new FakeLoginValidator(),
-            new FakeForgotPasswordValidator(),
-            new FakeResetPasswordValidator(),
+            new ForgotPasswordRequestValidator(),
+            new ResetPasswordRequestValidator(),
             new FakeHostEnvironment(),
             new PasswordHasher()
         );

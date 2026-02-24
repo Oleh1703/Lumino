@@ -8,10 +8,12 @@ namespace Lumino.Api.Application.Services
     public class LessonService : ILessonService
     {
         private readonly LuminoDbContext _dbContext;
+        private readonly IUserEconomyService _userEconomyService;
 
-        public LessonService(LuminoDbContext dbContext)
+        public LessonService(LuminoDbContext dbContext, IUserEconomyService userEconomyService)
         {
             _dbContext = dbContext;
+            _userEconomyService = userEconomyService;
         }
 
         public List<LessonResponse> GetLessonsByTopic(int topicId)
@@ -75,6 +77,8 @@ namespace Lumino.Api.Application.Services
             {
                 throw new ForbiddenAccessException(GetLessonLockedMessage(course.Id, lessonId));
             }
+
+            _userEconomyService.EnsureHasHeartsOrThrow(userId);
 
             return new LessonResponse
             {
