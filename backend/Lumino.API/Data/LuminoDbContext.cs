@@ -18,6 +18,7 @@ namespace Lumino.Api.Data
         public DbSet<LessonResult> LessonResults => Set<LessonResult>();
         public DbSet<UserProgress> UserProgresses => Set<UserProgress>();
         public DbSet<VocabularyItem> VocabularyItems => Set<VocabularyItem>();
+        public DbSet<VocabularyItemTranslation> VocabularyItemTranslations => Set<VocabularyItemTranslation>();
         public DbSet<UserVocabulary> UserVocabularies => Set<UserVocabulary>();
         public DbSet<LessonVocabulary> LessonVocabularies => Set<LessonVocabulary>();
         public DbSet<ExerciseVocabulary> ExerciseVocabularies => Set<ExerciseVocabulary>();
@@ -189,7 +190,23 @@ namespace Lumino.Api.Data
                 entity.HasIndex(x => x.UserId).IsUnique();
             });
 
-            modelBuilder.Entity<UserVocabulary>(entity =>
+            
+            modelBuilder.Entity<VocabularyItemTranslation>(entity =>
+            {
+                entity.Property(x => x.Translation)
+                    .IsRequired()
+                    .HasMaxLength(256);
+
+                entity.HasOne<VocabularyItem>()
+                    .WithMany()
+                    .HasForeignKey(x => x.VocabularyItemId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(x => new { x.VocabularyItemId, x.Order }).IsUnique();
+                entity.HasIndex(x => new { x.VocabularyItemId, x.Translation }).IsUnique();
+            });
+
+modelBuilder.Entity<UserVocabulary>(entity =>
             {
 
                 entity.Property(x => x.ReviewIdempotencyKey)

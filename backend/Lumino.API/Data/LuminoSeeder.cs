@@ -25,6 +25,8 @@ namespace Lumino.Api.Data
             LinkScenesToDefaultCourse(dbContext);
 
             SeedVocabularyLinks(dbContext);
+
+            EnsureVocabularyBaseTranslations(dbContext);
         }
 
         private static void SeedAdmin(LuminoDbContext dbContext)
@@ -49,6 +51,7 @@ namespace Lumino.Api.Data
 
             dbContext.Users.Add(admin);
             dbContext.SaveChanges();
+
         }
 
         private static void SeedUser(LuminoDbContext dbContext)
@@ -914,6 +917,15 @@ namespace Lumino.Api.Data
             string word,
             string translation)
         {
+            var translations = SplitTranslations(translation);
+
+            if (translations.Count == 0)
+            {
+                translations.Add(translation);
+            }
+
+            var primary = translations[0];
+
             if (!vocabMap.TryGetValue(word, out var item))
             {
                 item = dbContext.VocabularyItems
@@ -925,12 +937,19 @@ namespace Lumino.Api.Data
                     item = new VocabularyItem
                     {
                         Word = word,
-                        Translation = translation,
+                        Translation = primary,
                         Example = null
                     };
 
                     dbContext.VocabularyItems.Add(item);
                     dbContext.SaveChanges();
+
+                    EnsureVocabularyTranslation(dbContext, item.Id, primary, makePrimary: true);
+
+                    for (var i = 1; i < translations.Count; i++)
+                    {
+                        EnsureVocabularyTranslation(dbContext, item.Id, translations[i], makePrimary: false);
+                    }
 
                     vocabMap[word] = item;
 
@@ -940,13 +959,158 @@ namespace Lumino.Api.Data
                 vocabMap[word] = item;
             }
 
-            if (!string.Equals(NormalizeWord(item.Translation), translation, StringComparison.OrdinalIgnoreCase))
+            foreach (var t in translations)
             {
-                item.Translation = translation;
-                dbContext.SaveChanges();
+                EnsureVocabularyTranslation(dbContext, item.Id, t, makePrimary: false);
             }
 
             return item;
+        }
+
+
+        private static void EnsureVocabularyTranslation(
+            LuminoDbContext dbContext,
+            int vocabularyItemId,
+            string translation,
+            bool makePrimary)
+        {
+            translation = (translation ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(translation))
+            {
+                return;
+            }
+
+            var normalizedTranslation = NormalizeWord(translation);
+
+            var existing = dbContext.VocabularyItemTranslations
+                .AsEnumerable()
+                .FirstOrDefault(x => x.VocabularyItemId == vocabularyItemId
+                    && NormalizeWord(x.Translation) == normalizedTranslation);
+
+            if (existing != null)
+            {
+                if (makePrimary && existing.Order != 0)
+                {
+                    MakeTranslationPrimary(dbContext, vocabularyItemId, existing.Id, translation);
+                }
+
+                return;
+            }
+
+            var list = dbContext.VocabularyItemTranslations
+                .Where(x => x.VocabularyItemId == vocabularyItemId)
+                .ToList();
+
+            // When we just started using translations table, existing VocabularyItem.Translation must stay primary.
+            // So first ensure base translation (Order = 0) from legacy field, then add extra translations.
+            if (!makePrimary && list.Count == 0)
+            {
+                var item = dbContext.VocabularyItems.FirstOrDefault(x => x.Id == vocabularyItemId);
+                var baseTranslation = (item?.Translation ?? string.Empty).Trim();
+
+                if (!string.IsNullOrWhiteSpace(baseTranslation))
+                {
+                    dbContext.VocabularyItemTranslations.Add(new VocabularyItemTranslation
+                    {
+                        VocabularyItemId = vocabularyItemId,
+                        Translation = baseTranslation,
+                        Order = 0
+                    });
+
+                    dbContext.SaveChanges();
+
+                    // refresh list after insert
+                    list = dbContext.VocabularyItemTranslations
+                        .Where(x => x.VocabularyItemId == vocabularyItemId)
+                        .ToList();
+
+                    if (string.Equals(NormalizeWord(baseTranslation), normalizedTranslation, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return;
+                    }
+                }
+            }
+
+            if (makePrimary)
+            {
+                foreach (var t in list)
+                {
+                    t.Order += 1;
+                }
+
+                dbContext.VocabularyItemTranslations.Add(new VocabularyItemTranslation
+                {
+                    VocabularyItemId = vocabularyItemId,
+                    Translation = translation,
+                    Order = 0
+                });
+
+                var item = dbContext.VocabularyItems.FirstOrDefault(x => x.Id == vocabularyItemId);
+                if (item != null && item.Translation != translation)
+                {
+                    item.Translation = translation;
+                }
+
+                dbContext.SaveChanges();
+                return;
+            }
+
+            var nextOrder = list.Count == 0 ? 0 : (list.Max(x => x.Order) + 1);
+
+            dbContext.VocabularyItemTranslations.Add(new VocabularyItemTranslation
+            {
+                VocabularyItemId = vocabularyItemId,
+                Translation = translation,
+                Order = nextOrder
+            });
+
+            dbContext.SaveChanges();
+        }
+
+        private static void MakeTranslationPrimary(
+            LuminoDbContext dbContext,
+            int vocabularyItemId,
+            int translationId,
+            string translationText)
+        {
+            var list = dbContext.VocabularyItemTranslations
+                .Where(x => x.VocabularyItemId == vocabularyItemId)
+                .OrderBy(x => x.Order)
+                .ToList();
+
+            if (list.Count == 0)
+            {
+                return;
+            }
+
+            var target = list.FirstOrDefault(x => x.Id == translationId);
+            if (target == null)
+            {
+                return;
+            }
+
+            foreach (var t in list)
+            {
+                if (t.Id == target.Id)
+                {
+                    continue;
+                }
+
+                if (t.Order < target.Order)
+                {
+                    t.Order += 1;
+                }
+            }
+
+            target.Order = 0;
+
+            var item = dbContext.VocabularyItems.FirstOrDefault(x => x.Id == vocabularyItemId);
+            if (item != null && item.Translation != translationText)
+            {
+                item.Translation = translationText;
+            }
+
+            dbContext.SaveChanges();
         }
 
         private static bool TryExtractPairFromQuestion(string question, string correctAnswer, out (string Word, string Translation) pair)
@@ -1009,6 +1173,48 @@ namespace Lumino.Api.Data
         private static string NormalizeWord(string value)
         {
             return (value ?? string.Empty).Trim().ToLowerInvariant();
+        }
+
+        private static List<string> SplitTranslations(string value)
+        {
+            value = (value ?? string.Empty).Trim();
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return new List<string>();
+            }
+
+            // Support simple multi-translation formats:
+            // "bank = банк / берег", "bank = банк, берег", "bank = банк; берег"
+            // Keep order, remove duplicates (case-insensitive).
+            value = value
+                .Replace(" або ", "|", StringComparison.OrdinalIgnoreCase)
+                .Replace(" or ", "|", StringComparison.OrdinalIgnoreCase);
+
+            var parts = value
+                .Split(new[] { '/', ',', ';', '|', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => (x ?? string.Empty).Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToList();
+
+            var result = new List<string>();
+
+            foreach (var p in parts)
+            {
+                var normalized = NormalizeWord(p);
+
+                if (string.IsNullOrWhiteSpace(normalized))
+                {
+                    continue;
+                }
+
+                if (!result.Any(x => string.Equals(NormalizeWord(x), normalized, StringComparison.OrdinalIgnoreCase)))
+                {
+                    result.Add(p);
+                }
+            }
+
+            return result;
         }
 
         private static Course EnsureCourse(LuminoDbContext dbContext, string title, string description, string languageCode, bool isPublished)
@@ -1243,5 +1449,64 @@ namespace Lumino.Api.Data
         private record LessonSeed(int TopicId, string Title, string Theory, int Order);
 
         private record ExerciseSeed(ExerciseType Type, string Question, string Data, string CorrectAnswer, int Order);
+        private static void EnsureVocabularyBaseTranslations(LuminoDbContext dbContext)
+        {
+            var items = dbContext.VocabularyItems
+                .AsNoTracking()
+                .Select(x => new { x.Id, x.Translation })
+                .ToList();
+
+            if (items.Count == 0)
+            {
+                return;
+            }
+
+            var translations = dbContext.VocabularyItemTranslations
+                .ToList();
+
+            var byItem = translations
+                .GroupBy(x => x.VocabularyItemId)
+                .ToDictionary(x => x.Key, x => x.ToList());
+
+            var hasChanges = false;
+
+            foreach (var vi in items)
+            {
+                if (!byItem.TryGetValue(vi.Id, out var list) || list.Count == 0)
+                {
+                    dbContext.VocabularyItemTranslations.Add(new VocabularyItemTranslation
+                    {
+                        VocabularyItemId = vi.Id,
+                        Translation = vi.Translation,
+                        Order = 0
+                    });
+
+                    hasChanges = true;
+                    continue;
+                }
+
+                var primary = list.OrderBy(x => x.Order).FirstOrDefault(x => x.Order == 0);
+                if (primary == null)
+                {
+                    var minOrder = list.Min(x => x.Order);
+                    primary = list.First(x => x.Order == minOrder);
+                    primary.Order = 0;
+                    hasChanges = true;
+                }
+
+                if (!string.Equals(primary.Translation, vi.Translation, StringComparison.Ordinal))
+                {
+                    primary.Translation = vi.Translation;
+                    hasChanges = true;
+                }
+            }
+
+            if (hasChanges)
+            {
+                dbContext.SaveChanges();
+            }
+        }
+
+
     }
 }

@@ -8,7 +8,11 @@ namespace Lumino.Api.Application.DTOs
 
         public string Word { get; set; } = null!;
 
+        // основний переклад (для сумісності зі старими клієнтами)
         public string Translation { get; set; } = null!;
+
+        // всі переклади (новий функціонал)
+        public List<string> Translations { get; set; } = new();
 
         public string? Example { get; set; }
 

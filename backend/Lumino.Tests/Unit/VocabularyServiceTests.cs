@@ -32,6 +32,11 @@ public class VocabularyServiceTests
         Assert.Equal("hello", items[0].Word);
         Assert.Equal("привіт", items[0].Translation);
 
+        Assert.Single(dbContext.VocabularyItemTranslations);
+        Assert.Equal(items[0].Id, dbContext.VocabularyItemTranslations.First().VocabularyItemId);
+        Assert.Equal("привіт", dbContext.VocabularyItemTranslations.First().Translation);
+        Assert.Equal(0, dbContext.VocabularyItemTranslations.First().Order);
+
         Assert.Equal(1, userWords[0].UserId);
         Assert.Equal(items[0].Id, userWords[0].VocabularyItemId);
 
@@ -40,6 +45,153 @@ public class VocabularyServiceTests
         Assert.Null(userWords[0].LastReviewedAt);
         Assert.Equal(0, userWords[0].ReviewCount);
     }
+
+
+    [Fact]
+    public void AddWord_WithMultipleTranslations_ShouldSaveAllTranslations_AndKeepPrimaryInTranslation()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        var now = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc);
+        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now), Options.Create(new LearningSettings()));
+
+        service.AddWord(userId: 1, new AddVocabularyRequest
+        {
+            Word = "run",
+            Translation = "бігти",
+            Translations = new List<string> { "запускати", "бігти" }
+        });
+
+        Assert.Single(dbContext.VocabularyItems);
+
+        var item = dbContext.VocabularyItems.First();
+        Assert.Equal("run", item.Word);
+        Assert.Equal("бігти", item.Translation);
+
+        var translations = dbContext.VocabularyItemTranslations
+            .Where(x => x.VocabularyItemId == item.Id)
+            .OrderBy(x => x.Order)
+            .Select(x => x.Translation)
+            .ToList();
+
+        Assert.Equal(2, translations.Count);
+        Assert.Equal("бігти", translations[0]);
+        Assert.Equal("запускати", translations[1]);
+
+        var due = service.GetDueVocabulary(userId: 1);
+        Assert.Single(due);
+
+        Assert.Equal("бігти", due[0].Translation);
+        Assert.Equal(2, due[0].Translations.Count);
+    }
+
+
+    [Fact]
+    public void AddWord_SameWordWithDifferentPrimaryTranslation_ShouldNotCreateDuplicateItem_AndShouldReorderPrimary()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        var now = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc);
+        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now), Options.Create(new LearningSettings()));
+
+        service.AddWord(userId: 1, new AddVocabularyRequest
+        {
+            Word = "run",
+            Translation = "бігти",
+            Translations = new List<string> { "запускати" }
+        });
+
+        // Add the same word again, but another translation as "primary".
+        service.AddWord(userId: 2, new AddVocabularyRequest
+        {
+            Word = "run",
+            Translation = "запускати"
+        });
+
+        Assert.Single(dbContext.VocabularyItems);
+
+        var item = dbContext.VocabularyItems.First();
+        Assert.Equal("run", item.Word);
+        Assert.Equal("запускати", item.Translation);
+
+        var translations = dbContext.VocabularyItemTranslations
+            .Where(x => x.VocabularyItemId == item.Id)
+            .OrderBy(x => x.Order)
+            .Select(x => x.Translation)
+            .ToList();
+
+        Assert.Equal(2, translations.Count);
+        Assert.Equal("запускати", translations[0]);
+        Assert.Equal("бігти", translations[1]);
+
+        Assert.Equal(2, dbContext.UserVocabularies.Count());
+    }
+
+    [Fact]
+    public void AddWord_WhenTranslationsTableHasDuplicates_ShouldCleanupDuplicates_AndKeepUniqueSequentialOrders()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        // existing vocabulary item
+        dbContext.VocabularyItems.Add(new Lumino.Api.Domain.Entities.VocabularyItem
+        {
+            Id = 1,
+            Word = "run",
+            Translation = "бігти"
+        });
+
+        dbContext.SaveChanges();
+
+        // broken state: duplicated translations and conflicting orders
+        dbContext.VocabularyItemTranslations.Add(new Lumino.Api.Domain.Entities.VocabularyItemTranslation
+        {
+            VocabularyItemId = 1,
+            Translation = "бігти",
+            Order = 0
+        });
+
+        dbContext.VocabularyItemTranslations.Add(new Lumino.Api.Domain.Entities.VocabularyItemTranslation
+        {
+            VocabularyItemId = 1,
+            Translation = "бігти",
+            Order = 1
+        });
+
+        dbContext.VocabularyItemTranslations.Add(new Lumino.Api.Domain.Entities.VocabularyItemTranslation
+        {
+            VocabularyItemId = 1,
+            Translation = "запускати",
+            Order = 1
+        });
+
+        dbContext.SaveChanges();
+
+        var now = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc);
+        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now), Options.Create(new LearningSettings()));
+
+        // Add the same word with another primary translation - should reorder and cleanup duplicates
+        service.AddWord(userId: 1, new AddVocabularyRequest
+        {
+            Word = "run",
+            Translation = "запускати"
+        });
+
+        var item = dbContext.VocabularyItems.First(x => x.Id == 1);
+        Assert.Equal("запускати", item.Translation);
+
+        var translations = dbContext.VocabularyItemTranslations
+            .Where(x => x.VocabularyItemId == 1)
+            .OrderBy(x => x.Order)
+            .ToList();
+
+        Assert.Equal(2, translations.Count);
+        Assert.Equal(0, translations[0].Order);
+        Assert.Equal("запускати", translations[0].Translation);
+        Assert.Equal(1, translations[1].Order);
+        Assert.Equal("бігти", translations[1].Translation);
+    }
+
+
 
     [Fact]
     public void AddWord_WhenAlreadyAdded_ShouldNotDuplicateUserVocabulary()
