@@ -24,6 +24,7 @@ public class AuthServiceTests
             new ForgotPasswordRequestValidator(),
             new ResetPasswordRequestValidator(),
             new FakeEmailSender(),
+            new FakeOpenIdTokenValidator(),
             new FakeHostEnvironment(),
             new PasswordHasher()
         );
@@ -65,6 +66,7 @@ public class AuthServiceTests
             new ForgotPasswordRequestValidator(),
             new ResetPasswordRequestValidator(),
             new FakeEmailSender(),
+            new FakeOpenIdTokenValidator(),
             new FakeHostEnvironment(),
             new PasswordHasher()
         );
@@ -94,6 +96,7 @@ public class AuthServiceTests
             new ForgotPasswordRequestValidator(),
             new ResetPasswordRequestValidator(),
             new FakeEmailSender(),
+            new FakeOpenIdTokenValidator(),
             new FakeHostEnvironment(),
             new PasswordHasher()
         );
@@ -126,6 +129,7 @@ public class AuthServiceTests
             new ForgotPasswordRequestValidator(),
             new ResetPasswordRequestValidator(),
             new FakeEmailSender(),
+            new FakeOpenIdTokenValidator(),
             new FakeHostEnvironment(),
             new PasswordHasher()
         );

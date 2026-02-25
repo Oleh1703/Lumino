@@ -1,11 +1,20 @@
 using Lumino.Api.Application.DTOs;
 using Lumino.Api.Utils;
+using Microsoft.Extensions.Configuration;
+using Lumino.Api.Application.Validators;
 
 namespace Lumino.Api.Application.Validators
 {
     public class UpdateProfileRequestValidator : IUpdateProfileRequestValidator
     {
-        public void Validate(UpdateProfileRequest request)
+        private readonly IConfiguration _configuration;
+
+        public UpdateProfileRequestValidator(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
+
+public void Validate(UpdateProfileRequest request)
         {
             if (request == null)
             {
@@ -27,7 +36,7 @@ namespace Lumino.Api.Application.Validators
                 }
             }
 
-            SupportedAvatars.Validate(request.AvatarUrl, "AvatarUrl");
+            SupportedAvatars.Validate(request.AvatarUrl, "AvatarUrl", _configuration);
 
             if (!string.IsNullOrWhiteSpace(request.Theme))
             {

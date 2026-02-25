@@ -117,12 +117,22 @@ namespace Lumino.Api
             builder.Services.AddScoped<IRegisterRequestValidator, RegisterRequestValidator>();
             builder.Services.AddScoped<ILoginRequestValidator, LoginRequestValidator>();
             builder.Services.AddScoped<IChangePasswordRequestValidator, ChangePasswordRequestValidator>();
+            builder.Services.AddScoped<IDeleteAccountRequestValidator, DeleteAccountRequestValidator>();
             builder.Services.AddScoped<IForgotPasswordRequestValidator, ForgotPasswordRequestValidator>();
             builder.Services.AddScoped<IResetPasswordRequestValidator, ResetPasswordRequestValidator>();
             builder.Services.AddScoped<IUpdateProfileRequestValidator, UpdateProfileRequestValidator>();
             builder.Services.AddScoped<ISubmitLessonRequestValidator, SubmitLessonRequestValidator>();
             builder.Services.AddScoped<ISubmitSceneRequestValidator, SubmitSceneRequestValidator>();
             builder.Services.AddScoped<IAuthService, AuthService>();
+            if (builder.Environment.IsEnvironment("Testing"))
+            {
+                builder.Services.AddSingleton<IOpenIdTokenValidator, TestingOpenIdTokenValidator>();
+            }
+            else
+            {
+                builder.Services.AddSingleton<IOpenIdTokenValidator, OpenIdTokenValidator>();
+            }
+
             if (builder.Environment.IsEnvironment("Testing"))
             {
                 builder.Services.AddSingleton<IEmailSender, NoOpEmailSender>();
@@ -134,6 +144,7 @@ namespace Lumino.Api
             builder.Services.AddScoped<IUserService, UserService>();
             builder.Services.AddScoped<IUserAccountService, UserAccountService>();
             builder.Services.AddScoped<IUserEconomyService, UserEconomyService>();
+            builder.Services.AddScoped<IUserExternalLoginService, UserExternalLoginService>();
             builder.Services.AddScoped<IOnboardingService, OnboardingService>();
             builder.Services.AddScoped<ICourseService, CourseService>();
             builder.Services.AddScoped<IAdminCourseService, AdminCourseService>();

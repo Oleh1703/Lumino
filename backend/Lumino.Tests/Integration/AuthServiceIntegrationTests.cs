@@ -19,11 +19,12 @@ public class AuthServiceIntegrationTests
         var service = new AuthService(
             dbContext,
             configuration,
-            new RegisterRequestValidator(),
+            new RegisterRequestValidator(configuration),
             new LoginRequestValidator(),
 	        new ForgotPasswordRequestValidator(),
 	        new ResetPasswordRequestValidator(),
 	        new FakeEmailSender(),
+	        new FakeOpenIdTokenValidator(),
 	        new FakeHostEnvironment(),
 	        new PasswordHasher()
         );

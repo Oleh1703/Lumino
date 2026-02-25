@@ -1,5 +1,7 @@
 using Lumino.Api;
+using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Data;
+using Lumino.Tests.Stubs;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -33,9 +35,22 @@ public class ApiWebApplicationFactory : WebApplicationFactory<Program>
                 ,["Demo:LanguageLessonIds:en:0"] = "1"
                 ,["Demo:LanguageLessonIds:en:1"] = "2"
                 ,["Demo:LanguageLessonIds:en:2"] = "3"
-                ,["Demo:LanguageLessonIds:de:0"] = "4"
-                ,["Demo:LanguageLessonIds:de:1"] = "5"
-                ,["Demo:LanguageLessonIds:de:2"] = "6"
+                , ["Demo:LanguageLessonIds:de:0"] = "4"
+                , ["Demo:LanguageLessonIds:de:1"] = "5"
+                , ["Demo:LanguageLessonIds:de:2"] = "6"
+
+                // JWT/RefreshToken конфіг для інтеграційних тестів.
+                // У WebApplicationFactory content root часто = Lumino.Tests, тому appsettings API може не підтягнутися.
+                // Якщо не задати ці значення тут - GenerateJwtToken()/CreateRefreshToken можуть падати ArgumentNullException,
+                // а ти отримаєш 400 BadRequest замість очікуваного 200 OK.
+                , ["Jwt:Key"] = "TEST_JWT_KEY_32_CHARS_MINIMUM_123456"
+                , ["Jwt:Issuer"] = "Lumino.Api"
+                , ["Jwt:Audience"] = "Lumino.Client"
+                , ["Jwt:ExpiresMinutes"] = "60"
+
+                , ["RefreshToken:ExpiresDays"] = "7"
+                , ["RefreshToken:MaxActiveTokens"] = "3"
+                , ["RefreshToken:KeepRevokedDays"] = "30"
 
             };
 
@@ -74,6 +89,10 @@ public class ApiWebApplicationFactory : WebApplicationFactory<Program>
                 TestAuthHandler.SchemeName,
                 options => { }
             );
+
+            // У тестах нам потрібен контрольований email sender, щоб перевіряти forgot-password без реального SMTP.
+            services.RemoveAll(typeof(IEmailSender));
+            services.AddSingleton<IEmailSender, FakeEmailSender>();
         });
     }
 }

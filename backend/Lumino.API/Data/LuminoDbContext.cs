@@ -30,6 +30,7 @@ namespace Lumino.Api.Data
         public DbSet<UserLessonProgress> UserLessonProgresses => Set<UserLessonProgress>();
         public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
         public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+        public DbSet<UserExternalLogin> UserExternalLogins => Set<UserExternalLogin>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -69,6 +70,21 @@ namespace Lumino.Api.Data
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
+
+            modelBuilder.Entity<UserExternalLogin>(entity =>
+            {
+                entity.Property(x => x.Provider).IsRequired().HasMaxLength(20);
+                entity.Property(x => x.ProviderUserId).IsRequired().HasMaxLength(200);
+                entity.Property(x => x.Email).HasMaxLength(256);
+
+                entity.HasIndex(x => new { x.Provider, x.ProviderUserId }).IsUnique();
+                entity.HasIndex(x => x.UserId);
+
+                entity.HasOne(x => x.User)
+                    .WithMany()
+                    .HasForeignKey(x => x.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
             modelBuilder.Entity<Course>(entity =>
             {
                 entity.Property(x => x.Title).IsRequired();

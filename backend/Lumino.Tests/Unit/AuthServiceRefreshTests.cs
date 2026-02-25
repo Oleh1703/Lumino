@@ -27,6 +27,7 @@ public class AuthServiceRefreshTests
             new ForgotPasswordRequestValidator(),
             new ResetPasswordRequestValidator(),
             new FakeEmailSender(),
+            new FakeOpenIdTokenValidator(),
             new FakeHostEnvironment(),
             new PasswordHasher()
         );
@@ -70,6 +71,7 @@ public class AuthServiceRefreshTests
             new ForgotPasswordRequestValidator(),
             new ResetPasswordRequestValidator(),
             new FakeEmailSender(),
+            new FakeOpenIdTokenValidator(),
             new FakeHostEnvironment(),
             new PasswordHasher()
         );
@@ -97,6 +99,7 @@ public class AuthServiceRefreshTests
             new ForgotPasswordRequestValidator(),
             new ResetPasswordRequestValidator(),
             new FakeEmailSender(),
+            new FakeOpenIdTokenValidator(),
             new FakeHostEnvironment(),
             new PasswordHasher()
         );
@@ -135,6 +138,7 @@ public class AuthServiceRefreshTests
             new ForgotPasswordRequestValidator(),
             new ResetPasswordRequestValidator(),
             new FakeEmailSender(),
+            new FakeOpenIdTokenValidator(),
             new FakeHostEnvironment(),
             new PasswordHasher()
         );
@@ -174,6 +178,7 @@ public class AuthServiceRefreshTests
             new ForgotPasswordRequestValidator(),
             new ResetPasswordRequestValidator(),
             new FakeEmailSender(),
+            new FakeOpenIdTokenValidator(),
             new FakeHostEnvironment(),
             new PasswordHasher()
         );
@@ -219,6 +224,7 @@ public class AuthServiceRefreshTests
             new ForgotPasswordRequestValidator(),
             new ResetPasswordRequestValidator(),
             new FakeEmailSender(),
+            new FakeOpenIdTokenValidator(),
             new FakeHostEnvironment(),
             new PasswordHasher()
         );
@@ -262,6 +268,7 @@ public class AuthServiceRefreshTests
             new ForgotPasswordRequestValidator(),
             new ResetPasswordRequestValidator(),
             new FakeEmailSender(),
+            new FakeOpenIdTokenValidator(),
             new FakeHostEnvironment(),
             new PasswordHasher()
         );

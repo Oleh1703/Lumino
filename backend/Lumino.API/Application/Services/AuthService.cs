@@ -21,6 +21,7 @@ namespace Lumino.Api.Application.Services
         private readonly LuminoDbContext _dbContext;
         private readonly IConfiguration _configuration;
         private readonly IEmailSender _emailSender;
+        private readonly IOpenIdTokenValidator _openIdTokenValidator;
         private readonly IRegisterRequestValidator _registerRequestValidator;
         private readonly ILoginRequestValidator _loginRequestValidator;
         private readonly IForgotPasswordRequestValidator _forgotPasswordRequestValidator;
@@ -36,12 +37,14 @@ namespace Lumino.Api.Application.Services
             IForgotPasswordRequestValidator forgotPasswordRequestValidator,
             IResetPasswordRequestValidator resetPasswordRequestValidator,
             IEmailSender emailSender,
+            IOpenIdTokenValidator openIdTokenValidator,
             IHostEnvironment hostEnvironment,
             IPasswordHasher passwordHasher)
         {
             _dbContext = dbContext;
             _configuration = configuration;
             _emailSender = emailSender;
+            _openIdTokenValidator = openIdTokenValidator;
             _registerRequestValidator = registerRequestValidator;
             _loginRequestValidator = loginRequestValidator;
             _forgotPasswordRequestValidator = forgotPasswordRequestValidator;
@@ -84,7 +87,7 @@ namespace Lumino.Api.Application.Services
                 CreatedAt = DateTime.UtcNow,
                 NativeLanguageCode = native,
                 TargetLanguageCode = target,
-                AvatarUrl = string.IsNullOrWhiteSpace(request.AvatarUrl) ? SupportedAvatars.DefaultAvatarUrl : request.AvatarUrl!.Trim(),
+                AvatarUrl = string.IsNullOrWhiteSpace(request.AvatarUrl) ? SupportedAvatars.GetDefaultAvatarUrl(_configuration) : request.AvatarUrl!.Trim(),
                 Hearts = 5,
                 HeartsUpdatedAtUtc = DateTime.UtcNow,
                 Crystals = 0,
@@ -159,6 +162,216 @@ namespace Lumino.Api.Application.Services
                 Token = accessToken,
                 RefreshToken = refreshToken
             };
+        }
+
+        public AuthResponse OAuthGoogle(OAuthLoginRequest request)
+        {
+            if (request == null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+
+            if (string.IsNullOrWhiteSpace(request.IdToken))
+            {
+                throw new ArgumentException("IdToken is required");
+            }
+
+            var info = _openIdTokenValidator.ValidateGoogleIdToken(request.IdToken.Trim());
+
+            return LoginOrCreateExternalUser(
+                provider: "google",
+                providerUserId: info.Subject,
+                email: info.Email,
+                name: info.Name,
+                pictureUrl: info.PictureUrl,
+                requestedUsername: request.Username,
+                requestedAvatarUrl: request.AvatarUrl
+            );
+        }
+
+        public AuthResponse OAuthApple(OAuthLoginRequest request)
+        {
+            if (request == null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+
+            if (string.IsNullOrWhiteSpace(request.IdToken))
+            {
+                throw new ArgumentException("IdToken is required");
+            }
+
+            var info = _openIdTokenValidator.ValidateAppleIdToken(request.IdToken.Trim());
+
+            return LoginOrCreateExternalUser(
+                provider: "apple",
+                providerUserId: info.Subject,
+                email: info.Email,
+                name: info.Name,
+                pictureUrl: info.PictureUrl,
+                requestedUsername: request.Username,
+                requestedAvatarUrl: request.AvatarUrl
+            );
+        }
+
+        private AuthResponse LoginOrCreateExternalUser(
+            string provider,
+            string providerUserId,
+            string? email,
+            string? name,
+            string? pictureUrl,
+            string? requestedUsername,
+            string? requestedAvatarUrl
+        )
+        {
+            var external = _dbContext.UserExternalLogins
+                .FirstOrDefault(x => x.Provider == provider && x.ProviderUserId == providerUserId);
+
+            User user;
+
+            if (external != null)
+            {
+                user = _dbContext.Users.First(x => x.Id == external.UserId);
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(email))
+                {
+                    // Apple may omit email on subsequent logins. If the external login is not linked yet,
+                    // we cannot safely create/link a user.
+                    throw new ForbiddenAccessException("Apple не передав email. Увійдіть тим самим Apple акаунтом ще раз (щоб він був прив’язаний), або використайте вхід через email/пароль.");
+                }
+
+                var normalizedEmail = email.Trim();
+
+                var existingUser = _dbContext.Users.FirstOrDefault(x => x.Email == normalizedEmail);
+
+                if (existingUser == null)
+                {
+                    user = new User
+                    {
+                        Email = normalizedEmail,
+                        PasswordHash = _passwordHasher.Hash(GenerateRandomPassword()),
+                        Role = Role.User,
+                        CreatedAt = DateTime.UtcNow,
+                        Username = BuildOAuthUsername(requestedUsername, name, normalizedEmail),
+                        AvatarUrl = BuildOAuthAvatarUrl(requestedAvatarUrl, pictureUrl),
+                        HeartsUpdatedAtUtc = DateTime.UtcNow,
+                        Theme = "light"
+                    };
+
+                    _dbContext.Users.Add(user);
+                    _dbContext.SaveChanges();
+                }
+                else
+                {
+                    user = existingUser;
+                }
+
+                external = new UserExternalLogin
+                {
+                    UserId = user.Id,
+                    Provider = provider,
+                    ProviderUserId = providerUserId,
+                    Email = normalizedEmail,
+                    CreatedAtUtc = DateTime.UtcNow
+                };
+
+                _dbContext.UserExternalLogins.Add(external);
+                _dbContext.SaveChanges();
+            }
+
+            var accessToken = GenerateJwtToken(user);
+            var refreshToken = CreateRefreshToken(user.Id);
+
+            return new AuthResponse
+            {
+                Token = accessToken,
+                RefreshToken = refreshToken
+            };
+        }
+
+        private string BuildOAuthUsername(string? requestedUsername, string? name, string email)
+        {
+            if (!string.IsNullOrWhiteSpace(requestedUsername))
+            {
+                var candidate = requestedUsername.Trim();
+                if (candidate.Length > 32)
+                {
+                    candidate = candidate.Substring(0, 32);
+                }
+
+                return EnsureUniqueUsername(candidate);
+            }
+
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                var cleaned = new string(name.Trim().Where(char.IsLetterOrDigit).ToArray());
+                if (!string.IsNullOrWhiteSpace(cleaned))
+                {
+                    if (cleaned.Length > 32)
+                    {
+                        cleaned = cleaned.Substring(0, 32);
+                    }
+
+                    return EnsureUniqueUsername(cleaned);
+                }
+            }
+
+            var baseName = email.Split('@')[0];
+            if (baseName.Length > 32)
+            {
+                baseName = baseName.Substring(0, 32);
+            }
+
+            return EnsureUniqueUsername(baseName);
+        }
+
+        private string? BuildOAuthAvatarUrl(string? requestedAvatarUrl, string? tokenPictureUrl)
+        {
+            if (!string.IsNullOrWhiteSpace(requestedAvatarUrl))
+            {
+                return requestedAvatarUrl.Trim();
+            }
+
+            if (!string.IsNullOrWhiteSpace(tokenPictureUrl))
+            {
+                return tokenPictureUrl.Trim();
+            }
+
+            return SupportedAvatars.GetDefaultAvatarUrl(_configuration);
+        }
+
+        private string EnsureUniqueUsername(string baseUsername)
+        {
+            var username = baseUsername;
+
+            var exists = _dbContext.Users.Any(x => x.Username == username);
+            if (!exists)
+            {
+                return username;
+            }
+
+            for (var i = 1; i <= 9999; i++)
+            {
+                var suffix = i.ToString();
+                var maxBase = 32 - suffix.Length;
+                var trimmed = baseUsername.Length > maxBase ? baseUsername.Substring(0, maxBase) : baseUsername;
+                var candidate = trimmed + suffix;
+
+                if (!_dbContext.Users.Any(x => x.Username == candidate))
+                {
+                    return candidate;
+                }
+            }
+
+            return baseUsername + Guid.NewGuid().ToString("N").Substring(0, 4);
+        }
+
+        private static string GenerateRandomPassword()
+        {
+            // random password only to satisfy PasswordHash requirement (OAuth users can still use reset-password later)
+            return Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
         }
 
         public ForgotPasswordResponse ForgotPassword(ForgotPasswordRequest request, string? ip, string? userAgent)

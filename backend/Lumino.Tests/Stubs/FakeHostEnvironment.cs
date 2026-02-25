@@ -5,6 +5,15 @@ namespace Lumino.Tests;
 
 public class FakeHostEnvironment : IHostEnvironment
 {
+    public FakeHostEnvironment()
+    {
+    }
+
+    public FakeHostEnvironment(string environmentName)
+    {
+        EnvironmentName = environmentName;
+    }
+
     public string EnvironmentName { get; set; } = Environments.Development;
 
     public string ApplicationName { get; set; } = "Lumino.Tests";

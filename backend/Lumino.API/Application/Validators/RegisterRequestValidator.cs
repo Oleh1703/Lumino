@@ -1,11 +1,19 @@
 using Lumino.Api.Application.DTOs;
 using Lumino.Api.Utils;
+using Microsoft.Extensions.Configuration;
 
 namespace Lumino.Api.Application.Validators
 {
     public class RegisterRequestValidator : IRegisterRequestValidator
     {
-        public void Validate(RegisterRequest request)
+        private readonly IConfiguration _configuration;
+
+        public RegisterRequestValidator(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
+
+public void Validate(RegisterRequest request)
         {
             if (request == null)
             {
@@ -51,7 +59,7 @@ namespace Lumino.Api.Application.Validators
                 throw new ArgumentException("Password must be at most 64 characters");
             }
 
-            SupportedAvatars.Validate(request.AvatarUrl, "AvatarUrl");
+            SupportedAvatars.Validate(request.AvatarUrl, "AvatarUrl", _configuration);
 
             var hasNative = !string.IsNullOrWhiteSpace(request.NativeLanguageCode);
             var hasTarget = !string.IsNullOrWhiteSpace(request.TargetLanguageCode);

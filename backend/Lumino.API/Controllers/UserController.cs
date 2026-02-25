@@ -14,12 +14,14 @@ namespace Lumino.Api.Controllers
         private readonly IUserService _userService;
         private readonly IUserAccountService _userAccountService;
         private readonly IUserEconomyService _userEconomyService;
+        private readonly IUserExternalLoginService _userExternalLoginService;
 
-        public UserController(IUserService userService, IUserAccountService userAccountService, IUserEconomyService userEconomyService)
+        public UserController(IUserService userService, IUserAccountService userAccountService, IUserEconomyService userEconomyService, IUserExternalLoginService userExternalLoginService)
         {
             _userService = userService;
             _userAccountService = userAccountService;
             _userEconomyService = userEconomyService;
+            _userExternalLoginService = userExternalLoginService;
         }
 
         [HttpGet("me")]
@@ -44,6 +46,46 @@ namespace Lumino.Api.Controllers
         {
             var userId = ClaimsUtils.GetUserIdOrThrow(User);
             _userAccountService.ChangePassword(userId, request);
+            return NoContent();
+        }
+
+        [HttpPost("delete-account")]
+        public IActionResult DeleteAccount(DeleteAccountRequest request)
+        {
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
+            _userAccountService.DeleteAccount(userId, request);
+            return NoContent();
+        }
+
+        [HttpGet("external-logins")]
+        public IActionResult GetExternalLogins()
+        {
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
+            var result = _userExternalLoginService.GetExternalLogins(userId);
+            return Ok(result);
+        }
+
+        [HttpPost("external-logins/unlink")]
+        public IActionResult UnlinkExternalLogin(UnlinkExternalLoginRequest request)
+        {
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
+            _userExternalLoginService.UnlinkExternalLogin(userId, request);
+            return NoContent();
+        }
+
+        [HttpPost("external-logins/link/google")]
+        public IActionResult LinkGoogleExternalLogin(LinkExternalLoginRequest request)
+        {
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
+            _userExternalLoginService.LinkGoogleExternalLogin(userId, request);
+            return NoContent();
+        }
+
+        [HttpPost("external-logins/link/apple")]
+        public IActionResult LinkAppleExternalLogin(LinkExternalLoginRequest request)
+        {
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
+            _userExternalLoginService.LinkAppleExternalLogin(userId, request);
             return NoContent();
         }
 

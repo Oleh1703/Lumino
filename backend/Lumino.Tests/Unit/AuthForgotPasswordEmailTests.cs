@@ -57,8 +57,9 @@ public class AuthForgotPasswordEmailTests
 
         var fakeEmail = new FakeEmailSender();
         var hasher = new PasswordHasher();
+        var openIdValidator = new FakeOpenIdTokenValidator();
 
-        var service = new AuthService(db, config, registerValidator, loginValidator, forgotValidator, resetValidator, fakeEmail, env, hasher);
+        var service = new AuthService(db, config, registerValidator, loginValidator, forgotValidator, resetValidator, fakeEmail, openIdValidator, env, hasher);
 
         var response = service.ForgotPassword(new ForgotPasswordRequest { Email = "test@lumino.com" }, null, null);
 
