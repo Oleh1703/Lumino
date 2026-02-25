@@ -30,6 +30,7 @@ namespace Lumino.Api.Data
         public DbSet<UserLessonProgress> UserLessonProgresses => Set<UserLessonProgress>();
         public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
         public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+        public DbSet<EmailVerificationToken> EmailVerificationTokens => Set<EmailVerificationToken>();
         public DbSet<UserExternalLogin> UserExternalLogins => Set<UserExternalLogin>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -53,6 +54,23 @@ namespace Lumino.Api.Data
                 entity.Property(x => x.Username).HasMaxLength(32);
                 entity.Property(x => x.AvatarUrl).HasMaxLength(256);
                 entity.Property(x => x.Theme).HasMaxLength(20).HasDefaultValue("light");
+
+                entity.Property(x => x.IsEmailVerified).HasDefaultValue(false);
+            });
+
+            modelBuilder.Entity<EmailVerificationToken>(entity =>
+            {
+                entity.Property(x => x.TokenHash).IsRequired().HasMaxLength(64);
+                entity.Property(x => x.Ip).HasMaxLength(100);
+                entity.Property(x => x.UserAgent).HasMaxLength(300);
+
+                entity.HasIndex(x => x.TokenHash).IsUnique();
+                entity.HasIndex(x => new { x.UserId, x.ExpiresAt });
+
+                entity.HasOne<User>()
+                    .WithMany()
+                    .HasForeignKey(x => x.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             modelBuilder.Entity<PasswordResetToken>(entity =>

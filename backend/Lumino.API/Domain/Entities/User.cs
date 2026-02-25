@@ -12,6 +12,8 @@ namespace Lumino.Api.Domain.Entities
 
         public string PasswordHash { get; set; } = null!;
 
+        public bool IsEmailVerified { get; set; }
+
         public string? AvatarUrl { get; set; }
 
         public Role Role { get; set; }

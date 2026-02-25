@@ -58,6 +58,8 @@ namespace Lumino.Tests.Unit
                 loginValidator,
                 forgotValidator,
                 resetValidator,
+                new VerifyEmailRequestValidator(),
+                new ResendVerificationRequestValidator(),
                 emailSender,
                 openIdValidator,
                 hostEnvironment,
@@ -113,6 +115,8 @@ namespace Lumino.Tests.Unit
                 new LoginRequestValidator(),
                 new ForgotPasswordRequestValidator(),
                 new ResetPasswordRequestValidator(),
+                new VerifyEmailRequestValidator(),
+                new ResendVerificationRequestValidator(),
                 new FakeEmailSender(),
                 new FakeOpenIdTokenValidator
                 {
@@ -179,6 +183,8 @@ namespace Lumino.Tests.Unit
                 new LoginRequestValidator(),
                 new ForgotPasswordRequestValidator(),
                 new ResetPasswordRequestValidator(),
+                new VerifyEmailRequestValidator(),
+                new ResendVerificationRequestValidator(),
                 new FakeEmailSender(),
                 new FakeOpenIdTokenValidator
                 {
@@ -224,6 +230,8 @@ namespace Lumino.Tests.Unit
                 new LoginRequestValidator(),
                 new ForgotPasswordRequestValidator(),
                 new ResetPasswordRequestValidator(),
+                new VerifyEmailRequestValidator(),
+                new ResendVerificationRequestValidator(),
                 new FakeEmailSender(),
                 new FakeOpenIdTokenValidator
                 {

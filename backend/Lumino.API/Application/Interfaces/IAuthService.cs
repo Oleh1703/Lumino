@@ -16,6 +16,10 @@ namespace Lumino.Api.Application.Interfaces
 
         void ResetPassword(ResetPasswordRequest request);
 
+        AuthResponse VerifyEmail(VerifyEmailRequest request, string? ip, string? userAgent);
+
+        ResendVerificationResponse ResendVerification(ResendVerificationRequest request, string? ip, string? userAgent);
+
         AuthResponse Refresh(RefreshTokenRequest request);
 
         void Logout(RefreshTokenRequest request);

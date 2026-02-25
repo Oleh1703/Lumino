@@ -10,6 +10,8 @@ namespace Lumino.Api.Application.DTOs
 
         public string Email { get; set; } = null!;
 
+        public bool IsEmailVerified { get; set; }
+
         public string Role { get; set; } = null!;
 
         public DateTime CreatedAt { get; set; }

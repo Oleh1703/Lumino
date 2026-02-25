@@ -26,6 +26,8 @@ namespace Lumino.Api.Application.Services
         private readonly ILoginRequestValidator _loginRequestValidator;
         private readonly IForgotPasswordRequestValidator _forgotPasswordRequestValidator;
         private readonly IResetPasswordRequestValidator _resetPasswordRequestValidator;
+        private readonly IVerifyEmailRequestValidator _verifyEmailRequestValidator;
+        private readonly IResendVerificationRequestValidator _resendVerificationRequestValidator;
         private readonly IPasswordHasher _passwordHasher;
         private readonly IHostEnvironment _hostEnvironment;
 
@@ -36,6 +38,8 @@ namespace Lumino.Api.Application.Services
             ILoginRequestValidator loginRequestValidator,
             IForgotPasswordRequestValidator forgotPasswordRequestValidator,
             IResetPasswordRequestValidator resetPasswordRequestValidator,
+            IVerifyEmailRequestValidator verifyEmailRequestValidator,
+            IResendVerificationRequestValidator resendVerificationRequestValidator,
             IEmailSender emailSender,
             IOpenIdTokenValidator openIdTokenValidator,
             IHostEnvironment hostEnvironment,
@@ -49,6 +53,8 @@ namespace Lumino.Api.Application.Services
             _loginRequestValidator = loginRequestValidator;
             _forgotPasswordRequestValidator = forgotPasswordRequestValidator;
             _resetPasswordRequestValidator = resetPasswordRequestValidator;
+            _verifyEmailRequestValidator = verifyEmailRequestValidator;
+            _resendVerificationRequestValidator = resendVerificationRequestValidator;
             _hostEnvironment = hostEnvironment;
             _passwordHasher = passwordHasher;
         }
@@ -60,6 +66,19 @@ namespace Lumino.Api.Application.Services
             var existingUser = _dbContext.Users.FirstOrDefault(x => x.Email == request.Email);
             if (existingUser != null)
             {
+                // Якщо користувач уже існує, але email не підтверджено - просто повторно відправляємо підтвердження.
+                if (!existingUser.IsEmailVerified)
+                {
+                    CreateAndSendEmailVerification(existingUser, ip: null, userAgent: null);
+
+                    return new AuthResponse
+                    {
+                        Token = null,
+                        RefreshToken = null,
+                        RequiresEmailVerification = true
+                    };
+                }
+
                 throw new ArgumentException("User already exists");
             }
 
@@ -83,6 +102,7 @@ namespace Lumino.Api.Application.Services
                 Username = NormalizeUsernameOrNull(request.Username),
                 Email = request.Email,
                 PasswordHash = passwordHash,
+                IsEmailVerified = false,
                 Role = Role.User,
                 CreatedAt = DateTime.UtcNow,
                 NativeLanguageCode = native,
@@ -106,14 +126,13 @@ namespace Lumino.Api.Application.Services
             _dbContext.Users.Add(user);
             _dbContext.SaveChanges();
 
-            var accessToken = GenerateJwtToken(user);
-
-            var refreshToken = CreateRefreshToken(user.Id);
+            CreateAndSendEmailVerification(user, ip: null, userAgent: null);
 
             return new AuthResponse
             {
-                Token = accessToken,
-                RefreshToken = refreshToken
+                Token = null,
+                RefreshToken = null,
+                RequiresEmailVerification = true
             };
         }
 
@@ -140,6 +159,11 @@ namespace Lumino.Api.Application.Services
                 throw new UnauthorizedAccessException("Invalid credentials");
             }
 
+            if (!user.IsEmailVerified)
+            {
+                throw new UnauthorizedAccessException("Email not verified");
+            }
+
             var isPasswordValid = _passwordHasher.Verify(request.Password, user.PasswordHash);
             if (!isPasswordValid)
             {
@@ -160,7 +184,8 @@ namespace Lumino.Api.Application.Services
             return new AuthResponse
             {
                 Token = accessToken,
-                RefreshToken = refreshToken
+                RefreshToken = refreshToken,
+                RequiresEmailVerification = false
             };
         }
 
@@ -252,6 +277,7 @@ namespace Lumino.Api.Application.Services
                     {
                         Email = normalizedEmail,
                         PasswordHash = _passwordHasher.Hash(GenerateRandomPassword()),
+                        IsEmailVerified = true,
                         Role = Role.User,
                         CreatedAt = DateTime.UtcNow,
                         Username = BuildOAuthUsername(requestedUsername, name, normalizedEmail),
@@ -266,6 +292,13 @@ namespace Lumino.Api.Application.Services
                 else
                 {
                     user = existingUser;
+
+                    // Якщо користувач існує і зайшов через OAuth з тим самим email - вважаємо email підтвердженим.
+                    if (!user.IsEmailVerified)
+                    {
+                        user.IsEmailVerified = true;
+                        _dbContext.SaveChanges();
+                    }
                 }
 
                 external = new UserExternalLogin
@@ -287,7 +320,90 @@ namespace Lumino.Api.Application.Services
             return new AuthResponse
             {
                 Token = accessToken,
-                RefreshToken = refreshToken
+                RefreshToken = refreshToken,
+                RequiresEmailVerification = false
+            };
+        }
+
+        public AuthResponse VerifyEmail(VerifyEmailRequest request, string? ip, string? userAgent)
+        {
+            _verifyEmailRequestValidator.Validate(request);
+
+            var token = request.Token.Trim();
+            var tokenHash = HashToken(token);
+
+            var nowUtc = DateTime.UtcNow;
+
+            var entity = _dbContext.EmailVerificationTokens
+                .FirstOrDefault(x => x.TokenHash == tokenHash);
+
+            if (entity == null)
+            {
+                throw new UnauthorizedAccessException("Invalid token");
+            }
+
+            if (entity.UsedAt != null)
+            {
+                throw new UnauthorizedAccessException("Token already used");
+            }
+
+            if (entity.ExpiresAt <= nowUtc)
+            {
+                throw new UnauthorizedAccessException("Token expired");
+            }
+
+            var user = _dbContext.Users.FirstOrDefault(x => x.Id == entity.UserId);
+            if (user == null)
+            {
+                throw new UnauthorizedAccessException("Invalid token");
+            }
+
+            user.IsEmailVerified = true;
+            entity.UsedAt = nowUtc;
+
+            _dbContext.SaveChanges();
+
+            var accessToken = GenerateJwtToken(user);
+            var refreshToken = CreateRefreshToken(user.Id);
+
+            return new AuthResponse
+            {
+                Token = accessToken,
+                RefreshToken = refreshToken,
+                RequiresEmailVerification = false
+            };
+        }
+
+        public ResendVerificationResponse ResendVerification(ResendVerificationRequest request, string? ip, string? userAgent)
+        {
+            _resendVerificationRequestValidator.Validate(request);
+
+            var email = request.Email.Trim();
+
+            var user = _dbContext.Users.FirstOrDefault(x => x.Email == email);
+
+            // Always respond OK to avoid account enumeration
+            if (user == null)
+            {
+                return new ResendVerificationResponse
+                {
+                    IsSent = true
+                };
+            }
+
+            if (user.IsEmailVerified)
+            {
+                return new ResendVerificationResponse
+                {
+                    IsSent = true
+                };
+            }
+
+            CreateAndSendEmailVerification(user, ip, userAgent);
+
+            return new ResendVerificationResponse
+            {
+                IsSent = true
             };
         }
 
@@ -529,6 +645,15 @@ namespace Lumino.Api.Application.Services
             return Base64UrlEncode(bytes);
         }
 
+        private static string GenerateEmailVerificationToken()
+        {
+            var bytes = new byte[32];
+            using var rng = RandomNumberGenerator.Create();
+            rng.GetBytes(bytes);
+
+            return Base64UrlEncode(bytes);
+        }
+
         public AuthResponse Refresh(RefreshTokenRequest request)
         {
             if (request == null)
@@ -606,7 +731,8 @@ namespace Lumino.Api.Application.Services
             return new AuthResponse
             {
                 Token = newAccessToken,
-                RefreshToken = newRefreshToken
+                RefreshToken = newRefreshToken,
+                RequiresEmailVerification = false
             };
         }
 
@@ -706,6 +832,68 @@ namespace Lumino.Api.Application.Services
             var encoded = Uri.EscapeDataString(token);
 
             return $"{baseUrl}/reset-password?token={encoded}";
+        }
+
+        private string BuildEmailVerificationLink(string token)
+        {
+            var baseUrl = _configuration["Email:FrontendBaseUrl"];
+
+            if (string.IsNullOrWhiteSpace(baseUrl))
+            {
+                baseUrl = "http://localhost:5173";
+            }
+
+            baseUrl = baseUrl.Trim();
+
+            if (baseUrl.EndsWith("/"))
+            {
+                baseUrl = baseUrl.TrimEnd('/');
+            }
+
+            var encoded = Uri.EscapeDataString(token);
+
+            return $"{baseUrl}/verify-email?token={encoded}";
+        }
+
+        private void CreateAndSendEmailVerification(User user, string? ip, string? userAgent)
+        {
+            if (user == null)
+            {
+                throw new ArgumentNullException(nameof(user));
+            }
+
+            if (user.IsEmailVerified)
+            {
+                return;
+            }
+
+            var rawToken = GenerateEmailVerificationToken();
+            var tokenHash = HashToken(rawToken);
+
+            var nowUtc = DateTime.UtcNow;
+
+            // 24 години на підтвердження
+            var expiresAtUtc = nowUtc.AddHours(24);
+
+            var entity = new EmailVerificationToken
+            {
+                UserId = user.Id,
+                TokenHash = tokenHash,
+                CreatedAt = nowUtc,
+                ExpiresAt = expiresAtUtc,
+                Ip = string.IsNullOrWhiteSpace(ip) ? null : ip.Trim(),
+                UserAgent = string.IsNullOrWhiteSpace(userAgent) ? null : userAgent.Trim()
+            };
+
+            _dbContext.EmailVerificationTokens.Add(entity);
+            _dbContext.SaveChanges();
+
+            var verifyLink = BuildEmailVerificationLink(rawToken);
+
+            var subject = "Lumino: Verify your email";
+            var body = $"<p>Welcome to Lumino!</p><p>Please verify your email to complete registration.</p><p><a href=\"{verifyLink}\">Verify email</a></p><p>If the button does not work, use this token: <b>{rawToken}</b></p><p>This link expires at {expiresAtUtc:O} UTC.</p>";
+
+            _emailSender.Send(user.Email, subject, body);
         }
 
         private static string HashToken(string token)

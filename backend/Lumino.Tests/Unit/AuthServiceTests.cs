@@ -11,10 +11,12 @@ namespace Lumino.Tests;
 public class AuthServiceTests
 {
     [Fact]
-    public void Register_ShouldCreateUser_AndReturnToken()
+    public void Register_ShouldCreateUser_AndRequireEmailVerification()
     {
         var dbContext = TestDbContextFactory.Create();
         var configuration = TestConfigurationFactory.Create();
+
+        var emailSender = new FakeEmailSender();
 
         var service = new AuthService(
             dbContext,
@@ -23,7 +25,9 @@ public class AuthServiceTests
             new FakeLoginValidator(),
             new ForgotPasswordRequestValidator(),
             new ResetPasswordRequestValidator(),
-            new FakeEmailSender(),
+            new VerifyEmailRequestValidator(),
+            new ResendVerificationRequestValidator(),
+            emailSender,
             new FakeOpenIdTokenValidator(),
             new FakeHostEnvironment(),
             new PasswordHasher()
@@ -35,12 +39,16 @@ public class AuthServiceTests
             Password = "123456"
         });
 
-        Assert.False(string.IsNullOrWhiteSpace(response.Token));
-        Assert.False(string.IsNullOrWhiteSpace(response.RefreshToken));
+        Assert.True(response.RequiresEmailVerification);
+        Assert.True(string.IsNullOrWhiteSpace(response.Token));
+        Assert.True(string.IsNullOrWhiteSpace(response.RefreshToken));
+
+        Assert.Equal(1, emailSender.SendCallsCount);
 
         var user = dbContext.Users.FirstOrDefault(x => x.Email == "test@mail.com");
         Assert.NotNull(user);
         Assert.False(string.IsNullOrWhiteSpace(user!.PasswordHash));
+        Assert.False(user.IsEmailVerified);
     }
 
     [Fact]
@@ -53,7 +61,8 @@ public class AuthServiceTests
         {
             Email = "test@mail.com",
             PasswordHash = "hash",
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            IsEmailVerified = true
         });
 
         dbContext.SaveChanges();
@@ -65,6 +74,8 @@ public class AuthServiceTests
             new FakeLoginValidator(),
             new ForgotPasswordRequestValidator(),
             new ResetPasswordRequestValidator(),
+            new VerifyEmailRequestValidator(),
+            new ResendVerificationRequestValidator(),
             new FakeEmailSender(),
             new FakeOpenIdTokenValidator(),
             new FakeHostEnvironment(),
@@ -88,6 +99,8 @@ public class AuthServiceTests
         var dbContext = TestDbContextFactory.Create();
         var configuration = TestConfigurationFactory.Create();
 
+        var emailSender = new FakeEmailSender();
+
         var service = new AuthService(
             dbContext,
             configuration,
@@ -95,7 +108,9 @@ public class AuthServiceTests
             new FakeLoginValidator(),
             new ForgotPasswordRequestValidator(),
             new ResetPasswordRequestValidator(),
-            new FakeEmailSender(),
+            new VerifyEmailRequestValidator(),
+            new ResendVerificationRequestValidator(),
+            emailSender,
             new FakeOpenIdTokenValidator(),
             new FakeHostEnvironment(),
             new PasswordHasher()
@@ -121,6 +136,8 @@ public class AuthServiceTests
         var dbContext = TestDbContextFactory.Create();
         var configuration = TestConfigurationFactory.Create();
 
+        var emailSender = new FakeEmailSender();
+
         var service = new AuthService(
             dbContext,
             configuration,
@@ -128,7 +145,9 @@ public class AuthServiceTests
             new FakeLoginValidator(),
             new ForgotPasswordRequestValidator(),
             new ResetPasswordRequestValidator(),
-            new FakeEmailSender(),
+            new VerifyEmailRequestValidator(),
+            new ResendVerificationRequestValidator(),
+            emailSender,
             new FakeOpenIdTokenValidator(),
             new FakeHostEnvironment(),
             new PasswordHasher()
@@ -139,6 +158,10 @@ public class AuthServiceTests
             Email = "test@mail.com",
             Password = "123456"
         });
+
+        var user = dbContext.Users.First(x => x.Email == "test@mail.com");
+        user.IsEmailVerified = true;
+        dbContext.SaveChanges();
 
         Assert.Throws<UnauthorizedAccessException>(() =>
         {

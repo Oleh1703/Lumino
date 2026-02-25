@@ -31,6 +31,7 @@ namespace Lumino.Api.Application.Services
                 Username = user.Username,
                 AvatarUrl = user.AvatarUrl,
                 Email = user.Email,
+                IsEmailVerified = user.IsEmailVerified,
                 Role = user.Role.ToString(),
                 CreatedAt = user.CreatedAt,
                 NativeLanguageCode = user.NativeLanguageCode,

@@ -46,6 +46,26 @@ namespace Lumino.Api.Controllers
             return NoContent();
         }
 
+        [HttpPost("verify-email")]
+        public IActionResult VerifyEmail(VerifyEmailRequest request)
+        {
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var userAgent = Request.Headers.UserAgent.ToString();
+
+            var result = _authService.VerifyEmail(request, ip, userAgent);
+            return Ok(result);
+        }
+
+        [HttpPost("resend-verification")]
+        public IActionResult ResendVerification(ResendVerificationRequest request)
+        {
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var userAgent = Request.Headers.UserAgent.ToString();
+
+            var result = _authService.ResendVerification(request, ip, userAgent);
+            return Ok(result);
+        }
+
 
         [HttpPost("oauth/google")]
         public IActionResult OAuthGoogle(OAuthLoginRequest request)

@@ -2,7 +2,10 @@ namespace Lumino.Api.Application.DTOs
 {
     public class AuthResponse
     {
-        public string Token { get; set; } = null!;
-        public string RefreshToken { get; set; } = null!;
+        public string? Token { get; set; }
+
+        public string? RefreshToken { get; set; }
+
+        public bool RequiresEmailVerification { get; set; }
     }
 }
