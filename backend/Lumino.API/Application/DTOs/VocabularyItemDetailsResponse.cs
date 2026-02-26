@@ -1,12 +1,12 @@
 namespace Lumino.Api.Application.DTOs
 {
-    public class UpdateVocabularyItemRequest
+    public class VocabularyItemDetailsResponse
     {
+        public int Id { get; set; }
+
         public string Word { get; set; } = null!;
 
         public List<string> Translations { get; set; } = new();
-
-        public string? Example { get; set; }
 
         public string? PartOfSpeech { get; set; }
 

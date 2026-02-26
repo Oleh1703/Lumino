@@ -451,6 +451,87 @@ public class NextActivityServiceTests
         Assert.True(p!.IsUnlocked);
     }
 
+
+[Fact]
+public void GetNext_WhenCourseLessonsCompleted_AndTopicSceneUnlocked_ReturnsSceneWithTopicId()
+{
+    var dbContext = TestDbContextFactory.Create();
+
+    // course
+    dbContext.Courses.Add(new Course
+    {
+        Id = 1,
+        Title = "English A1",
+        Description = "Desc",
+        IsPublished = true
+    });
+
+    dbContext.Topics.Add(new Topic
+    {
+        Id = 1,
+        CourseId = 1,
+        Title = "Basics",
+        Order = 1
+    });
+
+    dbContext.Lessons.AddRange(
+        new Lesson { Id = 1, TopicId = 1, Title = "L1", Theory = "T", Order = 1 },
+        new Lesson { Id = 2, TopicId = 1, Title = "L2", Theory = "T", Order = 2 }
+    );
+
+    // topic-based scene
+    dbContext.Scenes.Add(new Scene
+    {
+        Id = 10,
+        CourseId = 1,
+        TopicId = 1,
+        Title = "Scene Topic",
+        Description = "D",
+        SceneType = "Dialogue",
+        Order = 1
+    });
+
+    // active course
+    dbContext.UserCourses.Add(new UserCourse
+    {
+        Id = 1,
+        UserId = 5,
+        CourseId = 1,
+        IsActive = true,
+        LastLessonId = 1,
+        StartedAt = new DateTime(2026, 2, 10, 0, 0, 0, DateTimeKind.Utc),
+        LastOpenedAt = new DateTime(2026, 2, 10, 0, 0, 0, DateTimeKind.Utc)
+    });
+
+    // mark lessons completed, so Next doesn't return Lesson
+    dbContext.UserLessonProgresses.AddRange(
+        new UserLessonProgress { Id = 1, UserId = 5, LessonId = 1, IsUnlocked = true, IsCompleted = true, BestScore = 4 },
+        new UserLessonProgress { Id = 2, UserId = 5, LessonId = 2, IsUnlocked = true, IsCompleted = true, BestScore = 4 }
+    );
+
+    // add passed lesson results to unlock topic scene
+    dbContext.LessonResults.AddRange(
+        new LessonResult { UserId = 5, LessonId = 1, Score = 4, TotalQuestions = 4, CompletedAt = new DateTime(2026, 2, 10, 0, 0, 0, DateTimeKind.Utc), MistakesJson = "[]" },
+        new LessonResult { UserId = 5, LessonId = 2, Score = 4, TotalQuestions = 4, CompletedAt = new DateTime(2026, 2, 10, 0, 0, 0, DateTimeKind.Utc), MistakesJson = "[]" }
+    );
+
+    dbContext.SaveChanges();
+
+    var service = new NextActivityService(
+        dbContext,
+        new FixedDateTimeProvider(new DateTime(2026, 2, 11, 0, 0, 0, DateTimeKind.Utc)),
+        Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1, SceneCompletionScore = 5 })
+    );
+
+    var next = service.GetNext(5);
+
+    Assert.NotNull(next);
+    Assert.Equal("Scene", next!.Type);
+    Assert.Equal(10, next.SceneId);
+    Assert.Equal(1, next.TopicId);
+    Assert.False(next.IsLocked);
+}
+
     private static void SeedLessons(Lumino.Api.Data.LuminoDbContext dbContext)
     {
         dbContext.Courses.Add(new Course

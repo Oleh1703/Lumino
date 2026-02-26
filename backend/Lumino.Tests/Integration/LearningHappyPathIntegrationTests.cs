@@ -1,4 +1,4 @@
-﻿﻿﻿﻿using Lumino.Api.Application.DTOs;
+﻿﻿﻿using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Application.Validators;
 using Lumino.Api.Domain.Entities;
@@ -92,6 +92,7 @@ public class LearningHappyPathIntegrationTests
             new FakeAchievementService(),
             dateTimeProvider,
 	        new FakeUserEconomyService(),
+            new FakeStreakService(),
             new SubmitLessonRequestValidator(),
             settings
         );
@@ -255,6 +256,7 @@ public class LearningHappyPathIntegrationTests
             new FakeAchievementService(),
             dateTimeProvider,
 	        new FakeUserEconomyService(),
+            new FakeStreakService(),
             new SubmitLessonRequestValidator(),
             settings
         );

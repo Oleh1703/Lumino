@@ -83,7 +83,7 @@ namespace Lumino.Api.Application.Services
 
             var courseScenes = _dbContext.Scenes
                 .Where(x => x.CourseId == courseId)
-                .Select(x => new { x.Id, x.Order })
+                .Select(x => new { x.Id, x.Order, x.TopicId })
                 .ToList();
 
             if (courseScenes.Count > 0)
@@ -99,9 +99,22 @@ namespace Lumino.Api.Application.Services
                 {
                     int scenePosition = i + 1;
 
-                    if (SceneUnlockRules.IsUnlocked(scenePosition, completedLessons, _learningSettings.SceneUnlockEveryLessons))
+                    var s = orderedScenes[i];
+
+                    bool isUnlocked;
+
+                    if (s.TopicId != null)
                     {
-                        unlockedSceneIds.Add(orderedScenes[i].Id);
+                        isUnlocked = GetIsSceneUnlockedByTopic(passedLessonIds, s.TopicId.Value);
+                    }
+                    else
+                    {
+                        isUnlocked = SceneUnlockRules.IsUnlocked(scenePosition, completedLessons, _learningSettings.SceneUnlockEveryLessons);
+                    }
+
+                    if (isUnlocked)
+                    {
+                        unlockedSceneIds.Add(s.Id);
                     }
                 }
 
@@ -223,6 +236,32 @@ namespace Lumino.Api.Application.Services
             userCourse.CompletedAt = now;
 
             _dbContext.SaveChanges();
+        }
+
+
+        private bool GetIsSceneUnlockedByTopic(List<int> passedLessonIds, int topicId)
+        {
+            var lessonIds = _dbContext.Lessons
+                .Where(x => x.TopicId == topicId)
+                .Select(x => x.Id)
+                .ToList();
+
+            if (lessonIds.Count == 0)
+            {
+                return true;
+            }
+
+            var passed = passedLessonIds.ToHashSet();
+
+            for (int i = 0; i < lessonIds.Count; i++)
+            {
+                if (!passed.Contains(lessonIds[i]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 }

@@ -18,6 +18,7 @@ namespace Lumino.Api.Application.Services
         private readonly IAchievementService _achievementService;
         private readonly IDateTimeProvider _dateTimeProvider;
         private readonly IUserEconomyService _userEconomyService;
+        private readonly IStreakService _streakService;
         private readonly ISubmitLessonRequestValidator _submitLessonRequestValidator;
         private readonly LearningSettings _learningSettings;
 
@@ -26,6 +27,7 @@ namespace Lumino.Api.Application.Services
             IAchievementService achievementService,
             IDateTimeProvider dateTimeProvider,
             IUserEconomyService userEconomyService,
+            IStreakService streakService,
             ISubmitLessonRequestValidator submitLessonRequestValidator,
             IOptions<LearningSettings> learningSettings)
         {
@@ -33,6 +35,7 @@ namespace Lumino.Api.Application.Services
             _achievementService = achievementService;
             _dateTimeProvider = dateTimeProvider;
             _userEconomyService = userEconomyService;
+            _streakService = streakService;
             _submitLessonRequestValidator = submitLessonRequestValidator;
             _learningSettings = learningSettings.Value;
         }
@@ -174,6 +177,11 @@ namespace Lumino.Api.Application.Services
 
             // активний курс + прогрес уроків + unlock наступного + перенос LastLessonId
             UpdateCourseProgressAfterLesson(userId, lesson.Id, isPassed, correct);
+
+            if (isPassed)
+            {
+                _streakService.RegisterLessonActivity(userId);
+            }
 
 
             if (shouldIncrementCompletedLessons)

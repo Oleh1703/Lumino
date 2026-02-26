@@ -158,14 +158,19 @@
 - Якщо `UserCourse.LastLessonId` існує і цей урок unlocked та ще не passed → він і повертається.
 - Інакше повертається перший unlocked + не passed урок по порядку.
 
-### 4.5 Як вибирається сцена
-- Рахується кількість passed уроків у курсі (>=80%).
+### 4.5 Як вибирається сцена (оновлено: TopicId unlock)
+- Рахується кількість passed уроків у курсі (>=80%) — **це використовується тільки для legacy-сцен без TopicId**.
 - Сцени беруться:
   - або прив’язані до курсу (`CourseId == courseId`)
   - або legacy (`CourseId == null`)
-- Відкриття сцени:
-  - `required = (позиція_сцени - 1) * SceneUnlockEveryLessons`
-  - сцена unlocked, якщо `passedLessons >= required`
+
+> **Важливо (за дизайном):** якщо у сцени задано `TopicId`, то вона **unlock** тільки після того, як користувач **пройшов всі уроки цієї теми** (урок “пройдений” = результат >= PassingScorePercent).
+
+- Правило unlock:
+  - **TopicId-сцена:** unlocked, якщо `passedLessonsInTopic == totalLessonsInTopic`
+  - **Legacy-сцена (TopicId == null):**
+    - `required = (позиція_сцени - 1) * SceneUnlockEveryLessons`
+    - unlocked, якщо `passedLessonsInCourse >= required`
 
 ---
 

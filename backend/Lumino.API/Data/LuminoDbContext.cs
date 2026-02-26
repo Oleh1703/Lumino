@@ -17,6 +17,8 @@ namespace Lumino.Api.Data
         public DbSet<Exercise> Exercises => Set<Exercise>();
         public DbSet<LessonResult> LessonResults => Set<LessonResult>();
         public DbSet<UserProgress> UserProgresses => Set<UserProgress>();
+        public DbSet<UserStreak> UserStreaks => Set<UserStreak>();
+        public DbSet<UserDailyActivity> UserDailyActivities => Set<UserDailyActivity>();
         public DbSet<VocabularyItem> VocabularyItems => Set<VocabularyItem>();
         public DbSet<VocabularyItemTranslation> VocabularyItemTranslations => Set<VocabularyItemTranslation>();
         public DbSet<UserVocabulary> UserVocabularies => Set<UserVocabulary>();
@@ -190,7 +192,19 @@ namespace Lumino.Api.Data
                 entity.HasIndex(x => x.UserId).IsUnique();
             });
 
-            
+
+            modelBuilder.Entity<UserStreak>(entity =>
+            {
+                entity.HasIndex(x => x.UserId).IsUnique();
+                entity.HasIndex(x => x.LastActivityDateUtc);
+            });
+
+            modelBuilder.Entity<UserDailyActivity>(entity =>
+            {
+                entity.HasIndex(x => new { x.UserId, x.DateUtc }).IsUnique();
+                entity.HasIndex(x => x.DateUtc);
+            });
+
             modelBuilder.Entity<VocabularyItemTranslation>(entity =>
             {
                 entity.Property(x => x.Translation)
@@ -206,7 +220,7 @@ namespace Lumino.Api.Data
                 entity.HasIndex(x => new { x.VocabularyItemId, x.Translation }).IsUnique();
             });
 
-modelBuilder.Entity<UserVocabulary>(entity =>
+            modelBuilder.Entity<UserVocabulary>(entity =>
             {
 
                 entity.Property(x => x.ReviewIdempotencyKey)
@@ -371,6 +385,29 @@ modelBuilder.Entity<UserVocabulary>(entity =>
                     .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasIndex(x => x.UserId);
+            });
+            modelBuilder.Entity<UserDailyActivity>(entity =>
+            {
+                entity.HasIndex(x => new { x.UserId, x.DateUtc }).IsUnique();
+
+                entity.HasOne<User>()
+                    .WithMany()
+                    .HasForeignKey(x => x.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.Property(x => x.DateUtc).IsRequired();
+            });
+
+            modelBuilder.Entity<UserStreak>(entity =>
+            {
+                entity.HasIndex(x => x.UserId).IsUnique();
+
+                entity.HasOne<User>()
+                    .WithMany()
+                    .HasForeignKey(x => x.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.Property(x => x.LastActivityDateUtc).IsRequired();
             });
         }
     }

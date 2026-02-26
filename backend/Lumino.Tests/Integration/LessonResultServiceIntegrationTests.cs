@@ -1,4 +1,4 @@
-﻿using Lumino.Api.Application.DTOs;
+using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Application.Validators;
 using Lumino.Api.Domain.Entities;
@@ -44,6 +44,7 @@ public class LessonResultServiceIntegrationTests
             new FakeAchievementService(),
             new FakeDateTimeProvider(),
 	        new FakeUserEconomyService(),
+            new FakeStreakService(),
             new SubmitLessonRequestValidator(),
             Options.Create(new LearningSettings { PassingScorePercent = 80 })
         );
@@ -114,6 +115,7 @@ public class LessonResultServiceIntegrationTests
             new FakeAchievementService(),
             new FakeDateTimeProvider(),
 	        new FakeUserEconomyService(),
+            new FakeStreakService(),
             new SubmitLessonRequestValidator(),
             Options.Create(new LearningSettings { PassingScorePercent = 80 })
         );
@@ -194,6 +196,7 @@ public class LessonResultServiceIntegrationTests
             new FakeAchievementService(),
             new FakeDateTimeProvider(),
 	        new FakeUserEconomyService(),
+            new FakeStreakService(),
             new SubmitLessonRequestValidator(),
             Options.Create(new LearningSettings { PassingScorePercent = 80 })
         );
@@ -228,6 +231,7 @@ public class LessonResultServiceIntegrationTests
             new FakeAchievementService(),
             new FakeDateTimeProvider(),
 	        new FakeUserEconomyService(),
+            new FakeStreakService(),
             new SubmitLessonRequestValidator(),
             Options.Create(new LearningSettings { PassingScorePercent = 80 })
         );
@@ -253,6 +257,7 @@ public class LessonResultServiceIntegrationTests
             new FakeAchievementService(),
             new FakeDateTimeProvider(),
 	        new FakeUserEconomyService(),
+            new FakeStreakService(),
             new SubmitLessonRequestValidator(),
             Options.Create(new LearningSettings { PassingScorePercent = 80 })
         );
@@ -324,6 +329,7 @@ public class LessonResultServiceIntegrationTests
             new FakeAchievementService(),
             new FakeDateTimeProvider(),
 	        new FakeUserEconomyService(),
+            new FakeStreakService(),
             new SubmitLessonRequestValidator(),
             Options.Create(new LearningSettings { PassingScorePercent = 80 })
         );
@@ -386,6 +392,7 @@ public class LessonResultServiceIntegrationTests
             new FakeAchievementService(),
             new FakeDateTimeProvider(),
 	        new FakeUserEconomyService(),
+            new FakeStreakService(),
             new SubmitLessonRequestValidator(),
             Options.Create(new LearningSettings { PassingScorePercent = 80 })
         );

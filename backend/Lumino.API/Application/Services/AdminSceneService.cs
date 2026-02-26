@@ -25,6 +25,7 @@ namespace Lumino.Api.Application.Services
                 {
                     Id = x.Id,
                     CourseId = x.CourseId,
+                    TopicId = x.TopicId,
                     Order = x.Order,
                     Title = x.Title,
                     Description = x.Description,
@@ -56,6 +57,7 @@ namespace Lumino.Api.Application.Services
                 SceneType = scene.SceneType,
                 BackgroundUrl = scene.BackgroundUrl,
                 AudioUrl = scene.AudioUrl,
+                TopicId = scene.TopicId,
                 Steps = steps
             };
         }
@@ -93,6 +95,7 @@ namespace Lumino.Api.Application.Services
                 SceneType = scene.SceneType,
                 BackgroundUrl = scene.BackgroundUrl,
                 AudioUrl = scene.AudioUrl,
+                TopicId = scene.TopicId,
                 Steps = steps
             };
         }
@@ -124,7 +127,8 @@ namespace Lumino.Api.Application.Services
                     BackgroundUrl = request.BackgroundUrl,
                     CourseId = courseId,
                     Order = sceneOrder,
-                    AudioUrl = request.AudioUrl
+                    AudioUrl = request.AudioUrl,
+                    TopicId = request.TopicId
                 };
 
                 _dbContext.Scenes.Add(scene);
@@ -210,8 +214,8 @@ namespace Lumino.Api.Application.Services
             {
                 suffix = " " + suffix;
             }
-var useTransaction = _dbContext.Database.ProviderName == null ||
-                                 !_dbContext.Database.ProviderName.Contains("InMemory", StringComparison.OrdinalIgnoreCase);
+            var useTransaction = _dbContext.Database.ProviderName == null ||
+                                             !_dbContext.Database.ProviderName.Contains("InMemory", StringComparison.OrdinalIgnoreCase);
 
             using var transaction = useTransaction ? _dbContext.Database.BeginTransaction() : null;
 
@@ -287,7 +291,8 @@ var useTransaction = _dbContext.Database.ProviderName == null ||
                 BackgroundUrl = request.BackgroundUrl,
                 CourseId = courseId,
                 Order = sceneOrder,
-                AudioUrl = request.AudioUrl
+                AudioUrl = request.AudioUrl,
+                TopicId = request.TopicId
             };
 
             _dbContext.Scenes.Add(scene);
@@ -342,6 +347,7 @@ var useTransaction = _dbContext.Database.ProviderName == null ||
             scene.SceneType = request.SceneType;
             scene.BackgroundUrl = request.BackgroundUrl;
             scene.AudioUrl = request.AudioUrl;
+            scene.TopicId = request.TopicId;
 
             _dbContext.SaveChanges();
         }

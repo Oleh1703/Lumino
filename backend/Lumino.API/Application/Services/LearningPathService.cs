@@ -152,14 +152,37 @@ namespace Lumino.Api.Application.Services
 
                 int scenePosition = i + 1;
 
-                var required = SceneUnlockRules.GetRequiredPassedLessons(scenePosition, unlockEvery);
-                var isUnlocked = SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, unlockEvery);
-                var unlockReason = isUnlocked ? null : $"Pass {required} lessons to unlock";
+int required;
+int passed;
+bool isUnlocked;
+string? unlockReason;
 
-                scenes.Add(new LearningPathSceneResponse
+if (s.TopicId.HasValue)
+{
+    var stats = GetTopicLessonStats(userId, s.TopicId.Value, passingScorePercent);
+
+    required = stats.TotalLessons;
+    passed = stats.PassedLessons;
+
+    isUnlocked = passed >= required;
+
+    unlockReason = isUnlocked ? null : "Pass all lessons in the topic to unlock";
+}
+else
+{
+    required = SceneUnlockRules.GetRequiredPassedLessons(scenePosition, unlockEvery);
+    passed = passedLessons;
+
+    isUnlocked = SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, unlockEvery);
+
+    unlockReason = isUnlocked ? null : $"Pass {required} lessons to unlock";
+}
+
+scenes.Add(new LearningPathSceneResponse
                 {
                     Id = s.Id,
                     CourseId = s.CourseId,
+                    TopicId = s.TopicId,
                     Order = s.Order,
                     Title = s.Title,
                     Description = s.Description,
@@ -167,7 +190,7 @@ namespace Lumino.Api.Application.Services
                     IsCompleted = completedSceneIds.Contains(s.Id),
                     IsUnlocked = isUnlocked,
                     UnlockReason = unlockReason,
-                    PassedLessons = passedLessons,
+                    PassedLessons = passed,
                     RequiredPassedLessons = required
                 });
             }
@@ -216,6 +239,45 @@ namespace Lumino.Api.Application.Services
                 NextPointers = nextPointers
             };
         }
+
+
+private TopicLessonStats GetTopicLessonStats(int userId, int topicId, int passingScorePercent)
+{
+    var lessonIds = _dbContext.Lessons
+        .Where(x => x.TopicId == topicId)
+        .Select(x => x.Id)
+        .ToList();
+
+    if (lessonIds.Count == 0)
+    {
+        return new TopicLessonStats
+        {
+            TotalLessons = 0,
+            PassedLessons = 0
+        };
+    }
+
+    var passedLessonIds = _dbContext.LessonResults
+        .Where(x => x.UserId == userId && lessonIds.Contains(x.LessonId) && x.TotalQuestions > 0)
+        .AsEnumerable()
+        .Where(x => x.Score * 100 >= x.TotalQuestions * passingScorePercent)
+        .Select(x => x.LessonId)
+        .Distinct()
+        .ToHashSet();
+
+    return new TopicLessonStats
+    {
+        TotalLessons = lessonIds.Count,
+        PassedLessons = passedLessonIds.Count
+    };
+}
+
+private class TopicLessonStats
+{
+    public int TotalLessons { get; set; }
+
+    public int PassedLessons { get; set; }
+}
 
         private void EnsureUserLessonProgressIsInSync(
             int userId,

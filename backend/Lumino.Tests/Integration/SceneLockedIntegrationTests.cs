@@ -1,4 +1,4 @@
-﻿using Lumino.Api.Application.DTOs;
+using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Services;
 using Lumino.Api.Application.Validators;
 using Lumino.Api.Domain.Entities;
@@ -122,6 +122,7 @@ public class SceneLockedIntegrationTests
             new FakeAchievementService(),
             dateTimeProvider,
 	        new FakeUserEconomyService(),
+            new FakeStreakService(),
             new SubmitLessonRequestValidator(),
             settings
         );

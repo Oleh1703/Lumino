@@ -25,7 +25,14 @@ namespace Lumino.Api.Controllers
             return Ok(_vocabularyService.GetMyVocabulary(userId));
         }
 
-        [HttpGet("due")]
+                [HttpGet("items/{id:int}")]
+        public IActionResult GetItemDetails([FromRoute] int id)
+        {
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
+            return Ok(_vocabularyService.GetItemDetails(userId, id));
+        }
+
+[HttpGet("due")]
         public IActionResult GetDue()
         {
             var userId = ClaimsUtils.GetUserIdOrThrow(User);

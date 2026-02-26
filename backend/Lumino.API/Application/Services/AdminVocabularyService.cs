@@ -2,6 +2,7 @@ using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
+using System.Text.Json;
 
 namespace Lumino.Api.Application.Services
 {
@@ -67,13 +68,7 @@ namespace Lumino.Api.Application.Services
                 .Select(x => x.Translation)
                 .ToList();
 
-            return new AdminVocabularyItemResponse
-            {
-                Id = item.Id,
-                Word = item.Word,
-                Example = item.Example,
-                Translations = translations
-            };
+            return BuildAdminResponse(item);
         }
 
         public AdminVocabularyItemResponse Create(CreateVocabularyItemRequest request)
@@ -307,5 +302,58 @@ namespace Lumino.Api.Application.Services
 
             return items;
         }
-    }
+    
+
+        private AdminVocabularyItemResponse BuildAdminResponse(VocabularyItem item)
+        {
+            var translations = _dbContext.VocabularyItemTranslations
+                .Where(x => x.VocabularyItemId == item.Id)
+                .OrderBy(x => x.Order)
+                .Select(x => x.Translation)
+                .ToList();
+
+            if (translations.Count == 0 && !string.IsNullOrWhiteSpace(item.Translation))
+            {
+                translations.Add(item.Translation);
+            }
+
+            var examples = DeserializeOrEmpty<List<string>>(item.ExamplesJson);
+
+            if (examples.Count == 0 && !string.IsNullOrWhiteSpace(item.Example))
+            {
+                examples.Add(item.Example);
+            }
+
+            return new AdminVocabularyItemResponse
+            {
+                Id = item.Id,
+                Word = item.Word,
+                Example = item.Example,
+                Translations = translations,
+                PartOfSpeech = item.PartOfSpeech,
+                Definition = item.Definition,
+                Examples = examples,
+                Synonyms = DeserializeOrEmpty<List<VocabularyRelationDto>>(item.SynonymsJson),
+                Idioms = DeserializeOrEmpty<List<VocabularyRelationDto>>(item.IdiomsJson)
+            };
+        }
+
+        private static T DeserializeOrEmpty<T>(string? json) where T : new()
+        {
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return new T();
+            }
+
+            try
+            {
+                var value = JsonSerializer.Deserialize<T>(json);
+                return value ?? new T();
+            }
+            catch
+            {
+                return new T();
+            }
+        }
+}
 }

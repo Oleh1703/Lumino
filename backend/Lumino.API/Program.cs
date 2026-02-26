@@ -180,6 +180,7 @@ namespace Lumino.Api
             builder.Services.AddScoped<IAdminUserService, AdminUserService>();
             builder.Services.AddScoped<INextActivityService, NextActivityService>();
             builder.Services.AddScoped<ILearningPathService, LearningPathService>();
+            builder.Services.AddScoped<IStreakService, StreakService>();
 
             // Swagger
             builder.Services.AddEndpointsApiExplorer();

@@ -49,6 +49,9 @@ namespace Lumino.Api.Application.DTOs
 
         public int? CourseId { get; set; }
 
+
+        public int? TopicId { get; set; }
+
         public int Order { get; set; }
 
         public string Title { get; set; } = null!;

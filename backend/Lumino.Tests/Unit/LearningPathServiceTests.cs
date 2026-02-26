@@ -100,6 +100,87 @@ public class LearningPathServiceTests
         Assert.False(progress[2].IsUnlocked);
     }
 
+
+[Fact]
+public void GetMyCoursePath_WhenSceneHasTopicId_AndNotAllLessonsPassed_SceneLockedWithTopicReason()
+{
+    var dbContext = TestDbContextFactory.Create();
+
+    SeedCourse(dbContext);
+
+    dbContext.SaveChanges();
+
+    var service = new LearningPathService(
+        dbContext,
+        Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1 })
+    );
+
+    var result = service.GetMyCoursePath(1, 1);
+
+    var scene = result.Scenes.First(x => x.Id == 1);
+
+    Assert.Equal(1, scene.TopicId);
+    Assert.False(scene.IsUnlocked);
+    Assert.Equal("Pass all lessons in the topic to unlock", scene.UnlockReason);
+    Assert.Equal(0, scene.PassedLessons);
+    Assert.Equal(3, scene.RequiredPassedLessons);
+}
+
+[Fact]
+public void GetMyCoursePath_WhenSceneHasTopicId_AndAllLessonsPassed_SceneUnlocked()
+{
+    var dbContext = TestDbContextFactory.Create();
+
+    SeedCourse(dbContext);
+
+    dbContext.LessonResults.AddRange(
+        new LessonResult
+        {
+            UserId = 1,
+            LessonId = 1,
+            Score = 4,
+            TotalQuestions = 4,
+            CompletedAt = new DateTime(2026, 2, 10, 0, 0, 0, DateTimeKind.Utc),
+            MistakesJson = "[]"
+        },
+        new LessonResult
+        {
+            UserId = 1,
+            LessonId = 2,
+            Score = 4,
+            TotalQuestions = 4,
+            CompletedAt = new DateTime(2026, 2, 10, 0, 0, 0, DateTimeKind.Utc),
+            MistakesJson = "[]"
+        },
+        new LessonResult
+        {
+            UserId = 1,
+            LessonId = 3,
+            Score = 4,
+            TotalQuestions = 4,
+            CompletedAt = new DateTime(2026, 2, 10, 0, 0, 0, DateTimeKind.Utc),
+            MistakesJson = "[]"
+        }
+    );
+
+    dbContext.SaveChanges();
+
+    var service = new LearningPathService(
+        dbContext,
+        Options.Create(new LearningSettings { PassingScorePercent = 80, SceneUnlockEveryLessons = 1 })
+    );
+
+    var result = service.GetMyCoursePath(1, 1);
+
+    var scene = result.Scenes.First(x => x.Id == 1);
+
+    Assert.Equal(1, scene.TopicId);
+    Assert.True(scene.IsUnlocked);
+    Assert.Null(scene.UnlockReason);
+    Assert.Equal(3, scene.PassedLessons);
+    Assert.Equal(3, scene.RequiredPassedLessons);
+}
+
     private static void SeedCourse(Lumino.Api.Data.LuminoDbContext dbContext)
     {
         dbContext.Courses.Add(new Course
@@ -123,5 +204,16 @@ public class LearningPathServiceTests
             new Lesson { Id = 2, TopicId = 1, Title = "L2", Theory = "T2", Order = 2 },
             new Lesson { Id = 3, TopicId = 1, Title = "L3", Theory = "T3", Order = 3 }
         );
+dbContext.Scenes.Add(new Scene
+{
+    Id = 1,
+    CourseId = 1,
+    TopicId = 1,
+    Title = "Topic Scene",
+    Description = "D",
+    SceneType = "Dialogue",
+    Order = 1
+});
+
     }
 }

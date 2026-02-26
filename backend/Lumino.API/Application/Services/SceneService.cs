@@ -61,6 +61,7 @@ namespace Lumino.Api.Application.Services
                 {
                     Id = x.Id,
                     CourseId = x.CourseId,
+                    TopicId = x.TopicId,
                     Order = x.Order,
                     Title = x.Title,
                     Description = x.Description,
@@ -85,17 +86,20 @@ namespace Lumino.Api.Application.Services
             var scenePosition = GetScenePosition(scene);
 
             var required = SceneUnlockRules.GetRequiredPassedLessons(scenePosition, _learningSettings.SceneUnlockEveryLessons);
-            var isUnlocked = SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, _learningSettings.SceneUnlockEveryLessons);
 
-            var unlockReason = isUnlocked ? null : $"Pass {required} lessons to unlock";
+            var isUnlocked = scene.TopicId.HasValue
+                ? GetIsSceneUnlockedByTopic(userId, scene.TopicId.Value)
+                : SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, _learningSettings.SceneUnlockEveryLessons);
 
+            var unlockReason = GetSceneUnlockReason(scene, isUnlocked, required, passedLessons);
             var isCompleted = _dbContext.SceneAttempts
-                .Any(x => x.UserId == userId && x.SceneId == sceneId && x.IsCompleted);
+                            .Any(x => x.UserId == userId && x.SceneId == sceneId && x.IsCompleted);
 
             return new SceneDetailsResponse
             {
                 Id = scene.Id,
                 CourseId = scene.CourseId,
+                TopicId = scene.TopicId,
                 Order = scene.Order,
                 Title = scene.Title,
                 Description = scene.Description,
@@ -124,9 +128,12 @@ namespace Lumino.Api.Application.Services
             var scenePosition = GetScenePosition(scene);
 
             var required = SceneUnlockRules.GetRequiredPassedLessons(scenePosition, _learningSettings.SceneUnlockEveryLessons);
-            var isUnlocked = SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, _learningSettings.SceneUnlockEveryLessons);
 
-            var unlockReason = isUnlocked ? null : $"Pass {required} lessons to unlock";
+            var isUnlocked = scene.TopicId.HasValue
+                ? GetIsSceneUnlockedByTopic(userId, scene.TopicId.Value)
+                : SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, _learningSettings.SceneUnlockEveryLessons);
+
+            var unlockReason = GetSceneUnlockReason(scene, isUnlocked, required, passedLessons);
 
             var isCompleted = _dbContext.SceneAttempts
                 .Any(x => x.UserId == userId && x.SceneId == sceneId && x.IsCompleted);
@@ -156,6 +163,7 @@ namespace Lumino.Api.Application.Services
             {
                 Id = scene.Id,
                 CourseId = scene.CourseId,
+                TopicId = scene.TopicId,
                 Order = scene.Order,
                 Title = scene.Title,
                 Description = scene.Description,
@@ -183,7 +191,11 @@ namespace Lumino.Api.Application.Services
             var passedLessons = GetPassedDistinctLessonsCount(userId, scene.CourseId);
             var scenePosition = GetScenePosition(scene);
 
-            if (!SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, _learningSettings.SceneUnlockEveryLessons))
+            var isUnlocked = scene.TopicId.HasValue
+                ? GetIsSceneUnlockedByTopic(userId, scene.TopicId.Value)
+                : SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, _learningSettings.SceneUnlockEveryLessons);
+
+            if (!isUnlocked)
             {
                 throw new ForbiddenAccessException("Scene is locked");
             }
@@ -272,7 +284,11 @@ namespace Lumino.Api.Application.Services
             var passedLessons = GetPassedDistinctLessonsCount(userId, scene.CourseId);
             var scenePosition = GetScenePosition(scene);
 
-            if (!SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, _learningSettings.SceneUnlockEveryLessons))
+            var isUnlocked = scene.TopicId.HasValue
+                ? GetIsSceneUnlockedByTopic(userId, scene.TopicId.Value)
+                : SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, _learningSettings.SceneUnlockEveryLessons);
+
+            if (!isUnlocked)
             {
                 throw new ForbiddenAccessException("Scene is locked");
             }
@@ -544,7 +560,11 @@ namespace Lumino.Api.Application.Services
             var passedLessons = GetPassedDistinctLessonsCount(userId, scene.CourseId);
             var scenePosition = GetScenePosition(scene);
 
-            if (!SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, _learningSettings.SceneUnlockEveryLessons))
+            var isUnlocked = scene.TopicId.HasValue
+                ? GetIsSceneUnlockedByTopic(userId, scene.TopicId.Value)
+                : SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, _learningSettings.SceneUnlockEveryLessons);
+
+            if (!isUnlocked)
             {
                 throw new ForbiddenAccessException("Scene is locked");
             }
@@ -702,7 +722,11 @@ namespace Lumino.Api.Application.Services
             var passedLessons = GetPassedDistinctLessonsCount(userId, scene.CourseId);
             var scenePosition = GetScenePosition(scene);
 
-            if (!SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, _learningSettings.SceneUnlockEveryLessons))
+            var isUnlocked = scene.TopicId.HasValue
+                ? GetIsSceneUnlockedByTopic(userId, scene.TopicId.Value)
+                : SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, _learningSettings.SceneUnlockEveryLessons);
+
+            if (!isUnlocked)
             {
                 throw new ForbiddenAccessException("Scene is locked");
             }
@@ -1449,5 +1473,45 @@ namespace Lumino.Api.Application.Services
 
             _dbContext.SaveChanges();
         }
+
+
+        private bool GetIsSceneUnlockedByTopic(int userId, int topicId)
+        {
+            var lessonIds = _dbContext.Lessons
+                .Where(x => x.TopicId == topicId)
+                .Select(x => x.Id)
+                .ToList();
+
+            if (lessonIds.Count == 0)
+            {
+                return true;
+            }
+
+            var passedLessonIds = _dbContext.LessonResults
+                .Where(x => x.UserId == userId && lessonIds.Contains(x.LessonId) && x.TotalQuestions > 0)
+                .AsEnumerable()
+                .Where(x => x.Score * 100 >= x.TotalQuestions * _learningSettings.PassingScorePercent)
+                .Select(x => x.LessonId)
+                .Distinct()
+                .ToHashSet();
+
+            return passedLessonIds.Count == lessonIds.Count;
+        }
+
+        private string? GetSceneUnlockReason(Scene scene, bool isUnlocked, int required, int passedLessons)
+        {
+            if (isUnlocked)
+            {
+                return null;
+            }
+
+            if (scene.TopicId.HasValue)
+            {
+                return "Pass all lessons in the topic to unlock";
+            }
+
+            return $"Pass {required} lessons to unlock";
+        }
+
     }
 }

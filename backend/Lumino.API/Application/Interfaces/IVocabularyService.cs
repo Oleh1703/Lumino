@@ -11,6 +11,8 @@ namespace Lumino.Api.Application.Interfaces
 
         VocabularyResponse? GetNextReview(int userId);
 
+        VocabularyItemDetailsResponse GetItemDetails(int userId, int vocabularyItemId);
+
         void AddWord(int userId, AddVocabularyRequest request);
 
         VocabularyResponse ReviewWord(int userId, int userVocabularyId, ReviewVocabularyRequest request);

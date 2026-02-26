@@ -4,6 +4,7 @@ using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Utils;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
@@ -618,5 +619,64 @@ namespace Lumino.Api.Application.Services
 
             return now.AddDays(days);
         }
-    }
+    
+
+        public VocabularyItemDetailsResponse GetItemDetails(int userId, int vocabularyItemId)
+        {
+            var item = _dbContext.VocabularyItems.FirstOrDefault(x => x.Id == vocabularyItemId);
+
+            if (item == null)
+            {
+                throw new KeyNotFoundException("Vocabulary item not found");
+            }
+
+            var translations = _dbContext.VocabularyItemTranslations
+                .Where(x => x.VocabularyItemId == item.Id)
+                .OrderBy(x => x.Order)
+                .Select(x => x.Translation)
+                .ToList();
+
+            if (translations.Count == 0 && !string.IsNullOrWhiteSpace(item.Translation))
+            {
+                translations.Add(item.Translation);
+            }
+
+            var examples = DeserializeOrEmpty<List<string>>(item.ExamplesJson);
+
+            if (examples.Count == 0 && !string.IsNullOrWhiteSpace(item.Example))
+            {
+                examples.Add(item.Example);
+            }
+
+            return new VocabularyItemDetailsResponse
+            {
+                Id = item.Id,
+                Word = item.Word,
+                Translations = translations,
+                PartOfSpeech = item.PartOfSpeech,
+                Definition = item.Definition,
+                Examples = examples,
+                Synonyms = DeserializeOrEmpty<List<VocabularyRelationDto>>(item.SynonymsJson),
+                Idioms = DeserializeOrEmpty<List<VocabularyRelationDto>>(item.IdiomsJson)
+            };
+        }
+
+        private static T DeserializeOrEmpty<T>(string? json) where T : new()
+        {
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return new T();
+            }
+
+            try
+            {
+                var value = JsonSerializer.Deserialize<T>(json);
+                return value ?? new T();
+            }
+            catch
+            {
+                return new T();
+            }
+        }
+}
 }

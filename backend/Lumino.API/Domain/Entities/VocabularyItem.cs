@@ -9,5 +9,15 @@ namespace Lumino.Api.Domain.Entities
         public string Translation { get; set; } = null!;
 
         public string? Example { get; set; }
+
+        public string? PartOfSpeech { get; set; }
+
+        public string? Definition { get; set; }
+
+        public string? ExamplesJson { get; set; }
+
+        public string? SynonymsJson { get; set; }
+
+        public string? IdiomsJson { get; set; }
     }
 }

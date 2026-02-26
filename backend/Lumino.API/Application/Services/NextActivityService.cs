@@ -402,7 +402,19 @@ namespace Lumino.Api.Application.Services
 
                 int scenePosition = i + 1;
 
-                if (SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, unlockEvery))
+                bool isUnlocked;
+
+                if (s.TopicId.HasValue)
+                {
+                    var stats = GetTopicLessonStats(userId, s.TopicId.Value, passingScorePercent);
+                    isUnlocked = stats.PassedLessons >= stats.TotalLessons;
+                }
+                else
+                {
+                    isUnlocked = SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, unlockEvery);
+                }
+
+                if (isUnlocked)
                 {
                     scene = s;
                     break;
@@ -420,8 +432,48 @@ namespace Lumino.Api.Application.Services
                 CourseId = courseIdToUse.Value,
                 IsLocked = false,
                 SceneId = scene.Id,
-                SceneTitle = scene.Title
+                SceneTitle = scene.Title,
+                TopicId = scene.TopicId
             };
+        }
+
+
+        private TopicLessonStats GetTopicLessonStats(int userId, int topicId, int passingScorePercent)
+        {
+            var lessonIds = _dbContext.Lessons
+                .Where(x => x.TopicId == topicId)
+                .Select(x => x.Id)
+                .ToList();
+
+            if (lessonIds.Count == 0)
+            {
+                return new TopicLessonStats
+                {
+                    TotalLessons = 0,
+                    PassedLessons = 0
+                };
+            }
+
+            var passedLessonIds = _dbContext.LessonResults
+                .Where(x => x.UserId == userId && lessonIds.Contains(x.LessonId) && x.TotalQuestions > 0)
+                .AsEnumerable()
+                .Where(x => x.Score * 100 >= x.TotalQuestions * passingScorePercent)
+                .Select(x => x.LessonId)
+                .Distinct()
+                .ToHashSet();
+
+            return new TopicLessonStats
+            {
+                TotalLessons = lessonIds.Count,
+                PassedLessons = passedLessonIds.Count
+            };
+        }
+
+        private class TopicLessonStats
+        {
+            public int TotalLessons { get; set; }
+
+            public int PassedLessons { get; set; }
         }
     }
 }

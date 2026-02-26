@@ -71,25 +71,42 @@ namespace Lumino.Api.Application.Services
                 .FirstOrDefault();
 
 
-            var passedLessonDatesUtc = _dbContext.LessonResults
-                .Where(x =>
-                    x.UserId == userId &&
-                    x.TotalQuestions > 0 &&
-                    x.Score * 100 >= x.TotalQuestions * passingScorePercent
-                )
-                .Select(x => x.CompletedAt)
-                .ToList();
+            var streakRow = _dbContext.UserStreaks
+                .FirstOrDefault(x => x.UserId == userId);
 
-            var completedSceneDatesUtc = _dbContext.SceneAttempts
-                .Where(x => x.UserId == userId && x.IsCompleted)
-                .Select(x => x.CompletedAt)
-                .ToList();
+            int currentStreak = 0;
+            DateTime? lastStudyAt = null;
 
-            var studyDatesUtc = passedLessonDatesUtc
-                .Concat(completedSceneDatesUtc)
-                .ToList();
+            if (streakRow != null)
+            {
+                var todayUtc = nowUtc.Date;
+                var lastDate = streakRow.LastActivityDateUtc.Date;
 
-            var (currentStreak, lastStudyAt) = CalculateCurrentStreak(studyDatesUtc, nowUtc);
+                if (lastDate < todayUtc.AddDays(-1) && streakRow.CurrentStreak != 0)
+                {
+                    streakRow.CurrentStreak = 0;
+                    _dbContext.SaveChanges();
+                }
+
+                currentStreak = streakRow.CurrentStreak;
+                lastStudyAt = streakRow.LastActivityDateUtc.Date;
+            }
+            else
+            {
+                var passedLessonDatesUtc = _dbContext.LessonResults
+                    .Where(x =>
+                        x.UserId == userId &&
+                        x.TotalQuestions > 0 &&
+                        x.Score * 100 >= x.TotalQuestions * passingScorePercent
+                    )
+                    .Select(x => x.CompletedAt)
+                    .ToList();
+
+                var (fallbackStreak, fallbackLastStudyAt) = CalculateCurrentStreak(passedLessonDatesUtc, nowUtc);
+
+                currentStreak = fallbackStreak;
+                lastStudyAt = fallbackLastStudyAt;
+            }
 
             var weekly = BuildWeeklyScores(userId, nowUtc);
 
