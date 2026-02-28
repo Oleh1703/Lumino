@@ -25,6 +25,14 @@ namespace Lumino.Api.Controllers
             return Ok(result);
         }
 
+                [HttpGet("languages/me")]
+        [Authorize]
+        public IActionResult GetMyLanguages()
+        {
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
+            return Ok(_onboardingService.GetMyLanguages(userId));
+        }
+
         [HttpPut("languages/me")]
         [Authorize]
         public IActionResult UpdateMyLanguages([FromBody] UpdateUserLanguagesRequest request)

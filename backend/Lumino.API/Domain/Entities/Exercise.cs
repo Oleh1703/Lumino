@@ -1,4 +1,4 @@
-﻿using Lumino.Api.Domain.Enums;
+using Lumino.Api.Domain.Enums;
 
 namespace Lumino.Api.Domain.Entities
 {
@@ -10,7 +10,7 @@ namespace Lumino.Api.Domain.Entities
 
         public ExerciseType Type { get; set; }
 
-        public string Question { get; set; } = null!;
+        public string Question { get; set; } = string.Empty;
 
         public string Data { get; set; } = null!;
 

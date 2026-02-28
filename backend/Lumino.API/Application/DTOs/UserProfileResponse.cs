@@ -25,5 +25,9 @@ namespace Lumino.Api.Application.DTOs
         public int Crystals { get; set; }
 
         public string Theme { get; set; } = null!;
+
+        public int CurrentStreakDays { get; set; }
+
+        public int BestStreakDays { get; set; }
     }
 }

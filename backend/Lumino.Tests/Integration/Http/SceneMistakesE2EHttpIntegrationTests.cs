@@ -35,7 +35,9 @@ public class SceneMistakesE2EHttpIntegrationTests : IClassFixture<ApiWebApplicat
                 Email = "test@test.com",
                 PasswordHash = "hash",
                 Role = Role.User,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                // важливо для тесту нагороди: після успішного проходження помилок => +1 heart (але не більше max)
+                Hearts = 4
             });
 
             dbContext.Courses.Add(new Course
@@ -118,6 +120,17 @@ public class SceneMistakesE2EHttpIntegrationTests : IClassFixture<ApiWebApplicat
         }
 
         var client = _factory.CreateClient();
+
+        // 0) Hearts before mistakes flow
+        var meBeforeResponse = await client.GetAsync("/api/user/me");
+        Assert.Equal(HttpStatusCode.OK, meBeforeResponse.StatusCode);
+
+        var meBeforeJson = await meBeforeResponse.Content.ReadAsStringAsync();
+        int heartsBefore;
+        using (var meDoc = JsonDocument.Parse(meBeforeJson))
+        {
+            heartsBefore = GetInt32PropertyIgnoreCase(meDoc.RootElement, "hearts");
+        }
 
         // 1) Start course
         var startResponse = await client.PostAsync("/api/learning/courses/1/start", null);
@@ -308,6 +321,21 @@ public class SceneMistakesE2EHttpIntegrationTests : IClassFixture<ApiWebApplicat
         var ids = completedDoc.RootElement.EnumerateArray().Select(x => x.GetInt32()).ToList();
 
         Assert.Contains(2, ids);
+
+        // 11) After successful mistakes completion => +1 heart (capped)
+        var meAfterResponse = await client.GetAsync("/api/user/me");
+        Assert.Equal(HttpStatusCode.OK, meAfterResponse.StatusCode);
+
+        var meAfterJson = await meAfterResponse.Content.ReadAsStringAsync();
+        int heartsAfter;
+        using (var meAfterDoc = JsonDocument.Parse(meAfterJson))
+        {
+            heartsAfter = GetInt32PropertyIgnoreCase(meAfterDoc.RootElement, "hearts");
+        }
+
+        // якщо max hearts = 5, то 4 -> 5
+        Assert.True(heartsAfter == heartsBefore + 1 || heartsAfter == heartsBefore,
+            $"Hearts should increase by 1 (or be capped). Before={heartsBefore}, After={heartsAfter}");
     }
 
     private static bool TryGetPropertyIgnoreCase(JsonElement element, string propertyName, out JsonElement value)

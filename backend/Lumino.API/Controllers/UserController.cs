@@ -15,13 +15,15 @@ namespace Lumino.Api.Controllers
         private readonly IUserAccountService _userAccountService;
         private readonly IUserEconomyService _userEconomyService;
         private readonly IUserExternalLoginService _userExternalLoginService;
+        private readonly IStreakService _streakService;
 
-        public UserController(IUserService userService, IUserAccountService userAccountService, IUserEconomyService userEconomyService, IUserExternalLoginService userExternalLoginService)
+        public UserController(IUserService userService, IUserAccountService userAccountService, IUserEconomyService userEconomyService, IUserExternalLoginService userExternalLoginService, IStreakService streakService)
         {
             _userService = userService;
             _userAccountService = userAccountService;
             _userEconomyService = userEconomyService;
             _userExternalLoginService = userExternalLoginService;
+            _streakService = streakService;
         }
 
         [HttpGet("me")]
@@ -30,6 +32,11 @@ namespace Lumino.Api.Controllers
             var userId = ClaimsUtils.GetUserIdOrThrow(User);
             _userEconomyService.RefreshHearts(userId);
             var result = _userService.GetCurrentUser(userId);
+
+            var streak = _streakService.GetMyStreak(userId);
+            result.CurrentStreakDays = streak.Current;
+            result.BestStreakDays = streak.Best;
+
             return Ok(result);
         }
 

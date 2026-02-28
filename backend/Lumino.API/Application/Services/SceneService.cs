@@ -499,6 +499,11 @@ namespace Lumino.Api.Application.Services
                 mistakesIdempotencyKey: mistakesIdempotencyKey
             );
 
+            if (completed && details.MistakeStepIds.Count == 0)
+            {
+                _userEconomyService.AwardHeartForPracticeIfPossible(userId);
+            }
+
             return new SubmitSceneResponse
             {
                 SceneId = sceneId,

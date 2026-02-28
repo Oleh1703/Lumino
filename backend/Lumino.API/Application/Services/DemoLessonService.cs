@@ -46,9 +46,10 @@ namespace Lumino.Api.Application.Services
 
         public DemoNextLessonResponse GetDemoNextLesson(int step, string? languageCode = null, string? level = null)
         {
-            var ids = GetLessonIds(languageCode, level);
+            var resolved = ResolveLessonIds(languageCode, level);
 
-            if (ids.Count == 0)
+            var ids = resolved.Ids;
+if (ids.Count == 0)
             {
                 if (!string.IsNullOrWhiteSpace(languageCode))
                 {
@@ -78,15 +79,19 @@ namespace Lumino.Api.Application.Services
                 CtaText = isLast ? "Щоб зберегти прогрес — зареєструйся" : string.Empty,
                 ShowRegisterCta = isLast,
                 LessonNumberText = lessonNumberText,
+                IsFallbackToA1 = resolved.IsFallbackToA1,
+                ResolvedLevel = resolved.ResolvedLevel,
+                FallbackMessage = resolved.FallbackMessage,
                 Lesson = GetDemoLessonById(lessonId, languageCode, level)
             };
         }
 
         public DemoNextLessonPackResponse GetDemoNextLessonPack(int step, string? languageCode = null, string? level = null)
         {
-            var ids = GetLessonIds(languageCode, level);
+            var resolved = ResolveLessonIds(languageCode, level);
 
-            if (ids.Count == 0)
+            var ids = resolved.Ids;
+if (ids.Count == 0)
             {
                 if (!string.IsNullOrWhiteSpace(languageCode))
                 {
@@ -115,6 +120,9 @@ namespace Lumino.Api.Application.Services
                 CtaText = isLast ? "Щоб зберегти прогрес — зареєструйся" : string.Empty,
                 ShowRegisterCta = isLast,
                 LessonNumberText = lessonNumberText,
+                IsFallbackToA1 = resolved.IsFallbackToA1,
+                ResolvedLevel = resolved.ResolvedLevel,
+                FallbackMessage = resolved.FallbackMessage,
                 Lesson = GetDemoLessonById(lessonId, languageCode, level),
                 Exercises = GetDemoExercisesByLesson(lessonId, languageCode, level)
             };
@@ -350,7 +358,136 @@ namespace Lumino.Api.Application.Services
             throw new ArgumentException("Level is not supported");
         }
 
-        private List<int> GetLessonIds(string? languageCode, string? level)
+        
+        private class DemoResolution
+        {
+            public List<int> Ids { get; set; } = new List<int>();
+            public string ResolvedLevel { get; set; } = string.Empty;
+            public bool IsFallbackToA1 { get; set; }
+            public string FallbackMessage { get; set; } = string.Empty;
+        }
+
+        private DemoResolution ResolveLessonIds(string? languageCode, string? level)
+        {
+            var resolution = new DemoResolution();
+
+            if (string.IsNullOrWhiteSpace(languageCode))
+            {
+                resolution.Ids = GetLessonIds(languageCode, level);
+                return resolution;
+            }
+
+            if (!SupportedLanguages.IsLearnable(languageCode))
+            {
+                throw new ArgumentException("LanguageCode is not supported");
+            }
+
+            var normalized = languageCode.Trim().ToLowerInvariant();
+            var normalizedLevel = NormalizeLevelKey(level);
+
+            // when config mapping is used (only for no level), we can't reliably resolve a level
+            if (normalizedLevel == null &&
+                _demoSettings.LanguageLessonIds != null &&
+                _demoSettings.LanguageLessonIds.TryGetValue(normalized, out var ids) &&
+                ids != null &&
+                ids.Count > 0)
+            {
+                resolution.Ids = NormalizeLessonIds(ids);
+                return resolution;
+            }
+
+            var coursesQuery = _dbContext.Courses
+                .Where(x => x.IsPublished && x.LanguageCode == normalized);
+
+            var courses = coursesQuery
+                .Select(x => new { x.Id, Title = (x.Title ?? string.Empty).ToLower() })
+                .OrderBy(x => x.Id)
+                .ToList();
+
+            if (courses == null || courses.Count == 0)
+            {
+                resolution.Ids = new List<int>();
+                return resolution;
+            }
+
+            int courseId = 0;
+
+            if (normalizedLevel != null)
+            {
+                var exact = courses.FirstOrDefault(x => x.Title.Contains(normalizedLevel));
+
+                if (exact != null)
+                {
+                    courseId = exact.Id;
+                    resolution.ResolvedLevel = normalizedLevel;
+                }
+                else
+                {
+                    var a1 = courses.FirstOrDefault(x => x.Title.Contains("a1"));
+
+                    if (a1 != null)
+                    {
+                        courseId = a1.Id;
+                        resolution.ResolvedLevel = "a1";
+                        resolution.IsFallbackToA1 = true;
+                        resolution.FallbackMessage = $"Рівень {normalizedLevel.ToUpper()} ще в розробці. Показуємо демо рівня A1.";
+                    }
+                    else
+                    {
+                        courseId = courses.First().Id;
+                        resolution.ResolvedLevel = string.Empty;
+                        resolution.IsFallbackToA1 = true;
+                        resolution.FallbackMessage = $"Рівень {normalizedLevel.ToUpper()} ще в розробці. Показуємо демо з доступного курсу.";
+                    }
+                }
+            }
+            else
+            {
+                var a1 = courses.FirstOrDefault(x => x.Title.Contains("a1"));
+
+                if (a1 != null)
+                {
+                    courseId = a1.Id;
+                    resolution.ResolvedLevel = "a1";
+                }
+                else
+                {
+                    courseId = courses.First().Id;
+                    resolution.ResolvedLevel = string.Empty;
+                }
+            }
+
+            if (courseId <= 0)
+            {
+                resolution.Ids = new List<int>();
+                return resolution;
+            }
+
+            var lessonIds = _dbContext.Lessons
+                .Join(
+                    _dbContext.Topics.Where(t => t.CourseId == courseId),
+                    l => l.TopicId,
+                    t => t.Id,
+                    (l, t) => new { Lesson = l, Topic = t }
+                )
+                .OrderBy(x => x.Topic.Order <= 0 ? int.MaxValue : x.Topic.Order)
+                .ThenBy(x => x.Topic.Id)
+                .ThenBy(x => x.Lesson.Order <= 0 ? int.MaxValue : x.Lesson.Order)
+                .ThenBy(x => x.Lesson.Id)
+                .Select(x => x.Lesson.Id)
+                .Take(3)
+                .ToList();
+
+            resolution.Ids = lessonIds != null && lessonIds.Count > 0
+                ? NormalizeLessonIds(lessonIds)
+                : new List<int>();
+
+            // IMPORTANT: When languageCode is specified and no demo can be resolved,
+            // we must NOT fallback to other language demo lessons.
+            return resolution;
+        }
+
+private List<int> GetLessonIds(string? languageCode, string? level)
         {
             if (!string.IsNullOrWhiteSpace(languageCode))
             {

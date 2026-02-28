@@ -486,4 +486,52 @@ public class DemoApiHttpIntegrationTests : IClassFixture<ApiWebApplicationFactor
     }
 
 
+
+
+    [Fact]
+    public async Task DemoNextPack_WithRequestedLevelUnavailable_ShouldFallbackToA1()
+    {
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<LuminoDbContext>();
+
+            dbContext.Database.EnsureDeleted();
+            dbContext.Database.EnsureCreated();
+
+            dbContext.Courses.Add(new Course { Id = 1, Title = "English A1", Description = "Desc", IsPublished = true, LanguageCode = "en" });
+            dbContext.Topics.Add(new Topic { Id = 10, CourseId = 1, Title = "Topic", Order = 1 });
+
+            dbContext.Lessons.Add(new Lesson { Id = 1, TopicId = 10, Title = "Demo 1", Theory = "", Order = 1 });
+
+            dbContext.Exercises.Add(new Exercise
+            {
+                Id = 1,
+                LessonId = 1,
+                Type = ExerciseType.Input,
+                Question = "Type",
+                Data = "",
+                CorrectAnswer = "a",
+                Order = 1
+            });
+
+            dbContext.SaveChanges();
+        }
+
+        var client = _factory.CreateClient();
+
+        // request A2 but only A1 exists -> must fallback + provide message
+        var okResponse = await client.GetAsync("/api/demo/next-pack?step=0&languageCode=en&level=a2");
+
+        Assert.Equal(HttpStatusCode.OK, okResponse.StatusCode);
+
+        var okJson = await okResponse.Content.ReadAsStringAsync();
+
+        using (var doc = JsonDocument.Parse(okJson))
+        {
+            Assert.True(doc.RootElement.GetProperty("isFallbackToA1").GetBoolean());
+            Assert.Equal("a1", doc.RootElement.GetProperty("resolvedLevel").GetString());
+            Assert.False(string.IsNullOrWhiteSpace(doc.RootElement.GetProperty("fallbackMessage").GetString()));
+        }
+    }
+
 }

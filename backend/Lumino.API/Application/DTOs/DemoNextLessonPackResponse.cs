@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace Lumino.Api.Application.DTOs
 {
@@ -21,6 +21,15 @@ namespace Lumino.Api.Application.DTOs
 
         // готовий текст для UI ("Урок 2 з 3")
         public string LessonNumberText { get; set; } = string.Empty;
+
+        // коли обраний рівень недоступний, бекенд може віддати A1 і повідомити UI
+        public bool IsFallbackToA1 { get; set; }
+
+        // фактичний рівень, з якого сформовано демо (a1/a2/b1/b2/c1/c2 або пусто)
+        public string ResolvedLevel { get; set; } = string.Empty;
+
+        // optional message for UI when fallback happens
+        public string FallbackMessage { get; set; } = string.Empty;
 
         public LessonResponse Lesson { get; set; } = null!;
 

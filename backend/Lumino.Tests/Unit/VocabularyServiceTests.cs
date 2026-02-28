@@ -47,6 +47,39 @@ public class VocabularyServiceTests
     }
 
 
+
+    [Fact]
+    public void AddWord_WhenWordExists_AndTranslationNotProvided_ShouldAddToUserVocabulary()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        var now = new DateTime(2026, 2, 12, 10, 0, 0, DateTimeKind.Utc);
+        var service = new VocabularyService(dbContext, new FixedDateTimeProvider(now), Options.Create(new LearningSettings()));
+
+        service.AddWord(userId: 1, new AddVocabularyRequest
+        {
+            Word = "apple",
+            Translation = "яблуко"
+        });
+
+        service.AddWord(userId: 2, new AddVocabularyRequest
+        {
+            Word = "apple"
+        });
+
+        Assert.Single(dbContext.VocabularyItems);
+
+        var item = dbContext.VocabularyItems.First();
+        Assert.Equal("apple", item.Word);
+        Assert.Equal("яблуко", item.Translation);
+
+        var userWords = dbContext.UserVocabularies.OrderBy(x => x.UserId).ToList();
+        Assert.Equal(2, userWords.Count);
+        Assert.Equal(1, userWords[0].UserId);
+        Assert.Equal(2, userWords[1].UserId);
+        Assert.All(userWords, x => Assert.Equal(item.Id, x.VocabularyItemId));
+    }
+
     [Fact]
     public void AddWord_WithMultipleTranslations_ShouldSaveAllTranslations_AndKeepPrimaryInTranslation()
     {

@@ -12,6 +12,10 @@ namespace Lumino.Api.Application.DTOs
 
         public string? Definition { get; set; }
 
+        public string? Transcription { get; set; }
+
+        public string? Gender { get; set; }
+
         public List<string> Examples { get; set; } = new();
 
         public List<VocabularyRelationDto> Synonyms { get; set; } = new();

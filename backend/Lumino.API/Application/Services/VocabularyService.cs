@@ -129,17 +129,56 @@ namespace Lumino.Api.Application.Services
                 throw new ArgumentException("Word is required");
             }
 
-            if (string.IsNullOrWhiteSpace(request.Translation))
+            var word = request.Word.Trim();
+
+            var candidates = _dbContext.VocabularyItems
+                .Where(x => x.Word.ToLower() == word.ToLower())
+                .OrderBy(x => x.Id)
+                .ToList();
+
+            var hasProvidedTranslation = string.IsNullOrWhiteSpace(request.Translation) == false;
+
+            if (candidates.Count == 0 && hasProvidedTranslation == false)
             {
                 throw new ArgumentException("Translation is required");
             }
 
-            var word = request.Word.Trim();
+            var translations = new List<string>();
+            var primaryTranslation = string.Empty;
 
-            var translations = NormalizeTranslations(request.Translation, request.Translations);
-            var primaryTranslation = translations[0];
+            if (hasProvidedTranslation)
+            {
+                translations = NormalizeTranslations(request.Translation!, request.Translations);
+                primaryTranslation = translations[0];
+            }
 
-            var item = FindOrCreateVocabularyItem(word, primaryTranslation, request.Example);
+            var item = candidates.Count == 0
+                ? FindOrCreateVocabularyItem(word, primaryTranslation, request.Example, request.Transcription, request.Gender, request.Examples)
+                : SelectCandidate(candidates, primaryTranslation);
+
+            if (hasProvidedTranslation == false)
+            {
+                var existingTranslations = _dbContext.VocabularyItemTranslations
+                    .Where(x => x.VocabularyItemId == item.Id)
+                    .OrderBy(x => x.Order)
+                    .Select(x => x.Translation)
+                    .ToList();
+
+                if (existingTranslations.Count > 0)
+                {
+                    translations = existingTranslations;
+                    primaryTranslation = existingTranslations[0];
+                }
+                else if (string.IsNullOrWhiteSpace(item.Translation) == false)
+                {
+                    translations = new List<string> { item.Translation };
+                    primaryTranslation = item.Translation;
+                }
+                else
+                {
+                    throw new ArgumentException("Translation is required");
+                }
+            }
 
             EnsureTranslations(item.Id, primaryTranslation, translations);
 
@@ -167,7 +206,25 @@ namespace Lumino.Api.Application.Services
             _dbContext.SaveChanges();
         }
 
-        public VocabularyResponse ReviewWord(int userId, int userVocabularyId, ReviewVocabularyRequest request)
+        private static VocabularyItem SelectCandidate(List<VocabularyItem> candidates, string primaryTranslation)
+        {
+            if (candidates.Count == 1)
+            {
+                return candidates[0];
+            }
+
+            if (string.IsNullOrWhiteSpace(primaryTranslation))
+            {
+                return candidates[0];
+            }
+
+            var normalizedPrimary = primaryTranslation.ToLower();
+            var exact = candidates.FirstOrDefault(x => x.Translation.ToLower() == normalizedPrimary);
+            return exact ?? candidates[0];
+        }
+
+
+public VocabularyResponse ReviewWord(int userId, int userVocabularyId, ReviewVocabularyRequest request)
         {
             if (request == null)
             {
@@ -213,7 +270,21 @@ namespace Lumino.Api.Application.Services
 
             entity.LastReviewedAt = now;
 
-            if (request.IsCorrect)
+            var action = request.Action;
+
+            if (string.IsNullOrWhiteSpace(action) == false)
+            {
+                action = action.Trim().ToLowerInvariant();
+            }
+
+            bool isSkip = action == "skip" || action == "not_sure" || action == "unsure";
+            bool isCorrect = action == "correct" ? true : (action == "wrong" || action == "incorrect" ? false : request.IsCorrect);
+
+            if (isSkip)
+            {
+                entity.NextReviewAt = now.AddMinutes(_learningSettings.VocabularySkipDelayMinutes);
+            }
+            else if (isCorrect)
             {
                 entity.ReviewCount = entity.ReviewCount + 1;
                 entity.NextReviewAt = CalculateNextReviewAt(now, entity.ReviewCount);
@@ -416,7 +487,7 @@ namespace Lumino.Api.Application.Services
             EnsurePrimaryTranslation(vocabularyItemId, primaryTranslation);
         }
 
-        private VocabularyItem FindOrCreateVocabularyItem(string word, string primaryTranslation, string? example)
+        private VocabularyItem FindOrCreateVocabularyItem(string word, string primaryTranslation, string? example, string? transcription, string? gender, List<string>? examples)
         {
             // We identify a vocabulary item by Word.
             // If the same word is added later with another primary translation,
@@ -430,11 +501,21 @@ namespace Lumino.Api.Application.Services
 
             if (candidates.Count == 0)
             {
+                var normalizedExamples = examples
+                    ?.Where(x => string.IsNullOrWhiteSpace(x) == false)
+                    .Select(x => x.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList()
+                    ?? new List<string>();
+
                 var created = new VocabularyItem
                 {
                     Word = word,
                     Translation = primaryTranslation,
-                    Example = example
+                    Example = string.IsNullOrWhiteSpace(example) ? normalizedExamples.FirstOrDefault() : example,
+                    Transcription = transcription,
+                    Gender = gender,
+                    ExamplesJson = normalizedExamples.Count > 0 ? JsonSerializer.Serialize(normalizedExamples) : null
                 };
 
                 _dbContext.VocabularyItems.Add(created);
@@ -454,7 +535,7 @@ namespace Lumino.Api.Application.Services
             return exact ?? candidates[0];
         }
 
-        private void EnsurePrimaryTranslation(int vocabularyItemId, string primaryTranslation)
+private void EnsurePrimaryTranslation(int vocabularyItemId, string primaryTranslation)
         {
             if (string.IsNullOrWhiteSpace(primaryTranslation))
             {
@@ -619,7 +700,7 @@ namespace Lumino.Api.Application.Services
 
             return now.AddDays(days);
         }
-    
+
 
         public VocabularyItemDetailsResponse GetItemDetails(int userId, int vocabularyItemId)
         {
@@ -652,9 +733,12 @@ namespace Lumino.Api.Application.Services
             {
                 Id = item.Id,
                 Word = item.Word,
+                Translation = translations.FirstOrDefault() ?? string.Empty,
                 Translations = translations,
                 PartOfSpeech = item.PartOfSpeech,
                 Definition = item.Definition,
+                Transcription = item.Transcription,
+                Gender = item.Gender,
                 Examples = examples,
                 Synonyms = DeserializeOrEmpty<List<VocabularyRelationDto>>(item.SynonymsJson),
                 Idioms = DeserializeOrEmpty<List<VocabularyRelationDto>>(item.IdiomsJson)
@@ -678,5 +762,5 @@ namespace Lumino.Api.Application.Services
                 return new T();
             }
         }
-}
+    }
 }

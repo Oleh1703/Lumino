@@ -19,6 +19,19 @@ public class FakeStreakService : IStreakService
     {
         return new StreakCalendarResponse
         {
+            Year = DateTime.UtcNow.Year,
+            Month = DateTime.UtcNow.Month,
+            Days = new List<StreakCalendarDayResponse>()
+        };
+    }
+
+
+    public StreakCalendarResponse GetMyCalendarMonth(int userId, int year, int month)
+    {
+        return new StreakCalendarResponse
+        {
+            Year = year,
+            Month = month,
             Days = new List<StreakCalendarDayResponse>()
         };
     }

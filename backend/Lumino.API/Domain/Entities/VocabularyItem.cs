@@ -14,6 +14,10 @@ namespace Lumino.Api.Domain.Entities
 
         public string? Definition { get; set; }
 
+        public string? Transcription { get; set; }
+
+        public string? Gender { get; set; }
+
         public string? ExamplesJson { get; set; }
 
         public string? SynonymsJson { get; set; }

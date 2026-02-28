@@ -18,6 +18,23 @@ namespace Lumino.Api.Controllers
             _lessonResultService = lessonResultService;
         }
 
+        
+        [HttpPost("/api/lessons/{id}/submit")]
+        public IActionResult SubmitLessonAlias(int id, [FromBody] SubmitLessonRequest request)
+        {
+            if (request == null)
+            {
+                return BadRequest();
+            }
+
+            // route has priority (design contract: /api/lessons/{id}/submit)
+            request.LessonId = id;
+
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
+            var result = _lessonResultService.SubmitLesson(userId, request);
+            return Ok(result);
+        }
+
         [HttpPost]
         public IActionResult SubmitLesson([FromBody] SubmitLessonRequest request)
         {

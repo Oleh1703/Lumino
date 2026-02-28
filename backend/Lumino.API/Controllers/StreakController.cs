@@ -25,9 +25,14 @@ namespace Lumino.Api.Controllers
         }
 
         [HttpGet("calendar")]
-        public IActionResult GetMyCalendar([FromQuery] int days = 30)
+        public IActionResult GetMyCalendar([FromQuery] int days = 30, [FromQuery] int? year = null, [FromQuery] int? month = null)
         {
             var userId = ClaimsUtils.GetUserIdOrThrow(User);
+            if (year.HasValue && month.HasValue)
+            {
+                return Ok(_streakService.GetMyCalendarMonth(userId, year.Value, month.Value));
+            }
+
             return Ok(_streakService.GetMyCalendar(userId, days));
         }
     }

@@ -74,4 +74,69 @@ public class OnboardingServiceTests
             });
         });
     }
+
+
+    [Fact]
+    public void GetMyLanguages_ReturnsLearningLanguages_AndActive()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        dbContext.Courses.Add(new Course
+        {
+            Title = "English A1",
+            Description = "desc",
+            LanguageCode = "en",
+            IsPublished = true
+        });
+
+        dbContext.Courses.Add(new Course
+        {
+            Title = "German A1",
+            Description = "desc",
+            LanguageCode = "de",
+            IsPublished = true
+        });
+
+        var user = new User
+        {
+            Email = "u2@mail.com",
+            PasswordHash = "hash",
+            CreatedAt = DateTime.UtcNow,
+            NativeLanguageCode = "pl",
+            TargetLanguageCode = "en"
+        };
+
+        dbContext.Users.Add(user);
+        dbContext.SaveChanges();
+
+        dbContext.UserCourses.Add(new UserCourse
+        {
+            UserId = user.Id,
+            CourseId = dbContext.Courses.First(x => x.LanguageCode == "en").Id,
+            IsActive = true,
+            StartedAt = DateTime.UtcNow,
+            LastOpenedAt = DateTime.UtcNow
+        });
+
+        dbContext.UserCourses.Add(new UserCourse
+        {
+            UserId = user.Id,
+            CourseId = dbContext.Courses.First(x => x.LanguageCode == "de").Id,
+            IsActive = false,
+            StartedAt = DateTime.UtcNow,
+            LastOpenedAt = DateTime.UtcNow
+        });
+
+        dbContext.SaveChanges();
+
+        var service = new OnboardingService(dbContext);
+
+        var result = service.GetMyLanguages(user.Id);
+
+        Assert.Equal("pl", result.NativeLanguageCode);
+        Assert.Equal("en", result.ActiveTargetLanguageCode);
+        Assert.Contains(result.LearningLanguages, x => x.Code == "en" && x.IsActive);
+        Assert.Contains(result.LearningLanguages, x => x.Code == "de" && x.IsActive == false);
+    }
+
 }

@@ -1,4 +1,6 @@
 using Lumino.Api.Application.Interfaces;
+using Lumino.Api.Utils;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Lumino.Api.Controllers
@@ -20,5 +22,16 @@ namespace Lumino.Api.Controllers
             var result = _courseService.GetPublishedCourses(languageCode);
             return Ok(result);
         }
+
+
+        [HttpGet("me")]
+        [Authorize]
+        public IActionResult GetMyCourses([FromQuery] string? languageCode)
+        {
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
+            var result = _courseService.GetMyCourses(userId, languageCode);
+            return Ok(result);
+        }
+
     }
 }

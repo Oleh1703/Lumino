@@ -8,6 +8,8 @@ namespace Lumino.Api.Application.Interfaces
 
         StreakCalendarResponse GetMyCalendar(int userId, int days);
 
+        StreakCalendarResponse GetMyCalendarMonth(int userId, int year, int month);
+
         void RegisterLessonActivity(int userId);
     }
 }

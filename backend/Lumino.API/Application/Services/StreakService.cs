@@ -72,7 +72,11 @@ namespace Lumino.Api.Application.Services
                 .Select(x => x.DateUtc.Date)
                 .ToHashSet();
 
-            var result = new StreakCalendarResponse();
+            var result = new StreakCalendarResponse
+            {
+                Year = nowUtc.Year,
+                Month = nowUtc.Month
+            };
 
             for (var i = days - 1; i >= 0; i--)
             {
@@ -87,6 +91,48 @@ namespace Lumino.Api.Application.Services
 
             return result;
         }
+
+        public StreakCalendarResponse GetMyCalendarMonth(int userId, int year, int month)
+        {
+            if (year < 2000 || year > 2100)
+            {
+                throw new ArgumentException("Invalid year");
+            }
+
+            if (month < 1 || month > 12)
+            {
+                throw new ArgumentException("Invalid month");
+            }
+
+            var fromDate = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
+            var toDate = fromDate.AddMonths(1).AddDays(-1);
+
+            var activeDates = _dbContext.UserDailyActivities
+                .Where(x => x.UserId == userId && x.DateUtc >= fromDate && x.DateUtc <= toDate)
+                .Select(x => x.DateUtc.Date)
+                .ToHashSet();
+
+            var daysInMonth = DateTime.DaysInMonth(year, month);
+            var result = new StreakCalendarResponse
+            {
+                Year = year,
+                Month = month
+            };
+
+            for (var day = 1; day <= daysInMonth; day++)
+            {
+                var date = new DateTime(year, month, day, 0, 0, 0, DateTimeKind.Utc);
+
+                result.Days.Add(new StreakCalendarDayResponse
+                {
+                    DateUtc = date,
+                    IsActive = activeDates.Contains(date)
+                });
+            }
+
+            return result;
+        }
+
         public void RegisterLessonActivity(int userId)
         {
             var todayUtc = _dateTimeProvider.UtcNow.Date;

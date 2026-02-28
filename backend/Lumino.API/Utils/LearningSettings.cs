@@ -21,6 +21,10 @@ namespace Lumino.Api.Utils
         // SRS (Vocabulary): через скільки годин повторюємо слово після помилки.
         public int VocabularyWrongDelayHours { get; set; } = 12;
 
+        // SRS (Vocabulary): якщо користувач натиснув "Пропуск/Не впевнений".
+        // Робимо коротке відкладення, не скидаючи прогрес повністю.
+        public int VocabularySkipDelayMinutes { get; set; } = 10;
+
         // SRS (Vocabulary): інтервали повторення в днях для правильних відповідей.
         // приклад: 1, 2, 4, 7, 14, 30, 60...
         public List<int> VocabularyReviewIntervalsDays { get; set; } = new List<int> { 1, 2, 4, 7, 14, 30, 60 };

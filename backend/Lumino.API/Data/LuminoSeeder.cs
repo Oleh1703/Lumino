@@ -489,7 +489,6 @@ namespace Lumino.Api.Data
                 new VocabularyItem { Word = "nine", Translation = "дев'ять", Example = "Nine rooms." },
                 new VocabularyItem { Word = "ten", Translation = "десять", Example = "Ten dollars." },
 
-
                 new VocabularyItem { Word = "water", Translation = "вода", Example = "I want water." },
                 new VocabularyItem { Word = "coffee", Translation = "кава", Example = "Coffee, please." },
                 new VocabularyItem { Word = "tea", Translation = "чай", Example = "Tea is hot." },
@@ -744,9 +743,170 @@ namespace Lumino.Api.Data
                     ("expensive", "дорогий")
                 ), "{}", 5)
             });
+
+            EnsureFixedCourseStructureForDesign(dbContext, courseEnglish);
         }
 
-        private static void SeedVocabularyLinks(LuminoDbContext dbContext)
+        
+        private static void EnsureFixedCourseStructureForDesign(LuminoDbContext dbContext, Course course)
+        {
+            if (course == null)
+            {
+                return;
+            }
+
+            // Design rule:
+            // 1 course = 10 topics
+            // 1 topic = 8 lessons + 1 final scene (sun)
+            // 1 lesson = 9 exercises
+            // This method is safe to call multiple times: it only adds missing items.
+
+            var topics = dbContext.Topics
+                .Where(x => x.CourseId == course.Id)
+                .OrderBy(x => x.Order)
+                .ToList();
+
+            var existingOrders = topics
+                .Select(x => x.Order)
+                .Distinct()
+                .ToHashSet();
+
+            for (int topicOrder = 1; topicOrder <= 10; topicOrder++)
+            {
+                if (existingOrders.Contains(topicOrder))
+                {
+                    continue;
+                }
+
+                var topic = new Topic
+                {
+                    CourseId = course.Id,
+                    Title = $"Topic {topicOrder}",
+                    Order = topicOrder
+                };
+
+                dbContext.Topics.Add(topic);
+            }
+
+            dbContext.SaveChanges();
+
+            topics = dbContext.Topics
+                .Where(x => x.CourseId == course.Id)
+                .OrderBy(x => x.Order)
+                .ToList();
+
+            foreach (var topic in topics)
+            {
+                EnsureLessonsForTopic(dbContext, topic);
+                EnsureFinalSceneForTopic(dbContext, course, topic);
+            }
+
+            dbContext.SaveChanges();
+        }
+
+        private static void EnsureLessonsForTopic(LuminoDbContext dbContext, Topic topic)
+        {
+            var lessons = dbContext.Lessons
+                .Where(x => x.TopicId == topic.Id)
+                .OrderBy(x => x.Order)
+                .ToList();
+
+            var lessonOrders = lessons
+                .Select(x => x.Order)
+                .Distinct()
+                .ToHashSet();
+
+            for (int lessonOrder = 1; lessonOrder <= 8; lessonOrder++)
+            {
+                if (lessonOrders.Contains(lessonOrder))
+                {
+                    continue;
+                }
+
+                var lesson = new Lesson
+                {
+                    TopicId = topic.Id,
+                    Title = $"{topic.Title} - Lesson {lessonOrder}",
+                    Theory = "TBD",
+                    Order = lessonOrder
+                };
+
+                dbContext.Lessons.Add(lesson);
+            }
+
+            dbContext.SaveChanges();
+
+            lessons = dbContext.Lessons
+                .Where(x => x.TopicId == topic.Id)
+                .OrderBy(x => x.Order)
+                .ToList();
+
+            foreach (var lesson in lessons)
+            {
+                EnsureExercisesForLesson(dbContext, lesson);
+            }
+        }
+
+        private static void EnsureExercisesForLesson(LuminoDbContext dbContext, Lesson lesson)
+        {
+            var exercises = dbContext.Exercises
+                .Where(x => x.LessonId == lesson.Id)
+                .OrderBy(x => x.Order)
+                .ToList();
+
+            var exerciseOrders = exercises
+                .Select(x => x.Order)
+                .Distinct()
+                .ToHashSet();
+
+            var placeholderOptions = ToJsonStringArray("Option A", "Option B", "Option C");
+
+            for (int exOrder = 1; exOrder <= 9; exOrder++)
+            {
+                if (exerciseOrders.Contains(exOrder))
+                {
+                    continue;
+                }
+
+                var exercise = new Exercise
+                {
+                    LessonId = lesson.Id,
+                    Type = ExerciseType.MultipleChoice,
+                    Question = $"Placeholder question {exOrder}",
+                    Data = placeholderOptions,
+                    CorrectAnswer = "Option A",
+                    Order = exOrder
+                };
+
+                dbContext.Exercises.Add(exercise);
+            }
+        }
+
+        private static void EnsureFinalSceneForTopic(LuminoDbContext dbContext, Course course, Topic topic)
+        {
+            // One final scene per topic (sun). It is used by LearningPath rules (TopicId != null).
+            var hasScene = dbContext.Scenes.Any(x => x.CourseId == course.Id && x.TopicId == topic.Id);
+            if (hasScene)
+            {
+                return;
+            }
+
+            var scene = new Scene
+            {
+                CourseId = course.Id,
+                TopicId = topic.Id,
+                Title = "Sun",
+                Description = "Final topic scene (sun)",
+                SceneType = "Sun",
+                BackgroundUrl = null,
+                AudioUrl = null,
+                Order = 9
+            };
+
+            dbContext.Scenes.Add(scene);
+        }
+
+private static void SeedVocabularyLinks(LuminoDbContext dbContext)
         {
             SeedLessonVocabularyLinks(dbContext);
             SeedExerciseVocabularyLinks(dbContext);
@@ -1469,7 +1629,6 @@ namespace Lumino.Api.Data
             public string left { get; set; } = null!;
             public string right { get; set; } = null!;
         }
-
         private record SceneStepSeed(
             int Order,
             string Speaker,
@@ -1540,7 +1699,5 @@ namespace Lumino.Api.Data
                 dbContext.SaveChanges();
             }
         }
-
-
     }
 }

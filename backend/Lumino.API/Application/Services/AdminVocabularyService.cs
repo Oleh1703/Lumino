@@ -23,7 +23,11 @@ namespace Lumino.Api.Application.Services
                 {
                     Id = x.Id,
                     Word = x.Word,
-                    Example = x.Example
+                    Example = x.Example,
+                    PartOfSpeech = x.PartOfSpeech,
+                    Definition = x.Definition,
+                    Transcription = x.Transcription,
+                    Gender = x.Gender
                 })
                 .ToList();
 
@@ -103,7 +107,14 @@ namespace Lumino.Api.Application.Services
             {
                 Word = request.Word.Trim(),
                 Translation = cleanTranslations[0],
-                Example = request.Example
+                Example = request.Example,
+                PartOfSpeech = request.PartOfSpeech,
+                Definition = request.Definition,
+                Transcription = request.Transcription,
+                Gender = request.Gender,
+                ExamplesJson = JsonSerializer.Serialize(request.Examples ?? new List<string>()),
+                SynonymsJson = JsonSerializer.Serialize(request.Synonyms ?? new List<VocabularyRelationDto>()),
+                IdiomsJson = JsonSerializer.Serialize(request.Idioms ?? new List<VocabularyRelationDto>())
             };
 
             _dbContext.VocabularyItems.Add(item);
@@ -281,7 +292,11 @@ namespace Lumino.Api.Application.Services
                 {
                     Id = x.Id,
                     Word = x.Word,
-                    Example = x.Example
+                    Example = x.Example,
+                    PartOfSpeech = x.PartOfSpeech,
+                    Definition = x.Definition,
+                    Transcription = x.Transcription,
+                    Gender = x.Gender
                 })
                 .ToList();
 
@@ -302,7 +317,7 @@ namespace Lumino.Api.Application.Services
 
             return items;
         }
-    
+
 
         private AdminVocabularyItemResponse BuildAdminResponse(VocabularyItem item)
         {
@@ -332,6 +347,8 @@ namespace Lumino.Api.Application.Services
                 Translations = translations,
                 PartOfSpeech = item.PartOfSpeech,
                 Definition = item.Definition,
+                Transcription = item.Transcription,
+                Gender = item.Gender,
                 Examples = examples,
                 Synonyms = DeserializeOrEmpty<List<VocabularyRelationDto>>(item.SynonymsJson),
                 Idioms = DeserializeOrEmpty<List<VocabularyRelationDto>>(item.IdiomsJson)
@@ -355,5 +372,5 @@ namespace Lumino.Api.Application.Services
                 return new T();
             }
         }
-}
+    }
 }
