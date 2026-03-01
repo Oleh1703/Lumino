@@ -1,4 +1,4 @@
-using Lumino.Api.Application.DTOs;
+﻿using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Data;
 using Lumino.Api.Utils;
@@ -37,7 +37,7 @@ namespace Lumino.Api.Application.Services
                 throw new KeyNotFoundException("User not found");
             }
 
-            var heartsMax = _learningSettings.HeartsMax <= 0 ? 5 : _learningSettings.HeartsMax;
+            var heartsMax = HeartsEconomyCalculator.GetHeartsMax(_learningSettings);
 
             if (user.Hearts > heartsMax)
             {
@@ -127,7 +127,7 @@ namespace Lumino.Api.Application.Services
                 throw new KeyNotFoundException("User not found");
             }
 
-            var heartsMax = _learningSettings.HeartsMax <= 0 ? 5 : _learningSettings.HeartsMax;
+            var heartsMax = HeartsEconomyCalculator.GetHeartsMax(_learningSettings);
 
             if (user.Hearts >= heartsMax)
             {
@@ -146,9 +146,9 @@ namespace Lumino.Api.Application.Services
                 throw new ArgumentException("Request is required");
             }
 
-            if (request.HeartsToRestore <= 0)
+            if (request.HeartsToRestore < 0)
             {
-                throw new ArgumentException("HeartsToRestore must be greater than 0");
+                throw new ArgumentException("HeartsToRestore must be greater than or equal to 0");
             }
 
             var user = _dbContext.Users.FirstOrDefault(x => x.Id == userId);
@@ -160,8 +160,26 @@ namespace Lumino.Api.Application.Services
                 throw new KeyNotFoundException("User not found");
             }
 
-            var heartsMax = _learningSettings.HeartsMax <= 0 ? 5 : _learningSettings.HeartsMax;
-            var costPerHeart = _learningSettings.CrystalCostPerHeart <= 0 ? 10 : _learningSettings.CrystalCostPerHeart;
+            var heartsMax = HeartsEconomyCalculator.GetHeartsMax(_learningSettings);
+            var costPerHeart = HeartsEconomyCalculator.GetCrystalCostPerHeart(_learningSettings);
+
+            var regenMinutes = HeartsEconomyCalculator.GetHeartRegenMinutes(_learningSettings);
+
+            if (request.HeartsToRestore == 0)
+            {
+                return new RestoreHeartsResponse
+                {
+                    Hearts = user.Hearts,
+                    Crystals = user.Crystals,
+                    HeartsMax = heartsMax,
+                    HeartRegenMinutes = regenMinutes,
+                    CrystalCostPerHeart = costPerHeart,
+                    NextHeartAtUtc = HeartsEconomyCalculator.GetNextHeartAtUtc(user.Hearts, user.HeartsUpdatedAtUtc, _learningSettings),
+                    NextHeartInSeconds = HeartsEconomyCalculator.GetNextHeartInSeconds(user.Hearts, user.HeartsUpdatedAtUtc, _learningSettings),
+                    SpentCrystals = 0,
+                    RestoredHearts = 0
+                };
+            }
 
             if (user.Hearts >= heartsMax)
             {
@@ -169,6 +187,11 @@ namespace Lumino.Api.Application.Services
                 {
                     Hearts = user.Hearts,
                     Crystals = user.Crystals,
+                    HeartsMax = heartsMax,
+                    HeartRegenMinutes = regenMinutes,
+                    CrystalCostPerHeart = costPerHeart,
+                    NextHeartAtUtc = HeartsEconomyCalculator.GetNextHeartAtUtc(user.Hearts, user.HeartsUpdatedAtUtc, _learningSettings),
+                    NextHeartInSeconds = HeartsEconomyCalculator.GetNextHeartInSeconds(user.Hearts, user.HeartsUpdatedAtUtc, _learningSettings),
                     SpentCrystals = 0,
                     RestoredHearts = 0
                 };
@@ -199,12 +222,15 @@ namespace Lumino.Api.Application.Services
             {
                 Hearts = user.Hearts,
                 Crystals = user.Crystals,
+                HeartsMax = heartsMax,
+                HeartRegenMinutes = regenMinutes,
+                CrystalCostPerHeart = costPerHeart,
+                NextHeartAtUtc = HeartsEconomyCalculator.GetNextHeartAtUtc(user.Hearts, user.HeartsUpdatedAtUtc, _learningSettings),
+                NextHeartInSeconds = HeartsEconomyCalculator.GetNextHeartInSeconds(user.Hearts, user.HeartsUpdatedAtUtc, _learningSettings),
                 SpentCrystals = neededCrystals,
                 RestoredHearts = requested
             };
         }
-
-
 
         private void RegenerateHeartsIfNeeded(Lumino.Api.Domain.Entities.User? user)
         {
@@ -213,7 +239,7 @@ namespace Lumino.Api.Application.Services
                 return;
             }
 
-            var heartsMax = _learningSettings.HeartsMax <= 0 ? 5 : _learningSettings.HeartsMax;
+            var heartsMax = HeartsEconomyCalculator.GetHeartsMax(_learningSettings);
 
             if (user.Hearts > heartsMax)
             {
@@ -223,7 +249,7 @@ namespace Lumino.Api.Application.Services
                 return;
             }
 
-            var regenMinutes = _learningSettings.HeartRegenMinutes <= 0 ? 30 : _learningSettings.HeartRegenMinutes;
+            var regenMinutes = HeartsEconomyCalculator.GetHeartRegenMinutes(_learningSettings);
 
             if (regenMinutes <= 0)
             {

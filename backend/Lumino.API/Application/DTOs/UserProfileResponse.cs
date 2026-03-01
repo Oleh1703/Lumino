@@ -24,6 +24,16 @@ namespace Lumino.Api.Application.DTOs
 
         public int Crystals { get; set; }
 
+        public int HeartsMax { get; set; }
+
+        public int HeartRegenMinutes { get; set; }
+
+        public int CrystalCostPerHeart { get; set; }
+
+        public DateTime? NextHeartAtUtc { get; set; }
+
+        public int NextHeartInSeconds { get; set; }
+
         public string Theme { get; set; } = null!;
 
         public int CurrentStreakDays { get; set; }

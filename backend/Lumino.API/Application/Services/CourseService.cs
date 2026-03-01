@@ -37,7 +37,10 @@ namespace Lumino.Api.Application.Services
                     Id = x.Id,
                     Title = x.Title,
                     Description = x.Description,
-                    LanguageCode = x.LanguageCode
+                    LanguageCode = x.LanguageCode,
+                    Level = x.Level,
+                    Order = x.Order,
+                    PrerequisiteCourseId = x.PrerequisiteCourseId
                 })
                 .ToList();
         }
@@ -61,20 +64,44 @@ namespace Lumino.Api.Application.Services
 
             var courses = query
                 .AsEnumerable()
-                .OrderBy(x => GetCourseLevelOrder(x.Title))
+                .OrderBy(x => GetCourseOrder(x))
                 .ThenBy(x => x.Id)
                 .ToList();
 
             var result = new List<CourseForMeResponse>();
 
-            bool previousCompleted = true;
+
+            var completionMap = courses
+                .ToDictionary(x => x.Id, x => _courseCompletionService.GetMyCourseCompletion(userId, x.Id));
+
+
+            var inferredPrerequisiteMap = new Dictionary<int, int>();
+
+            foreach (var group in courses.GroupBy(x => x.LanguageCode))
+            {
+                var ordered = group
+                    .OrderBy(x => GetCourseOrder(x))
+                    .ThenBy(x => x.Id)
+                    .ToList();
+
+                for (var i = 1; i < ordered.Count; i++)
+                {
+                    var current = ordered[i];
+
+                    if (current.PrerequisiteCourseId == null)
+                    {
+                        inferredPrerequisiteMap[current.Id] = ordered[i - 1].Id;
+                    }
+                }
+            }
 
             foreach (var c in courses)
             {
-                var completion = _courseCompletionService.GetMyCourseCompletion(userId, c.Id);
+                var completion = completionMap[c.Id];
 
-                var isLocked = !previousCompleted;
-                var level = TryExtractLevel(c.Title);
+                var isLocked = IsCourseLockedByPrerequisiteId(GetEffectivePrerequisiteCourseId(c, inferredPrerequisiteMap), completionMap);
+
+                var level = GetCourseLevel(c);
 
                 result.Add(new CourseForMeResponse
                 {
@@ -83,20 +110,75 @@ namespace Lumino.Api.Application.Services
                     Description = c.Description,
                     LanguageCode = c.LanguageCode,
                     Level = level,
+                    Order = c.Order,
+                    PrerequisiteCourseId = c.PrerequisiteCourseId,
                     IsLocked = isLocked,
                     IsCompleted = completion.IsCompleted,
                     CompletionPercent = completion.CompletionPercent
                 });
 
-                previousCompleted = completion.IsCompleted;
             }
 
             return result;
         }
 
-        private static int GetCourseLevelOrder(string title)
+
+        private static bool IsCourseLocked(Lumino.Api.Domain.Entities.Course course, Dictionary<int, CourseCompletionResponse> completionMap)
         {
-            var level = TryExtractLevel(title);
+            return IsCourseLockedByPrerequisiteId(course.PrerequisiteCourseId, completionMap);
+        }
+
+
+        private static int? GetEffectivePrerequisiteCourseId(Lumino.Api.Domain.Entities.Course course, Dictionary<int, int> inferredPrerequisiteMap)
+        {
+            if (course.PrerequisiteCourseId != null)
+            {
+                return course.PrerequisiteCourseId;
+            }
+
+            if (inferredPrerequisiteMap.TryGetValue(course.Id, out var inferred))
+            {
+                return inferred;
+            }
+
+            return null;
+        }
+
+
+        private static bool IsCourseLockedByPrerequisiteId(int? prerequisiteCourseId, Dictionary<int, CourseCompletionResponse> completionMap)
+        {
+            if (prerequisiteCourseId == null)
+            {
+                return false;
+            }
+
+            if (!completionMap.TryGetValue(prerequisiteCourseId.Value, out var prerequisiteCompletion))
+            {
+                return false;
+            }
+
+            return !prerequisiteCompletion.IsCompleted;
+        }
+
+        private static string? GetCourseLevel(Lumino.Api.Domain.Entities.Course course)
+        {
+            if (!string.IsNullOrWhiteSpace(course.Level))
+            {
+                return course.Level!.Trim().ToUpperInvariant();
+            }
+
+            return TryExtractLevel(course.Title);
+        }
+
+
+        private static int GetCourseOrder(Lumino.Api.Domain.Entities.Course course)
+        {
+            if (course.Order > 0)
+            {
+                return course.Order;
+            }
+
+            var level = GetCourseLevel(course);
 
             if (string.IsNullOrWhiteSpace(level))
             {

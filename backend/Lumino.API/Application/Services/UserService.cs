@@ -2,6 +2,8 @@ using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Application.Validators;
 using Lumino.Api.Data;
+using Lumino.Api.Utils;
+using Microsoft.Extensions.Options;
 
 namespace Lumino.Api.Application.Services
 {
@@ -9,11 +11,13 @@ namespace Lumino.Api.Application.Services
     {
         private readonly LuminoDbContext _dbContext;
         private readonly IUpdateProfileRequestValidator _updateProfileRequestValidator;
+        private readonly LearningSettings _learningSettings;
 
-        public UserService(LuminoDbContext dbContext, IUpdateProfileRequestValidator updateProfileRequestValidator)
+        public UserService(LuminoDbContext dbContext, IUpdateProfileRequestValidator updateProfileRequestValidator, IOptions<LearningSettings> learningSettings)
         {
             _dbContext = dbContext;
             _updateProfileRequestValidator = updateProfileRequestValidator;
+            _learningSettings = learningSettings.Value;
         }
 
         public UserProfileResponse GetCurrentUser(int userId)
@@ -25,6 +29,8 @@ namespace Lumino.Api.Application.Services
                 throw new KeyNotFoundException("User not found");
             }
 
+
+            var (currentStreak, bestStreak) = GetStreakValues(userId);
             return new UserProfileResponse
             {
                 Id = user.Id,
@@ -38,7 +44,14 @@ namespace Lumino.Api.Application.Services
                 TargetLanguageCode = user.TargetLanguageCode,
                 Hearts = user.Hearts,
                 Crystals = user.Crystals,
-                Theme = string.IsNullOrWhiteSpace(user.Theme) ? "light" : user.Theme
+                HeartsMax = HeartsEconomyCalculator.GetHeartsMax(_learningSettings),
+                HeartRegenMinutes = HeartsEconomyCalculator.GetHeartRegenMinutes(_learningSettings),
+                CrystalCostPerHeart = HeartsEconomyCalculator.GetCrystalCostPerHeart(_learningSettings),
+                NextHeartAtUtc = HeartsEconomyCalculator.GetNextHeartAtUtc(user.Hearts, user.HeartsUpdatedAtUtc, _learningSettings),
+                NextHeartInSeconds = HeartsEconomyCalculator.GetNextHeartInSeconds(user.Hearts, user.HeartsUpdatedAtUtc, _learningSettings),
+                Theme = string.IsNullOrWhiteSpace(user.Theme) ? "light" : user.Theme,
+                CurrentStreakDays = currentStreak,
+                BestStreakDays = bestStreak
             };
         }
 
@@ -81,5 +94,28 @@ namespace Lumino.Api.Application.Services
 
             return GetCurrentUser(userId);
         }
+
+        private (int current, int best) GetStreakValues(int userId)
+        {
+            var todayUtc = DateTime.UtcNow.Date;
+
+            var streak = _dbContext.UserStreaks.FirstOrDefault(x => x.UserId == userId);
+
+            if (streak == null)
+            {
+                return (0, 0);
+            }
+
+            var lastDate = streak.LastActivityDateUtc.Date;
+
+            if (lastDate < todayUtc.AddDays(-1) && streak.CurrentStreak != 0)
+            {
+                streak.CurrentStreak = 0;
+                _dbContext.SaveChanges();
+            }
+
+            return (streak.CurrentStreak, streak.BestStreak);
+        }
+
     }
 }

@@ -15,28 +15,20 @@ namespace Lumino.Api.Controllers
         private readonly IUserAccountService _userAccountService;
         private readonly IUserEconomyService _userEconomyService;
         private readonly IUserExternalLoginService _userExternalLoginService;
-        private readonly IStreakService _streakService;
 
-        public UserController(IUserService userService, IUserAccountService userAccountService, IUserEconomyService userEconomyService, IUserExternalLoginService userExternalLoginService, IStreakService streakService)
+        public UserController(IUserService userService, IUserAccountService userAccountService, IUserEconomyService userEconomyService, IUserExternalLoginService userExternalLoginService)
         {
             _userService = userService;
             _userAccountService = userAccountService;
             _userEconomyService = userEconomyService;
-            _userExternalLoginService = userExternalLoginService;
-            _streakService = streakService;
-        }
+            _userExternalLoginService = userExternalLoginService;        }
 
         [HttpGet("me")]
         public IActionResult GetMe()
         {
             var userId = ClaimsUtils.GetUserIdOrThrow(User);
             _userEconomyService.RefreshHearts(userId);
-            var result = _userService.GetCurrentUser(userId);
-
-            var streak = _streakService.GetMyStreak(userId);
-            result.CurrentStreakDays = streak.Current;
-            result.BestStreakDays = streak.Best;
-
+            var result = _userService.GetCurrentUser(userId); 
             return Ok(result);
         }
 
@@ -44,7 +36,10 @@ namespace Lumino.Api.Controllers
         public IActionResult UpdateProfile(UpdateProfileRequest request)
         {
             var userId = ClaimsUtils.GetUserIdOrThrow(User);
-            var result = _userService.UpdateProfile(userId, request);
+
+            _userEconomyService.RefreshHearts(userId);
+
+            var result = _userService.UpdateProfile(userId, request); 
             return Ok(result);
         }
 

@@ -9,5 +9,11 @@ namespace Lumino.Api.Application.DTOs
         public string Description { get; set; } = null!;
 
         public string LanguageCode { get; set; } = null!;
+
+        public string? Level { get; set; }
+
+        public int Order { get; set; }
+
+        public int? PrerequisiteCourseId { get; set; }
     }
 }

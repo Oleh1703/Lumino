@@ -112,6 +112,17 @@ namespace Lumino.Api.Data
                 entity.Property(x => x.Description).IsRequired();
 
                 entity.Property(x => x.LanguageCode).IsRequired().HasMaxLength(10).HasDefaultValue("en");
+
+                entity.Property(x => x.Level).HasMaxLength(5);
+
+                entity.Property(x => x.Order).HasDefaultValue(0);
+
+                entity.HasOne<Course>()
+                    .WithMany()
+                    .HasForeignKey(x => x.PrerequisiteCourseId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(x => new { x.LanguageCode, x.Order });
             });
 
             modelBuilder.Entity<Topic>(entity =>
@@ -301,7 +312,7 @@ namespace Lumino.Api.Data
 
                 entity.HasIndex(x => x.CourseId);
 
-                // NEW: stable scene ordering (Order > 0), fallback to Id when Order == 0 in services.
+                // stable scene ordering (Order > 0), fallback to Id when Order == 0 in services.
                 entity.HasIndex(x => new { x.CourseId, x.Order }).IsUnique().HasFilter("[Order] > 0");
             });
 

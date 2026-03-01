@@ -27,7 +27,10 @@ namespace Lumino.Api.Application.Services
                     Title = x.Title,
                     Description = x.Description,
                     LanguageCode = x.LanguageCode,
-                    IsPublished = x.IsPublished
+                    IsPublished = x.IsPublished,
+                    Level = x.Level,
+                    Order = x.Order,
+                    PrerequisiteCourseId = x.PrerequisiteCourseId
                 })
                 .ToList();
         }
@@ -92,6 +95,9 @@ namespace Lumino.Api.Application.Services
                 Description = course.Description,
                 LanguageCode = course.LanguageCode,
                 IsPublished = course.IsPublished,
+                Level = course.Level,
+                Order = course.Order,
+                PrerequisiteCourseId = course.PrerequisiteCourseId,
                 TopicsCount = topics.Count,
                 LessonsCount = lessonsCount,
                 ExercisesCount = exercisesCount,
@@ -122,6 +128,11 @@ namespace Lumino.Api.Application.Services
                 Title = request.Title,
                 Description = request.Description,
                 LanguageCode = languageCode,
+                Level = string.IsNullOrWhiteSpace(request.Level)
+                    ? null
+                    : request.Level.Trim().ToUpperInvariant(),
+                Order = request.Order,
+                PrerequisiteCourseId = request.PrerequisiteCourseId,
                 IsPublished = request.IsPublished
             };
 
@@ -134,7 +145,10 @@ namespace Lumino.Api.Application.Services
                 Title = course.Title,
                 Description = course.Description,
                 LanguageCode = course.LanguageCode,
-                IsPublished = course.IsPublished
+                IsPublished = course.IsPublished,
+                Level = course.Level,
+                Order = course.Order,
+                PrerequisiteCourseId = course.PrerequisiteCourseId
             };
         }
 
@@ -164,6 +178,11 @@ namespace Lumino.Api.Application.Services
             course.Title = request.Title;
             course.Description = request.Description;
             course.LanguageCode = languageCode;
+            course.Level = string.IsNullOrWhiteSpace(request.Level)
+                ? null
+                : request.Level.Trim().ToUpperInvariant();
+            course.Order = request.Order;
+            course.PrerequisiteCourseId = request.PrerequisiteCourseId;
             course.IsPublished = request.IsPublished;
 
             if (request.IsPublished)

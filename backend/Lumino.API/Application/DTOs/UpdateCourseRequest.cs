@@ -8,6 +8,12 @@ namespace Lumino.Api.Application.DTOs
 
         public string? LanguageCode { get; set; }
 
+        public string? Level { get; set; }
+
+        public int Order { get; set; }
+
+        public int? PrerequisiteCourseId { get; set; }
+
         public bool IsPublished { get; set; }
     }
 }

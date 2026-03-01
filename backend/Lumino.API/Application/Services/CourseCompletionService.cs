@@ -45,7 +45,22 @@ namespace Lumino.Api.Application.Services
 
             if (orderedLessonIds.Count == 0)
             {
-                throw new KeyNotFoundException("Course has no lessons");
+                return new CourseCompletionResponse
+                {
+                    CourseId = courseId,
+                    Status = "NotStarted",
+                    IsCompleted = false,
+                    CompletedAt = null,
+                    TotalLessons = 0,
+                    CompletedLessons = 0,
+                    CompletionPercent = 0,
+                    NextLessonId = null,
+                    RemainingLessonIds = new List<int>(),
+                    ScenesIncluded = false,
+                    ScenesTotal = 0,
+                    ScenesCompleted = 0,
+                    ScenesCompletionPercent = 0
+                };
             }
 
             int passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);

@@ -790,8 +790,55 @@ namespace Lumino.Api.Data
                 title: "English A1",
                 description: "Basics: greetings, numbers, travel, simple phrases",
                 languageCode: "en",
-                isPublished: true);
+                isPublished: true,
+                level: "A1",
+                order: 1,
+                prerequisiteCourseId: null);
 
+            // Additional courses for the Courses screen (A1 -> A2 -> B1 -> B2 -> C1)
+            // These are explicit and stable: do not rely on Title parsing.
+            var courseEnglishA2 = EnsureCourse(
+                dbContext,
+                title: "English A2",
+                description: "Elementary: daily life, shopping, simple dialogs",
+                languageCode: "en",
+                isPublished: true,
+                level: "A2",
+                order: 2,
+                prerequisiteCourseId: courseEnglish.Id);
+
+            var courseEnglishB1 = EnsureCourse(
+                dbContext,
+                title: "English B1",
+                description: "Intermediate: work, travel, opinions, longer texts",
+                languageCode: "en",
+                isPublished: true,
+                level: "B1",
+                order: 3,
+                prerequisiteCourseId: courseEnglishA2.Id);
+
+            var courseEnglishB2 = EnsureCourse(
+                dbContext,
+                title: "English B2",
+                description: "Upper-intermediate: complex topics, fluency practice",
+                languageCode: "en",
+                isPublished: true,
+                level: "B2",
+                order: 4,
+                prerequisiteCourseId: courseEnglishB1.Id);
+
+            var courseEnglishC1 = EnsureCourse(
+                dbContext,
+                title: "English C1",
+                description: "Advanced: academic and professional communication",
+                languageCode: "en",
+                isPublished: true,
+                level: "C1",
+                order: 5,
+                prerequisiteCourseId: courseEnglishB2.Id);
+
+
+            EnsurePrerequisitesForOrderedCourses(dbContext, languageCode: "en");
             var topics = new List<TopicSeed>
             {
                 new TopicSeed("Greetings", 1),
@@ -967,6 +1014,10 @@ namespace Lumino.Api.Data
             });
 
             EnsureFixedCourseStructureForDesign(dbContext, courseEnglish);
+            EnsureFixedCourseStructureForDesign(dbContext, courseEnglishA2);
+            EnsureFixedCourseStructureForDesign(dbContext, courseEnglishB1);
+            EnsureFixedCourseStructureForDesign(dbContext, courseEnglishB2);
+            EnsureFixedCourseStructureForDesign(dbContext, courseEnglishC1);
         }
 
 
@@ -1728,7 +1779,54 @@ namespace Lumino.Api.Data
             return result;
         }
 
-        private static Course EnsureCourse(LuminoDbContext dbContext, string title, string description, string languageCode, bool isPublished)
+        private static void EnsurePrerequisitesForOrderedCourses(LuminoDbContext dbContext, string languageCode)
+        {
+            if (string.IsNullOrWhiteSpace(languageCode))
+            {
+                return;
+            }
+
+            var normalized = languageCode.Trim().ToLowerInvariant();
+
+            var courses = dbContext.Courses
+                .Where(x => x.LanguageCode == normalized && x.Order > 0)
+                .OrderBy(x => x.Order)
+                .ThenBy(x => x.Id)
+                .ToList();
+
+            if (courses.Count < 2)
+            {
+                return;
+            }
+
+            var changed = false;
+            Course? previous = null;
+
+            foreach (var c in courses)
+            {
+                if (previous == null)
+                {
+                    previous = c;
+                    continue;
+                }
+
+                if (c.PrerequisiteCourseId == null)
+                {
+                    c.PrerequisiteCourseId = previous.Id;
+                    changed = true;
+                }
+
+                previous = c;
+            }
+
+            if (changed)
+            {
+                dbContext.SaveChanges();
+            }
+        }
+
+
+        private static Course EnsureCourse(LuminoDbContext dbContext, string title, string description, string languageCode, bool isPublished, string? level, int order, int? prerequisiteCourseId)
         {
             var fromDb = dbContext.Courses.FirstOrDefault(x => x.Title == title);
 
@@ -1739,6 +1837,9 @@ namespace Lumino.Api.Data
                     Title = title,
                     Description = description,
                     LanguageCode = (languageCode ?? "en").Trim().ToLowerInvariant(),
+                    Level = string.IsNullOrWhiteSpace(level) ? null : level.Trim().ToUpperInvariant(),
+                    Order = order,
+                    PrerequisiteCourseId = prerequisiteCourseId,
                     IsPublished = isPublished
                 };
 
@@ -1763,6 +1864,27 @@ namespace Lumino.Api.Data
                 fromDb.LanguageCode = normalizedLanguageCode;
                 changed = true;
             }
+
+            var normalizedLevel = string.IsNullOrWhiteSpace(level) ? null : level.Trim().ToUpperInvariant();
+
+            if (fromDb.Level != normalizedLevel)
+            {
+                fromDb.Level = normalizedLevel;
+                changed = true;
+            }
+
+            if (fromDb.Order != order)
+            {
+                fromDb.Order = order;
+                changed = true;
+            }
+
+            if (fromDb.PrerequisiteCourseId != prerequisiteCourseId)
+            {
+                fromDb.PrerequisiteCourseId = prerequisiteCourseId;
+                changed = true;
+            }
+
 
             if (fromDb.IsPublished != isPublished)
             {
@@ -2064,7 +2186,7 @@ namespace Lumino.Api.Data
             dbContext.SaveChanges();
         }
 
-private record TopicSeed(string Title, int Order);
+        private record TopicSeed(string Title, int Order);
 
         private record LessonSeed(int TopicId, string Title, string Theory, int Order);
 

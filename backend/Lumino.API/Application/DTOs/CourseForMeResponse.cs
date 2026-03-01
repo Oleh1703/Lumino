@@ -12,6 +12,10 @@ namespace Lumino.Api.Application.DTOs
 
         public string? Level { get; set; }
 
+        public int Order { get; set; }
+
+        public int? PrerequisiteCourseId { get; set; }
+
         public bool IsLocked { get; set; }
 
         public bool IsCompleted { get; set; }
