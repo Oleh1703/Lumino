@@ -72,6 +72,156 @@ namespace Lumino.Api.Application.Services
                 .ToList();
         }
 
+
+        public List<SceneDetailsResponse> GetAllSceneDetails(int userId, int? courseId)
+        {
+            var scenesQuery = _dbContext.Scenes
+                .AsNoTracking()
+                .AsQueryable();
+
+            if (courseId != null)
+            {
+                scenesQuery = scenesQuery.Where(x => x.CourseId == courseId.Value);
+            }
+
+            var scenes = scenesQuery
+                .AsEnumerable()
+                .OrderBy(x => x.Order <= 0 ? int.MaxValue : x.Order)
+                .ThenBy(x => x.Id)
+                .ToList();
+
+            if (scenes.Count == 0)
+            {
+                return new List<SceneDetailsResponse>();
+            }
+
+            var courseIds = scenes
+                .Where(x => x.CourseId != null)
+                .Select(x => x.CourseId!.Value)
+                .Distinct()
+                .ToList();
+
+            // passed lessons count per course
+            int passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
+
+            var passedLessonsByCourse = new Dictionary<int, int>();
+            foreach (var cid in courseIds)
+            {
+                passedLessonsByCourse[cid] = GetPassedDistinctLessonsCount(userId, cid);
+            }
+
+            // completed scenes
+            var completedSceneIds = _dbContext.SceneAttempts
+                .AsNoTracking()
+                .Where(x => x.UserId == userId && x.IsCompleted)
+                .Select(x => x.SceneId)
+                .Distinct()
+                .ToHashSet();
+
+            // topic completion map (for topic-based unlock)
+            var topicIds = scenes
+                .Where(x => x.TopicId != null)
+                .Select(x => x.TopicId!.Value)
+                .Distinct()
+                .ToList();
+
+            var lessonsByTopic = _dbContext.Lessons
+                .AsNoTracking()
+                .Where(x => topicIds.Contains(x.TopicId))
+                .Select(x => new { x.Id, x.TopicId })
+                .ToList()
+                .GroupBy(x => x.TopicId)
+                .ToDictionary(x => x.Key, x => x.Select(v => v.Id).Distinct().ToList());
+
+            var allLessonIds = lessonsByTopic
+                .SelectMany(x => x.Value)
+                .Distinct()
+                .ToList();
+
+            var passedLessonIds = _dbContext.LessonResults
+                .AsNoTracking()
+                .Where(x => x.UserId == userId && allLessonIds.Contains(x.LessonId) && x.TotalQuestions > 0)
+                .Where(x => x.Score * 100 >= x.TotalQuestions * passingScorePercent)
+                .Select(x => x.LessonId)
+                .Distinct()
+                .ToHashSet();
+
+            var topicIsCompleted = new Dictionary<int, bool>();
+            foreach (var kv in lessonsByTopic)
+            {
+                var ids = kv.Value;
+                topicIsCompleted[kv.Key] = ids.Count == 0 || ids.All(x => passedLessonIds.Contains(x));
+            }
+
+            // build scene position per course scope (same logic as GetScenePosition but once)
+            var positionBySceneId = new Dictionary<int, int>();
+
+            foreach (var grp in scenes
+                .GroupBy(x => x.CourseId))
+            {
+                var ordered = grp
+                    .OrderBy(x => x.Order <= 0 ? int.MaxValue : x.Order)
+                    .ThenBy(x => x.Id)
+                    .Select(x => x.Id)
+                    .ToList();
+
+                for (int i = 0; i < ordered.Count; i++)
+                {
+                    positionBySceneId[ordered[i]] = i + 1;
+                }
+            }
+
+            var result = new List<SceneDetailsResponse>();
+
+            foreach (var scene in scenes)
+            {
+                var passedLessons = scene.CourseId != null && passedLessonsByCourse.ContainsKey(scene.CourseId.Value)
+                    ? passedLessonsByCourse[scene.CourseId.Value]
+                    : GetPassedDistinctLessonsCount(userId);
+
+                var scenePosition = positionBySceneId.ContainsKey(scene.Id)
+                    ? positionBySceneId[scene.Id]
+                    : 1;
+
+                var required = SceneUnlockRules.GetRequiredPassedLessons(scenePosition, _learningSettings.SceneUnlockEveryLessons);
+
+                bool isUnlocked;
+
+                if (scene.TopicId.HasValue)
+                {
+                    isUnlocked = topicIsCompleted.ContainsKey(scene.TopicId.Value)
+                        ? topicIsCompleted[scene.TopicId.Value]
+                        : GetIsSceneUnlockedByTopic(userId, scene.TopicId.Value);
+                }
+                else
+                {
+                    isUnlocked = SceneUnlockRules.IsUnlocked(scenePosition, passedLessons, _learningSettings.SceneUnlockEveryLessons);
+                }
+
+                var unlockReason = GetSceneUnlockReason(scene, isUnlocked, required, passedLessons);
+
+                result.Add(new SceneDetailsResponse
+                {
+                    Id = scene.Id,
+                    CourseId = scene.CourseId,
+                    TopicId = scene.TopicId,
+                    Order = scene.Order,
+                    Title = scene.Title,
+                    Description = scene.Description,
+                    SceneType = scene.SceneType,
+                    BackgroundUrl = scene.BackgroundUrl,
+                    AudioUrl = scene.AudioUrl,
+                    IsCompleted = completedSceneIds.Contains(scene.Id),
+                    IsUnlocked = isUnlocked,
+                    UnlockReason = unlockReason,
+                    PassedLessons = passedLessons,
+                    RequiredPassedLessons = required
+                });
+            }
+
+            return result;
+        }
+
         public SceneDetailsResponse GetSceneDetails(int userId, int sceneId)
         {
             var scene = _dbContext.Scenes.FirstOrDefault(x => x.Id == sceneId);

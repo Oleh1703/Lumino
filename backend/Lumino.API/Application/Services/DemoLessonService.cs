@@ -13,6 +13,9 @@ namespace Lumino.Api.Application.Services
 {
     public class DemoLessonService : IDemoLessonService
     {
+        private const int DemoLessonsCount = 1;
+        private const int DemoExercisesCount = 3;
+
         private readonly LuminoDbContext _dbContext;
         private readonly ISubmitLessonRequestValidator _submitLessonRequestValidator;
         private readonly LearningSettings _learningSettings;
@@ -49,7 +52,7 @@ namespace Lumino.Api.Application.Services
             var resolved = ResolveLessonIds(languageCode, level);
 
             var ids = resolved.Ids;
-if (ids.Count == 0)
+            if (ids.Count == 0)
             {
                 if (!string.IsNullOrWhiteSpace(languageCode))
                 {
@@ -91,7 +94,7 @@ if (ids.Count == 0)
             var resolved = ResolveLessonIds(languageCode, level);
 
             var ids = resolved.Ids;
-if (ids.Count == 0)
+            if (ids.Count == 0)
             {
                 if (!string.IsNullOrWhiteSpace(languageCode))
                 {
@@ -174,6 +177,7 @@ if (ids.Count == 0)
                 .Where(x => x.LessonId == lessonId)
                 .OrderBy(x => x.Order <= 0 ? int.MaxValue : x.Order)
                 .ThenBy(x => x.Id)
+                .Take(DemoExercisesCount)
                 .Select(x => new ExerciseResponse
                 {
                     Id = x.Id,
@@ -198,6 +202,7 @@ if (ids.Count == 0)
                 .Where(x => x.LessonId == request.LessonId)
                 .OrderBy(x => x.Order <= 0 ? int.MaxValue : x.Order)
                 .ThenBy(x => x.Id)
+                .Take(DemoExercisesCount)
                 .ToList();
 
             int correct = 0;
@@ -266,7 +271,8 @@ if (ids.Count == 0)
             // When languageCode is not provided, allow any demo lesson from any configured language.
             var allIds = new List<int>();
 
-            allIds.AddRange(NormalizeLessonIds(_demoSettings.LessonIds));
+            allIds.AddRange(NormalizeLessonIds(_demoSettings.LessonIds)
+                .Take(DemoLessonsCount));
 
             if (_demoSettings.LanguageLessonIds != null && _demoSettings.LanguageLessonIds.Count > 0)
             {
@@ -277,7 +283,8 @@ if (ids.Count == 0)
                         continue;
                     }
 
-                    allIds.AddRange(NormalizeLessonIds(kv.Value));
+                    allIds.AddRange(NormalizeLessonIds(kv.Value)
+                        .Take(DemoLessonsCount));
                 }
             }
 
@@ -358,7 +365,7 @@ if (ids.Count == 0)
             throw new ArgumentException("Level is not supported");
         }
 
-        
+
         private class DemoResolution
         {
             public List<int> Ids { get; set; } = new List<int>();
@@ -392,7 +399,9 @@ if (ids.Count == 0)
                 ids != null &&
                 ids.Count > 0)
             {
-                resolution.Ids = NormalizeLessonIds(ids);
+                resolution.Ids = NormalizeLessonIds(ids)
+                    .Take(DemoLessonsCount)
+                    .ToList();
                 return resolution;
             }
 
@@ -475,7 +484,7 @@ if (ids.Count == 0)
                 .ThenBy(x => x.Lesson.Order <= 0 ? int.MaxValue : x.Lesson.Order)
                 .ThenBy(x => x.Lesson.Id)
                 .Select(x => x.Lesson.Id)
-                .Take(3)
+                .Take(DemoLessonsCount)
                 .ToList();
 
             resolution.Ids = lessonIds != null && lessonIds.Count > 0
@@ -487,7 +496,7 @@ if (ids.Count == 0)
             return resolution;
         }
 
-private List<int> GetLessonIds(string? languageCode, string? level)
+        private List<int> GetLessonIds(string? languageCode, string? level)
         {
             if (!string.IsNullOrWhiteSpace(languageCode))
             {
@@ -505,7 +514,9 @@ private List<int> GetLessonIds(string? languageCode, string? level)
                     ids != null &&
                     ids.Count > 0)
                 {
-                    return NormalizeLessonIds(ids);
+                    return NormalizeLessonIds(ids)
+                        .Take(DemoLessonsCount)
+                        .ToList();
                 }
 
                 // If config mapping is not provided - try to auto-pick first 3 lessons
@@ -542,7 +553,7 @@ private List<int> GetLessonIds(string? languageCode, string? level)
                         .ThenBy(x => x.Lesson.Order <= 0 ? int.MaxValue : x.Lesson.Order)
                         .ThenBy(x => x.Lesson.Id)
                         .Select(x => x.Lesson.Id)
-                        .Take(3)
+                        .Take(DemoLessonsCount)
                         .ToList();
 
                     if (lessonIds != null && lessonIds.Count > 0)
@@ -555,7 +566,9 @@ private List<int> GetLessonIds(string? languageCode, string? level)
                 return new List<int>();
             }
 
-            return NormalizeLessonIds(_demoSettings.LessonIds);
+            return NormalizeLessonIds(_demoSettings.LessonIds)
+                .Take(DemoLessonsCount)
+                .ToList();
         }
         private List<int> NormalizeLessonIds(List<int> ids)
         {

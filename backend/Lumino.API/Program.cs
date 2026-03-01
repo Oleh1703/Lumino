@@ -127,6 +127,7 @@ namespace Lumino.Api
             builder.Services.AddScoped<IResetPasswordRequestValidator, ResetPasswordRequestValidator>();
             builder.Services.AddScoped<IVerifyEmailRequestValidator, VerifyEmailRequestValidator>();
             builder.Services.AddScoped<IResendVerificationRequestValidator, ResendVerificationRequestValidator>();
+            builder.Services.AddScoped<ICourseStructureValidator, CourseStructureValidator>();
             builder.Services.AddScoped<IUpdateProfileRequestValidator, UpdateProfileRequestValidator>();
             builder.Services.AddScoped<ISubmitLessonRequestValidator, SubmitLessonRequestValidator>();
             builder.Services.AddScoped<ISubmitSceneRequestValidator, SubmitSceneRequestValidator>();

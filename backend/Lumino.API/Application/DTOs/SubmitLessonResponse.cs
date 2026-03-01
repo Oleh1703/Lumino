@@ -10,6 +10,8 @@ namespace Lumino.Api.Application.DTOs
 
         public bool IsPassed { get; set; }
 
+        public int EarnedCrystals { get; set; }
+
         public List<int> MistakeExerciseIds { get; set; } = new();
 
         // деталі відповідей (для розбору помилок в UI)

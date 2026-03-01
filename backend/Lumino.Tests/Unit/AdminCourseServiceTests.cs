@@ -1,6 +1,9 @@
-﻿﻿using Lumino.Api.Application.DTOs;
+using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Services;
+using Lumino.Api.Application.Validators;
+using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
+using Lumino.Api.Domain.Enums;
 using Xunit;
 
 namespace Lumino.Tests;
@@ -13,13 +16,13 @@ public class AdminCourseServiceTests
         var dbContext = TestDbContextFactory.Create();
 
         dbContext.Courses.AddRange(
-            new Course { Id = 1, Title = "A1", Description = "D1", IsPublished = true },
-            new Course { Id = 2, Title = "A2", Description = "D2", IsPublished = false }
+            new Course { Id = 1, Title = "A1", Description = "D1", IsPublished = true, LanguageCode = "en" },
+            new Course { Id = 2, Title = "A2", Description = "D2", IsPublished = false, LanguageCode = "en" }
         );
 
         dbContext.SaveChanges();
 
-        var service = new AdminCourseService(dbContext);
+        var service = CreateService(dbContext);
 
         var result = service.GetAll();
 
@@ -33,13 +36,14 @@ public class AdminCourseServiceTests
     public void Create_AddsCourse_AndReturnsResponse()
     {
         var dbContext = TestDbContextFactory.Create();
-        var service = new AdminCourseService(dbContext);
+        var service = CreateService(dbContext);
 
         var response = service.Create(new CreateCourseRequest
         {
             Title = "English A1",
             Description = "Desc",
-            IsPublished = true
+            IsPublished = true,
+            LanguageCode = "en"
         });
 
         Assert.True(response.Id > 0);
@@ -58,7 +62,7 @@ public class AdminCourseServiceTests
     public void Create_NullRequest_Throws()
     {
         var dbContext = TestDbContextFactory.Create();
-        var service = new AdminCourseService(dbContext);
+        var service = CreateService(dbContext);
 
         Assert.Throws<ArgumentException>(() => service.Create(null!));
     }
@@ -67,7 +71,7 @@ public class AdminCourseServiceTests
     public void Update_WhenNotFound_Throws()
     {
         var dbContext = TestDbContextFactory.Create();
-        var service = new AdminCourseService(dbContext);
+        var service = CreateService(dbContext);
 
         Assert.Throws<KeyNotFoundException>(() =>
         {
@@ -75,7 +79,8 @@ public class AdminCourseServiceTests
             {
                 Title = "T",
                 Description = "D",
-                IsPublished = true
+                IsPublished = true,
+                LanguageCode = "en"
             });
         });
     }
@@ -90,18 +95,22 @@ public class AdminCourseServiceTests
             Id = 1,
             Title = "Old",
             Description = "OldDesc",
-            IsPublished = false
+            IsPublished = false,
+            LanguageCode = "en"
         });
+
+        SeedValidCourseStructure(dbContext, courseId: 1);
 
         dbContext.SaveChanges();
 
-        var service = new AdminCourseService(dbContext);
+        var service = CreateService(dbContext);
 
         service.Update(1, new UpdateCourseRequest
         {
             Title = "New",
             Description = "NewDesc",
-            IsPublished = true
+            IsPublished = true,
+            LanguageCode = "en"
         });
 
         var updated = dbContext.Courses.First(x => x.Id == 1);
@@ -115,7 +124,7 @@ public class AdminCourseServiceTests
     public void Delete_WhenNotFound_Throws()
     {
         var dbContext = TestDbContextFactory.Create();
-        var service = new AdminCourseService(dbContext);
+        var service = CreateService(dbContext);
 
         Assert.Throws<KeyNotFoundException>(() => service.Delete(999));
     }
@@ -130,15 +139,79 @@ public class AdminCourseServiceTests
             Id = 1,
             Title = "ToDelete",
             Description = "D",
-            IsPublished = true
+            IsPublished = true,
+            LanguageCode = "en"
         });
 
         dbContext.SaveChanges();
 
-        var service = new AdminCourseService(dbContext);
+        var service = CreateService(dbContext);
 
         service.Delete(1);
 
         Assert.Empty(dbContext.Courses);
+    }
+
+    private static AdminCourseService CreateService(LuminoDbContext dbContext)
+    {
+        var validator = new CourseStructureValidator(dbContext);
+        return new AdminCourseService(dbContext, validator);
+    }
+
+    private static void SeedValidCourseStructure(LuminoDbContext dbContext, int courseId)
+    {
+        const int topicsPerCourse = 10;
+        const int lessonsPerTopic = 8;
+        const int exercisesPerLesson = 9;
+
+        for (var topicOrder = 1; topicOrder <= topicsPerCourse; topicOrder++)
+        {
+            var topic = new Topic
+            {
+                CourseId = courseId,
+                Title = $"Topic {topicOrder}",
+                Order = topicOrder
+            };
+
+            dbContext.Topics.Add(topic);
+            dbContext.SaveChanges();
+
+            dbContext.Scenes.Add(new Scene
+            {
+                CourseId = courseId,
+                TopicId = topic.Id,
+                Title = $"Final scene {topicOrder}",
+                Description = "Final",
+                SceneType = "Sun",
+                Order = 999
+            });
+
+            for (var lessonOrder = 1; lessonOrder <= lessonsPerTopic; lessonOrder++)
+            {
+                var lesson = new Lesson
+                {
+                    TopicId = topic.Id,
+                    Title = $"Lesson {topicOrder}.{lessonOrder}",
+                    Theory = "",
+                    Order = lessonOrder
+                };
+
+                dbContext.Lessons.Add(lesson);
+                dbContext.SaveChanges();
+
+                for (var exerciseOrder = 1; exerciseOrder <= exercisesPerLesson; exerciseOrder++)
+                {
+                    dbContext.Exercises.Add(new Exercise
+                    {
+                        LessonId = lesson.Id,
+                        Type = ExerciseType.Input,
+                        Question = $"Q {topicOrder}.{lessonOrder}.{exerciseOrder}",
+                        Data = "",
+                        CorrectAnswer = "a",
+                        Order = exerciseOrder
+                    });
+                }
+            }
+        }
     }
 }

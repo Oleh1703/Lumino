@@ -1,5 +1,6 @@
 using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Interfaces;
+using Lumino.Api.Application.Validators;
 using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Utils;
@@ -9,10 +10,12 @@ namespace Lumino.Api.Application.Services
     public class AdminCourseService : IAdminCourseService
     {
         private readonly LuminoDbContext _dbContext;
+        private readonly ICourseStructureValidator _courseStructureValidator;
 
-        public AdminCourseService(LuminoDbContext dbContext)
+        public AdminCourseService(LuminoDbContext dbContext, ICourseStructureValidator courseStructureValidator)
         {
             _dbContext = dbContext;
+            _courseStructureValidator = courseStructureValidator;
         }
 
         public List<AdminCourseResponse> GetAll()
@@ -162,6 +165,11 @@ namespace Lumino.Api.Application.Services
             course.Description = request.Description;
             course.LanguageCode = languageCode;
             course.IsPublished = request.IsPublished;
+
+            if (request.IsPublished)
+            {
+                _courseStructureValidator.ValidateOrThrow(course.Id);
+            }
 
             _dbContext.SaveChanges();
         }

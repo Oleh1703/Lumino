@@ -177,6 +177,13 @@ namespace Lumino.Api.Application.Services
             item.Word = request.Word.Trim();
             item.Translation = cleanTranslations[0];
             item.Example = request.Example;
+            item.PartOfSpeech = request.PartOfSpeech;
+            item.Definition = request.Definition;
+            item.Transcription = request.Transcription;
+            item.Gender = request.Gender;
+            item.ExamplesJson = JsonSerializer.Serialize(request.Examples ?? new List<string>());
+            item.SynonymsJson = JsonSerializer.Serialize(request.Synonyms ?? new List<VocabularyRelationDto>());
+            item.IdiomsJson = JsonSerializer.Serialize(request.Idioms ?? new List<VocabularyRelationDto>());
 
             var existingTranslations = _dbContext.VocabularyItemTranslations
                 .Where(x => x.VocabularyItemId == id)

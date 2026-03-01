@@ -41,7 +41,7 @@ public class DemoApiHttpIntegrationTests : IClassFixture<ApiWebApplicationFactor
 
         var client = _factory.CreateClient();
 
-        var okResponse = await client.GetAsync("/api/demo/next?step=1");
+        var okResponse = await client.GetAsync("/api/demo/next?step=0");
 
         Assert.Equal(HttpStatusCode.OK, okResponse.StatusCode);
 
@@ -49,39 +49,19 @@ public class DemoApiHttpIntegrationTests : IClassFixture<ApiWebApplicationFactor
 
         using (var doc = JsonDocument.Parse(okJson))
         {
-            Assert.Equal(1, doc.RootElement.GetProperty("step").GetInt32());
-            Assert.Equal(2, doc.RootElement.GetProperty("stepNumber").GetInt32());
-            Assert.Equal(3, doc.RootElement.GetProperty("total").GetInt32());
-            Assert.False(doc.RootElement.GetProperty("isLast").GetBoolean());
-            Assert.Equal(string.Empty, doc.RootElement.GetProperty("ctaText").GetString());
-            Assert.False(doc.RootElement.GetProperty("showRegisterCta").GetBoolean());
-            Assert.Equal("Урок 2 з 3", doc.RootElement.GetProperty("lessonNumberText").GetString());
-
-            var lesson = doc.RootElement.GetProperty("lesson");
-            Assert.Equal(2, lesson.GetProperty("id").GetInt32());
-        }
-
-        var lastResponse = await client.GetAsync("/api/demo/next?step=2");
-
-        Assert.Equal(HttpStatusCode.OK, lastResponse.StatusCode);
-
-        var lastJson = await lastResponse.Content.ReadAsStringAsync();
-
-        using (var doc = JsonDocument.Parse(lastJson))
-        {
-            Assert.Equal(2, doc.RootElement.GetProperty("step").GetInt32());
-            Assert.Equal(3, doc.RootElement.GetProperty("stepNumber").GetInt32());
-            Assert.Equal(3, doc.RootElement.GetProperty("total").GetInt32());
+            Assert.Equal(0, doc.RootElement.GetProperty("step").GetInt32());
+            Assert.Equal(1, doc.RootElement.GetProperty("stepNumber").GetInt32());
+            Assert.Equal(1, doc.RootElement.GetProperty("total").GetInt32());
             Assert.True(doc.RootElement.GetProperty("isLast").GetBoolean());
             Assert.Equal("Щоб зберегти прогрес — зареєструйся", doc.RootElement.GetProperty("ctaText").GetString());
             Assert.True(doc.RootElement.GetProperty("showRegisterCta").GetBoolean());
-            Assert.Equal("Урок 3 з 3", doc.RootElement.GetProperty("lessonNumberText").GetString());
+            Assert.Equal("Урок 1 з 1", doc.RootElement.GetProperty("lessonNumberText").GetString());
 
             var lesson = doc.RootElement.GetProperty("lesson");
-            Assert.Equal(3, lesson.GetProperty("id").GetInt32());
+            Assert.Equal(1, lesson.GetProperty("id").GetInt32());
         }
 
-        var notFoundResponse = await client.GetAsync("/api/demo/next?step=999");
+        var notFoundResponse = await client.GetAsync("/api/demo/next?step=1");
 
         Assert.Equal(HttpStatusCode.NotFound, notFoundResponse.StatusCode);
 
@@ -146,6 +126,28 @@ public class DemoApiHttpIntegrationTests : IClassFixture<ApiWebApplicationFactor
                 Order = 2
             });
 
+            dbContext.Exercises.Add(new Exercise
+            {
+                Id = 103,
+                LessonId = 1,
+                Type = ExerciseType.Input,
+                Question = "Type 2",
+                Data = "",
+                CorrectAnswer = "bird",
+                Order = 3
+            });
+
+            dbContext.Exercises.Add(new Exercise
+            {
+                Id = 104,
+                LessonId = 1,
+                Type = ExerciseType.Input,
+                Question = "Extra",
+                Data = "",
+                CorrectAnswer = "fox",
+                Order = 4
+            });
+
             dbContext.SaveChanges();
         }
 
@@ -161,13 +163,13 @@ public class DemoApiHttpIntegrationTests : IClassFixture<ApiWebApplicationFactor
 
         Assert.Equal(0, doc.RootElement.GetProperty("step").GetInt32());
         Assert.Equal(1, doc.RootElement.GetProperty("stepNumber").GetInt32());
-        Assert.Equal(3, doc.RootElement.GetProperty("total").GetInt32());
+        Assert.Equal(1, doc.RootElement.GetProperty("total").GetInt32());
 
         var lesson = doc.RootElement.GetProperty("lesson");
         Assert.Equal(1, lesson.GetProperty("id").GetInt32());
 
         var exercises = doc.RootElement.GetProperty("exercises");
-        Assert.Equal(2, exercises.GetArrayLength());
+        Assert.Equal(3, exercises.GetArrayLength());
     }
 
     [Fact]
@@ -201,10 +203,8 @@ public class DemoApiHttpIntegrationTests : IClassFixture<ApiWebApplicationFactor
 
         using var doc = JsonDocument.Parse(json);
 
-        Assert.Equal(3, doc.RootElement.GetArrayLength());
+        Assert.Equal(1, doc.RootElement.GetArrayLength());
         Assert.Equal(1, doc.RootElement[0].GetProperty("id").GetInt32());
-        Assert.Equal(2, doc.RootElement[1].GetProperty("id").GetInt32());
-        Assert.Equal(3, doc.RootElement[2].GetProperty("id").GetInt32());
     }
 
     [Fact]
@@ -245,6 +245,28 @@ public class DemoApiHttpIntegrationTests : IClassFixture<ApiWebApplicationFactor
                 Order = 2
             });
 
+            dbContext.Exercises.Add(new Exercise
+            {
+                Id = 103,
+                LessonId = 1,
+                Type = ExerciseType.Input,
+                Question = "Type 2",
+                Data = "",
+                CorrectAnswer = "bird",
+                Order = 3
+            });
+
+            dbContext.Exercises.Add(new Exercise
+            {
+                Id = 104,
+                LessonId = 1,
+                Type = ExerciseType.Input,
+                Question = "Extra",
+                Data = "",
+                CorrectAnswer = "fox",
+                Order = 4
+            });
+
             dbContext.SaveChanges();
         }
 
@@ -261,7 +283,8 @@ public class DemoApiHttpIntegrationTests : IClassFixture<ApiWebApplicationFactor
             answers = new[]
             {
                 new { exerciseId = 101, answer = "cat" },
-                new { exerciseId = 102, answer = "dog" }
+                new { exerciseId = 102, answer = "dog" },
+                new { exerciseId = 103, answer = "bird" }
             }
         };
 
@@ -278,12 +301,12 @@ public class DemoApiHttpIntegrationTests : IClassFixture<ApiWebApplicationFactor
 
         using (var doc = JsonDocument.Parse(responseJson))
         {
-            Assert.Equal(2, doc.RootElement.GetProperty("totalExercises").GetInt32());
-            Assert.Equal(2, doc.RootElement.GetProperty("correctAnswers").GetInt32());
+            Assert.Equal(3, doc.RootElement.GetProperty("totalExercises").GetInt32());
+            Assert.Equal(3, doc.RootElement.GetProperty("correctAnswers").GetInt32());
             Assert.True(doc.RootElement.GetProperty("isPassed").GetBoolean());
 
             var answers = doc.RootElement.GetProperty("answers");
-            Assert.Equal(2, answers.GetArrayLength());
+            Assert.Equal(3, answers.GetArrayLength());
         }
 
         using (var scope = _factory.Services.CreateScope())
@@ -384,6 +407,10 @@ public class DemoApiHttpIntegrationTests : IClassFixture<ApiWebApplicationFactor
         }
 
         var notFound = await client.GetAsync("/api/demo/next?step=3&languageCode=de");
+
+        Assert.Equal(HttpStatusCode.NotFound, notFound.StatusCode);
+
+        notFound = await client.GetAsync("/api/demo/next?step=1&languageCode=de");
 
         Assert.Equal(HttpStatusCode.NotFound, notFound.StatusCode);
     }

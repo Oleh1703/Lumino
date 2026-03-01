@@ -232,6 +232,42 @@ namespace Lumino.Api.Data
                     BackgroundUrl = null,
                     AudioUrl = null,
                     Order = 6
+                },
+                new Scene
+                {
+                    Title = "Restaurant reservation",
+                    Description = "Reserve a table at a restaurant",
+                    SceneType = "Dialog",
+                    BackgroundUrl = null,
+                    AudioUrl = null,
+                    Order = 7
+                },
+                new Scene
+                {
+                    Title = "Doctor visit",
+                    Description = "Describe your symptoms at a doctor",
+                    SceneType = "Dialog",
+                    BackgroundUrl = null,
+                    AudioUrl = null,
+                    Order = 8
+                },
+                new Scene
+                {
+                    Title = "Public transport",
+                    Description = "Buy a ticket and ask about the bus",
+                    SceneType = "Dialog",
+                    BackgroundUrl = null,
+                    AudioUrl = null,
+                    Order = 9
+                },
+                new Scene
+                {
+                    Title = "Job interview",
+                    Description = "Answer basic questions in an interview",
+                    SceneType = "Dialog",
+                    BackgroundUrl = null,
+                    AudioUrl = null,
+                    Order = 10
                 }
             };
 
@@ -365,6 +401,42 @@ namespace Lumino.Api.Data
                     new SceneStepSeed(4, "Quiz", "Type: Nice to meet you", "Input", null, "{\"correctAnswer\": \"Nice to meet you\", \"acceptableAnswers\": [\"Nice to meet you!\"]}"),
                     new SceneStepSeed(5, "You", "Nice to meet you too.", "Line", null, null),
                     new SceneStepSeed(6, "Person", "How are you?", "Line", null, null)
+                },
+                ["Restaurant reservation"] = new List<SceneStepSeed>
+                {
+                    new SceneStepSeed(1, "Host", "Hello! Do you have a reservation?", "Line", null, null),
+                    new SceneStepSeed(2, "You", "Yes, a table for two, please.", "Line", null, null),
+                    new SceneStepSeed(3, "Quiz", "How many people?", "Choice", null, "[{\"text\": \"Two\", \"isCorrect\": true}, {\"text\": \"Five\", \"isCorrect\": false}, {\"text\": \"One\", \"isCorrect\": false}]"),
+                    new SceneStepSeed(4, "Host", "Great. What time would you like?", "Line", null, null),
+                    new SceneStepSeed(5, "Quiz", "Type: at seven", "Input", null, "{\"correctAnswer\": \"at seven\", \"acceptableAnswers\": [\"7 pm\", \"at 7\"]}"),
+                    new SceneStepSeed(6, "You", "At seven, thank you.", "Line", null, null)
+                },
+                ["Doctor visit"] = new List<SceneStepSeed>
+                {
+                    new SceneStepSeed(1, "Doctor", "Hello. What seems to be the problem?", "Line", null, null),
+                    new SceneStepSeed(2, "You", "I have a headache.", "Line", null, null),
+                    new SceneStepSeed(3, "Quiz", "What do you have?", "Choice", null, "[{\"text\": \"A headache\", \"isCorrect\": true}, {\"text\": \"A ticket\", \"isCorrect\": false}, {\"text\": \"A coffee\", \"isCorrect\": false}]"),
+                    new SceneStepSeed(4, "Doctor", "How long have you had it?", "Line", null, null),
+                    new SceneStepSeed(5, "Quiz", "Type: two days", "Input", null, "{\"correctAnswer\": \"two days\", \"acceptableAnswers\": [\"2 days\", \"for two days\"]}"),
+                    new SceneStepSeed(6, "Doctor", "Ok. Please rest and drink water.", "Line", null, null)
+                },
+                ["Public transport"] = new List<SceneStepSeed>
+                {
+                    new SceneStepSeed(1, "You", "Excuse me, where can I buy a ticket?", "Line", null, null),
+                    new SceneStepSeed(2, "Staff", "You can buy it here.", "Line", null, null),
+                    new SceneStepSeed(3, "Quiz", "Where can you buy a ticket?", "Choice", null, "[{\"text\": \"Here\", \"isCorrect\": true}, {\"text\": \"At the hotel\", \"isCorrect\": false}, {\"text\": \"At the cafe\", \"isCorrect\": false}]"),
+                    new SceneStepSeed(4, "Staff", "One-way or return?", "Line", null, null),
+                    new SceneStepSeed(5, "Quiz", "Type: one-way", "Input", null, "{\"correctAnswer\": \"one-way\", \"acceptableAnswers\": [\"one way\"]}"),
+                    new SceneStepSeed(6, "You", "One-way, please.", "Line", null, null)
+                },
+                ["Job interview"] = new List<SceneStepSeed>
+                {
+                    new SceneStepSeed(1, "Interviewer", "Welcome. Can you tell me about yourself?", "Line", null, null),
+                    new SceneStepSeed(2, "You", "I'm a student and I like learning languages.", "Line", null, null),
+                    new SceneStepSeed(3, "Quiz", "Who are you?", "Choice", null, "[{\"text\": \"A student\", \"isCorrect\": true}, {\"text\": \"A pilot\", \"isCorrect\": false}, {\"text\": \"A doctor\", \"isCorrect\": false}]"),
+                    new SceneStepSeed(4, "Interviewer", "Why do you want this job?", "Line", null, null),
+                    new SceneStepSeed(5, "Quiz", "Type: I want to grow", "Input", null, "{\"correctAnswer\": \"I want to grow\", \"acceptableAnswers\": [\"I want to improve\", \"I want to learn\"]}"),
+                    new SceneStepSeed(6, "Interviewer", "Great. Thank you for coming.", "Line", null, null)
                 }
             };
 
@@ -467,72 +539,85 @@ namespace Lumino.Api.Data
         {
             var items = new List<VocabularyItem>
             {
-                new VocabularyItem { Word = "hello", Translation = "привіт", Example = "Hello! How are you?" },
-                new VocabularyItem { Word = "goodbye", Translation = "до побачення", Example = "Goodbye! See you soon." },
-                new VocabularyItem { Word = "please", Translation = "будь ласка", Example = "Please, help me." },
-                new VocabularyItem { Word = "thank you", Translation = "дякую", Example = "Thank you for your help." },
-                new VocabularyItem { Word = "yes", Translation = "так", Example = "Yes, I agree." },
-                new VocabularyItem { Word = "no", Translation = "ні", Example = "No, I don't know." },
-                new VocabularyItem { Word = "sorry", Translation = "пробач", Example = "Sorry, I'm late." },
-                new VocabularyItem { Word = "excuse me", Translation = "перепрошую", Example = "Excuse me, where is the station?" },
-                new VocabularyItem { Word = "welcome", Translation = "ласкаво просимо", Example = "Welcome to our city!" },
-                new VocabularyItem { Word = "good morning", Translation = "добрий ранок", Example = "Good morning! Have a nice day." },
-                new VocabularyItem { Word = "good evening", Translation = "добрий вечір", Example = "Good evening! Nice to see you." },
-                new VocabularyItem { Word = "one", Translation = "один", Example = "One plus one is two." },
-                new VocabularyItem { Word = "two", Translation = "два", Example = "Two cups of tea, please." },
-                new VocabularyItem { Word = "three", Translation = "три", Example = "Three days ago." },
-                new VocabularyItem { Word = "four", Translation = "чотири", Example = "Four people." },
-                new VocabularyItem { Word = "five", Translation = "п'ять", Example = "Five minutes." },
-                new VocabularyItem { Word = "six", Translation = "шість", Example = "Six tickets." },
-                new VocabularyItem { Word = "seven", Translation = "сім", Example = "Seven o'clock." },
-                new VocabularyItem { Word = "eight", Translation = "вісім", Example = "Eight apples." },
-                new VocabularyItem { Word = "nine", Translation = "дев'ять", Example = "Nine rooms." },
-                new VocabularyItem { Word = "ten", Translation = "десять", Example = "Ten dollars." },
+                new VocabularyItem { Word = "hello", Translation = "привіт", Example = "Hello! How are you?", Transcription = "/həˈloʊ/", ExamplesJson = ToJsonStringArray("Hello! How are you?"), SynonymsJson = ToJsonStringArray("hi — Hi! How are you?", "hey — Hey! Nice to see you.") },
+                new VocabularyItem { Word = "goodbye", Translation = "до побачення", Example = "Goodbye! See you soon.", Transcription = "/ˌɡʊdˈbaɪ/", ExamplesJson = ToJsonStringArray("Goodbye! See you soon."), SynonymsJson = ToJsonStringArray("bye — Bye! See you later.", "farewell — Farewell, my friend.") },
+                new VocabularyItem { Word = "please", Translation = "будь ласка", Example = "Please, help me.", Transcription = "/pliːz/", ExamplesJson = ToJsonStringArray("Please, help me."), SynonymsJson = ToJsonStringArray("kindly — Kindly sit down.", "if you please — Open the window, if you please.") },
+                new VocabularyItem { Word = "thank you", Translation = "дякую", Example = "Thank you for your help.", Transcription = "/ˈθæŋk juː/", ExamplesJson = ToJsonStringArray("Thank you for your help."), SynonymsJson = ToJsonStringArray("thanks — Thanks for your help.", "much appreciated — Your support is much appreciated.") },
+                new VocabularyItem { Word = "yes", Translation = "так", Example = "Yes, I agree.", Transcription = "/jɛs/", ExamplesJson = ToJsonStringArray("Yes, I agree."), SynonymsJson = ToJsonStringArray("yeah — Yeah, sure.", "certainly — Certainly, I agree.") },
+                new VocabularyItem { Word = "no", Translation = "ні", Example = "No, I don't know.", Transcription = "/noʊ/", ExamplesJson = ToJsonStringArray("No, I don't know."), SynonymsJson = ToJsonStringArray("nope — Nope, not today.", "not really — Not really, I don't think so.") },
+                new VocabularyItem { Word = "sorry", Translation = "пробач", Example = "Sorry, I'm late.", Transcription = "/ˈsɑːri/", ExamplesJson = ToJsonStringArray("Sorry, I'm late."), SynonymsJson = ToJsonStringArray("apologies — Apologies for the mistake.", "my bad — My bad, I forgot.") },
+                new VocabularyItem { Word = "excuse me", Translation = "перепрошую", Example = "Excuse me, where is the station?", Transcription = "/ɪkˈskjuːz miː/", ExamplesJson = ToJsonStringArray("Excuse me, where is the station?"), SynonymsJson = ToJsonStringArray("pardon me — Pardon me, can I pass?", "sorry — Sorry, could you repeat that?") },
+                new VocabularyItem { Word = "welcome", Translation = "ласкаво просимо", Example = "Welcome to our city!", Transcription = "/ˈwɛlkəm/", ExamplesJson = ToJsonStringArray("Welcome to our city!"), SynonymsJson = ToJsonStringArray("you’re welcome — You’re welcome!", "no problem — No problem at all.") },
+                new VocabularyItem { Word = "good morning", Translation = "доброго ранку / добрий ранок", Example = "Good morning! Have a nice day.", Transcription = "/ɡʊd ˈmɔːrnɪŋ/", ExamplesJson = ToJsonStringArray("Good morning! Have a nice day."), SynonymsJson = ToJsonStringArray("morning — Morning!", "good day — Good day to you.") },
+                new VocabularyItem { Word = "good evening", Translation = "доброго вечора / добрий вечір", Example = "Good evening! Nice to see you.", Transcription = "/ɡʊd ˈiːvnɪŋ/", ExamplesJson = ToJsonStringArray("Good evening! Nice to see you."), SynonymsJson = ToJsonStringArray("evening — Evening!", "good night — Good night! (often used when leaving)") },
+                new VocabularyItem { Word = "one", Translation = "один", Example = "One plus one is two.", Transcription = "/wʌn/", ExamplesJson = ToJsonStringArray("One plus one is two.") },
+                new VocabularyItem { Word = "two", Translation = "два", Example = "Two cups of tea, please.", Transcription = "/tuː/", ExamplesJson = ToJsonStringArray("Two cups of tea, please.") },
+                new VocabularyItem { Word = "three", Translation = "три", Example = "Three days ago.", Transcription = "/θriː/", ExamplesJson = ToJsonStringArray("Three days ago.") },
+                new VocabularyItem { Word = "four", Translation = "чотири", Example = "Four people.", Transcription = "/fɔːr/", ExamplesJson = ToJsonStringArray("Four people.") },
+                new VocabularyItem { Word = "five", Translation = "п'ять", Example = "Five minutes.", Transcription = "/faɪv/", ExamplesJson = ToJsonStringArray("Five minutes.") },
+                new VocabularyItem { Word = "six", Translation = "шість", Example = "Six tickets.", Transcription = "/sɪks/", ExamplesJson = ToJsonStringArray("Six tickets.") },
+                new VocabularyItem { Word = "seven", Translation = "сім", Example = "Seven o'clock.", Transcription = "/ˈsɛvən/", ExamplesJson = ToJsonStringArray("Seven o'clock.") },
+                new VocabularyItem { Word = "eight", Translation = "вісім", Example = "Eight apples.", Transcription = "/eɪt/", ExamplesJson = ToJsonStringArray("Eight apples.") },
+                new VocabularyItem { Word = "nine", Translation = "дев'ять", Example = "Nine rooms.", Transcription = "/naɪn/", ExamplesJson = ToJsonStringArray("Nine rooms.") },
+                new VocabularyItem { Word = "ten", Translation = "десять", Example = "Ten dollars.", Transcription = "/tɛn/", ExamplesJson = ToJsonStringArray("Ten dollars.") },
 
-                new VocabularyItem { Word = "water", Translation = "вода", Example = "I want water." },
-                new VocabularyItem { Word = "coffee", Translation = "кава", Example = "Coffee, please." },
-                new VocabularyItem { Word = "tea", Translation = "чай", Example = "Tea is hot." },
-                new VocabularyItem { Word = "bread", Translation = "хліб", Example = "I like bread." },
-                new VocabularyItem { Word = "milk", Translation = "молоко", Example = "Milk in my coffee, please." },
-                new VocabularyItem { Word = "sugar", Translation = "цукор", Example = "No sugar, please." },
-                new VocabularyItem { Word = "salt", Translation = "сіль", Example = "Add some salt." },
-                new VocabularyItem { Word = "menu", Translation = "меню", Example = "Can I see the menu?" },
-                new VocabularyItem { Word = "bill", Translation = "рахунок", Example = "Can I have the bill, please?" },
+                new VocabularyItem { Word = "water", Translation = "вода", Example = "I want water.", Transcription = "/ˈwɔːtər/", ExamplesJson = ToJsonStringArray("I want water."), SynonymsJson = ToJsonStringArray("H2O — Water (H2O) is essential.") },
+                new VocabularyItem { Word = "coffee", Translation = "кава", Example = "Coffee, please.", Transcription = "/ˈkɔːfi/", ExamplesJson = ToJsonStringArray("Coffee, please."), SynonymsJson = ToJsonStringArray("java — I need a cup of java.", "espresso — I'll take an espresso, please.") },
+                new VocabularyItem { Word = "tea", Translation = "чай", Example = "Tea is hot.", Transcription = "/tiː/", ExamplesJson = ToJsonStringArray("Tea is hot."), SynonymsJson = ToJsonStringArray("cuppa — Fancy a cuppa?", "brew — Let's have a brew.") },
+                new VocabularyItem { Word = "bread", Translation = "хліб", Example = "I like bread.", Transcription = "/brɛd/", ExamplesJson = ToJsonStringArray("I like bread."), SynonymsJson = ToJsonStringArray("loaf — A loaf of bread, please.", "buns — Fresh buns are tasty.") },
+                new VocabularyItem { Word = "milk", Translation = "молоко", Example = "Milk in my coffee, please.", Transcription = "/mɪlk/", ExamplesJson = ToJsonStringArray("Milk in my coffee, please."), SynonymsJson = ToJsonStringArray("dairy milk — Dairy milk is in the fridge.", "cow’s milk — Do you prefer cow’s milk?") },
+                new VocabularyItem { Word = "sugar", Translation = "цукор", Example = "No sugar, please.", Transcription = "/ˈʃʊɡər/", ExamplesJson = ToJsonStringArray("No sugar, please."), SynonymsJson = ToJsonStringArray("sweetener — Add some sweetener.", "sucrose — Sugar is mostly sucrose.") },
+                new VocabularyItem { Word = "salt", Translation = "сіль", Example = "Add some salt.", Transcription = "/sɔːlt/", ExamplesJson = ToJsonStringArray("Add some salt."), SynonymsJson = ToJsonStringArray("seasoning — Add a little seasoning.", "table salt — Pass the table salt, please.") },
+                new VocabularyItem { Word = "menu", Translation = "меню", Example = "Can I see the menu?", Transcription = "/ˈmɛnjuː/", ExamplesJson = ToJsonStringArray("Can I see the menu?"), SynonymsJson = ToJsonStringArray("list — Check the list of dishes.", "card — Can I see the menu card?") },
+                new VocabularyItem { Word = "bill", Translation = "рахунок", Example = "Can I have the bill, please?", Transcription = "/bɪl/", ExamplesJson = ToJsonStringArray("Can I have the bill, please?"), SynonymsJson = ToJsonStringArray("check — Could we get the check?", "receipt — I need a receipt, please.") },
 
-                new VocabularyItem { Word = "airport", Translation = "аеропорт", Example = "The airport is big." },
-                new VocabularyItem { Word = "ticket", Translation = "квиток", Example = "I have a ticket." },
-                new VocabularyItem { Word = "passport", Translation = "паспорт", Example = "Show me your passport." },
-                new VocabularyItem { Word = "plane", Translation = "літак", Example = "The plane is on time." },
-                new VocabularyItem { Word = "train", Translation = "поїзд", Example = "The train is fast." },
-                new VocabularyItem { Word = "bus", Translation = "автобус", Example = "The bus is late." },
-                new VocabularyItem { Word = "station", Translation = "станція", Example = "Where is the station?" },
-                new VocabularyItem { Word = "hotel", Translation = "готель", Example = "The hotel is nice." },
-                new VocabularyItem { Word = "room", Translation = "кімната", Example = "This is my room." },
-                new VocabularyItem { Word = "key", Translation = "ключ", Example = "Here is your key." },
+                new VocabularyItem { Word = "airport", Translation = "аеропорт", Example = "The airport is big.", Transcription = "/ˈɛrˌpɔːrt/", ExamplesJson = ToJsonStringArray("The airport is big."), SynonymsJson = ToJsonStringArray("airfield — The airfield is nearby.", "terminal — Meet me at the terminal.") },
+                new VocabularyItem { Word = "ticket", Translation = "квиток", Example = "I have a ticket.", Transcription = "/ˈtɪkɪt/", ExamplesJson = ToJsonStringArray("I have a ticket."), SynonymsJson = ToJsonStringArray("pass — Show me your pass.", "fare ticket — Buy a fare ticket.") },
+                new VocabularyItem { Word = "passport", Translation = "паспорт", Example = "Show me your passport.", Transcription = "/ˈpæsˌpɔːrt/", ExamplesJson = ToJsonStringArray("Show me your passport."), SynonymsJson = ToJsonStringArray("travel document — Keep your travel document safe.", "ID — Show your passport or ID.") },
+                new VocabularyItem { Word = "plane", Translation = "літак", Example = "The plane is on time.", Transcription = "/pleɪn/", ExamplesJson = ToJsonStringArray("The plane is on time."), SynonymsJson = ToJsonStringArray("aircraft — The aircraft is ready.", "airplane — The airplane is boarding.") },
+                new VocabularyItem { Word = "train", Translation = "поїзд", Example = "The train is fast.", Transcription = "/treɪn/", ExamplesJson = ToJsonStringArray("The train is fast."), SynonymsJson = ToJsonStringArray("railway — The railway is busy.", "rail train — Catch the rail train.") },
+                new VocabularyItem { Word = "bus", Translation = "автобус", Example = "The bus is late.", Transcription = "/bʌs/", ExamplesJson = ToJsonStringArray("The bus is late."), SynonymsJson = ToJsonStringArray("coach — Take the coach downtown.", "shuttle — The shuttle bus arrives soon.") },
+                new VocabularyItem { Word = "station", Translation = "станція", Example = "Where is the station?", Transcription = "/ˈsteɪʃən/", ExamplesJson = ToJsonStringArray("Where is the station?"), SynonymsJson = ToJsonStringArray("terminal — The terminal is crowded.", "stop — Next stop is the station.") },
+                new VocabularyItem { Word = "hotel", Translation = "готель", Example = "The hotel is nice.", Transcription = "/hoʊˈtɛl/", ExamplesJson = ToJsonStringArray("The hotel is nice."), SynonymsJson = ToJsonStringArray("inn — We stayed at an inn.", "lodging — The lodging is comfortable.") },
+                new VocabularyItem { Word = "room", Translation = "кімната", Example = "This is my room.", Transcription = "/ruːm/", ExamplesJson = ToJsonStringArray("This is my room."), SynonymsJson = ToJsonStringArray("chamber — The chamber is clean.", "suite — We booked a suite.") },
+                new VocabularyItem { Word = "key", Translation = "ключ", Example = "Here is your key.", Transcription = "/kiː/", ExamplesJson = ToJsonStringArray("Here is your key."), SynonymsJson = ToJsonStringArray("passkey — Here's the passkey.", "card key — Use the card key.") },
 
-                new VocabularyItem { Word = "where", Translation = "де", Example = "Where are you?" },
-                new VocabularyItem { Word = "when", Translation = "коли", Example = "When do we leave?" },
-                new VocabularyItem { Word = "who", Translation = "хто", Example = "Who is that?" },
-                new VocabularyItem { Word = "what", Translation = "що", Example = "What is this?" },
-                new VocabularyItem { Word = "how", Translation = "як", Example = "How are you?" },
-                new VocabularyItem { Word = "why", Translation = "чому", Example = "Why are you sad?" },
+                new VocabularyItem { Word = "where", Translation = "де", Example = "Where are you?", Transcription = "/wɛr/", ExamplesJson = ToJsonStringArray("Where are you?"), SynonymsJson = ToJsonStringArray("in what place — Where (in what place) is it?") },
+                new VocabularyItem { Word = "when", Translation = "коли", Example = "When do we leave?", Transcription = "/wɛn/", ExamplesJson = ToJsonStringArray("When do we leave?"), SynonymsJson = ToJsonStringArray("at what time — When (at what time) does it start?") },
+                new VocabularyItem { Word = "who", Translation = "хто", Example = "Who is that?", Transcription = "/huː/", ExamplesJson = ToJsonStringArray("Who is that?"), SynonymsJson = ToJsonStringArray("which person — Who (which person) called?") },
+                new VocabularyItem { Word = "what", Translation = "що", Example = "What is this?", Transcription = "/wʌt/", ExamplesJson = ToJsonStringArray("What is this?"), SynonymsJson = ToJsonStringArray("which thing — What (which thing) is this?") },
+                new VocabularyItem { Word = "how", Translation = "як", Example = "How are you?", Transcription = "/haʊ/", ExamplesJson = ToJsonStringArray("How are you?"), SynonymsJson = ToJsonStringArray("in what way — How (in what way) did you do it?") },
+                new VocabularyItem { Word = "why", Translation = "чому", Example = "Why are you sad?", Transcription = "/waɪ/", ExamplesJson = ToJsonStringArray("Why are you sad?"), SynonymsJson = ToJsonStringArray("for what reason — Why (for what reason) are you late?") },
 
-                new VocabularyItem { Word = "open", Translation = "відкрито", Example = "The shop is open." },
-                new VocabularyItem { Word = "closed", Translation = "закрито", Example = "The shop is closed." },
-                new VocabularyItem { Word = "left", Translation = "ліворуч", Example = "Turn left." },
-                new VocabularyItem { Word = "right", Translation = "праворуч", Example = "Turn right." },
-                new VocabularyItem { Word = "straight", Translation = "прямо", Example = "Go straight." },
+                new VocabularyItem { Word = "open", Translation = "відкрито", Example = "The shop is open.", Transcription = "/ˈoʊpən/", ExamplesJson = ToJsonStringArray("The shop is open."), SynonymsJson = ToJsonStringArray("unlocked — The door is unlocked.", "available — The shop is open and available.") },
+                new VocabularyItem { Word = "closed", Translation = "закрито", Example = "The shop is closed.", Transcription = "/kloʊzd/", ExamplesJson = ToJsonStringArray("The shop is closed."), SynonymsJson = ToJsonStringArray("shut — The shop is shut.", "not open — The office is not open today.") },
+                new VocabularyItem { Word = "left", Translation = "ліворуч", Example = "Turn left.", Transcription = "/lɛft/", ExamplesJson = ToJsonStringArray("Turn left."), SynonymsJson = ToJsonStringArray("to the left — Turn to the left.", "port — The ship turned port (left).") },
+                new VocabularyItem { Word = "right", Translation = "праворуч", Example = "Turn right.", Transcription = "/raɪt/", ExamplesJson = ToJsonStringArray("Turn right."), SynonymsJson = ToJsonStringArray("correct — That's right (correct).", "starboard — Turn starboard (right).") },
+                new VocabularyItem { Word = "straight", Translation = "прямо", Example = "Go straight.", Transcription = "/streɪt/", ExamplesJson = ToJsonStringArray("Go straight."), SynonymsJson = ToJsonStringArray("directly — Go directly ahead.", "forward — Walk forward.") },
 
-                new VocabularyItem { Word = "how much", Translation = "скільки коштує", Example = "How much is it?" },
-                new VocabularyItem { Word = "price", Translation = "ціна", Example = "The price is high." },
-                new VocabularyItem { Word = "cheap", Translation = "дешевий", Example = "This is cheap." },
-                new VocabularyItem { Word = "expensive", Translation = "дорогий", Example = "This is expensive." },
+                new VocabularyItem { Word = "how much", Translation = "скільки коштує", Example = "How much is it?", Transcription = "/haʊ mʌtʃ/", ExamplesJson = ToJsonStringArray("How much is it?"), SynonymsJson = ToJsonStringArray("what amount — How much (what amount) is it?") },
+                new VocabularyItem { Word = "price", Translation = "ціна", Example = "The price is high.", Transcription = "/praɪs/", ExamplesJson = ToJsonStringArray("The price is high."), SynonymsJson = ToJsonStringArray("cost — The cost is high.", "rate — What's the rate per night?") },
+                new VocabularyItem { Word = "cheap", Translation = "дешевий", Example = "This is cheap.", Transcription = "/tʃiːp/", ExamplesJson = ToJsonStringArray("This is cheap."), SynonymsJson = ToJsonStringArray("inexpensive — It's inexpensive.", "low-cost — A low-cost option.") },
+                new VocabularyItem { Word = "expensive", Translation = "дорогий", Example = "This is expensive.", Transcription = "/ɪkˈspɛnsɪv/", ExamplesJson = ToJsonStringArray("This is expensive."), SynonymsJson = ToJsonStringArray("costly — That's costly.", "pricey — The meal is pricey.") },
 
-                new VocabularyItem { Word = "time", Translation = "час", Example = "What time is it?" },
-                new VocabularyItem { Word = "today", Translation = "сьогодні", Example = "Today is Monday." },
-                new VocabularyItem { Word = "tomorrow", Translation = "завтра", Example = "See you tomorrow." },
-                new VocabularyItem { Word = "yesterday", Translation = "вчора", Example = "Yesterday was cold." }
+                new VocabularyItem { Word = "time", Translation = "час", Example = "What time is it?", Transcription = "/taɪm/", ExamplesJson = ToJsonStringArray("What time is it?"), SynonymsJson = ToJsonStringArray("moment — Give me a moment.", "hour — What time (hour) is it?") },
+                new VocabularyItem { Word = "today", Translation = "сьогодні", Example = "Today is Monday.", Transcription = "/təˈdeɪ/", ExamplesJson = ToJsonStringArray("Today is Monday."), SynonymsJson = ToJsonStringArray("this day — Today (this day) is sunny.", "nowadays — Today, many people...") },
+                new VocabularyItem { Word = "tomorrow", Translation = "завтра", Example = "See you tomorrow.", Transcription = "/təˈmɑːroʊ/", ExamplesJson = ToJsonStringArray("See you tomorrow."), SynonymsJson = ToJsonStringArray("next day — Tomorrow (next day) we'll travel.", "the following day — The following day was better.") },
+                new VocabularyItem { Word = "yesterday", Translation = "вчора", Example = "Yesterday was cold.", Transcription = "/ˈjɛstərdeɪ/", ExamplesJson = ToJsonStringArray("Yesterday was cold.") }
             };
+
+            var extraTranslationsByWord = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                // Додаткові переклади (крім основного поля Translation).
+                // Порядок важливий: він збережеться у VocabularyItemTranslations.Order.
+                ["sorry"] = new List<string> { "вибач", "перепрошую" },
+                ["ticket"] = new List<string> { "білет" },
+                ["station"] = new List<string> { "вокзал" },
+                ["room"] = new List<string> { "номер", "кімната" },
+                ["cheap"] = new List<string> { "дешево", "недорогий" },
+                ["expensive"] = new List<string> { "дорого", "коштовний" }
+            };
+
 
             var fromDbList = dbContext.VocabularyItems.ToList();
             var fromDbMap = fromDbList
@@ -556,10 +641,147 @@ namespace Lumino.Api.Data
                 {
                     fromDb.Example = item.Example;
                 }
+
+                // Донаповнюємо нові поля, не стираючи те, що могло бути додано через адмінку.
+                // Правило: якщо в БД поле порожнє, а в сіді є значення — переносимо його в БД.
+                if (string.IsNullOrWhiteSpace(fromDb.Transcription) && !string.IsNullOrWhiteSpace(item.Transcription))
+                {
+                    fromDb.Transcription = item.Transcription;
+                }
+
+                if (string.IsNullOrWhiteSpace(fromDb.Gender) && !string.IsNullOrWhiteSpace(item.Gender))
+                {
+                    fromDb.Gender = item.Gender;
+                }
+
+                if (string.IsNullOrWhiteSpace(fromDb.PartOfSpeech) && !string.IsNullOrWhiteSpace(item.PartOfSpeech))
+                {
+                    fromDb.PartOfSpeech = item.PartOfSpeech;
+                }
+
+                if (string.IsNullOrWhiteSpace(fromDb.Definition) && !string.IsNullOrWhiteSpace(item.Definition))
+                {
+                    fromDb.Definition = item.Definition;
+                }
+
+                if (string.IsNullOrWhiteSpace(fromDb.ExamplesJson) && !string.IsNullOrWhiteSpace(item.ExamplesJson))
+                {
+                    fromDb.ExamplesJson = item.ExamplesJson;
+                }
+
+                if (string.IsNullOrWhiteSpace(fromDb.SynonymsJson) && !string.IsNullOrWhiteSpace(item.SynonymsJson))
+                {
+                    fromDb.SynonymsJson = item.SynonymsJson;
+                }
+
+                if (string.IsNullOrWhiteSpace(fromDb.IdiomsJson) && !string.IsNullOrWhiteSpace(item.IdiomsJson))
+                {
+                    fromDb.IdiomsJson = item.IdiomsJson;
+                }
+            }
+
+            dbContext.SaveChanges();
+
+            UpsertVocabularyTranslations(dbContext, items, extraTranslationsByWord);
+        }
+
+
+        private static void UpsertVocabularyTranslations(
+            LuminoDbContext dbContext,
+            List<VocabularyItem> seededItems,
+            Dictionary<string, List<string>> extraTranslationsByWord)
+        {
+            // 1) Мапа слово -> entity з БД
+            var fromDbList = dbContext.VocabularyItems.ToList();
+            var fromDbMap = fromDbList
+                .GroupBy(x => x.Word)
+                .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+
+            // 2) Існуючі переклади з БД
+            var existing = dbContext.VocabularyItemTranslations.ToList();
+            var existingByItemId = existing
+                .GroupBy(x => x.VocabularyItemId)
+                .ToDictionary(x => x.Key, x => x.OrderBy(t => t.Order).ToList());
+
+            foreach (var seed in seededItems)
+            {
+                if (!fromDbMap.TryGetValue(seed.Word, out var entity))
+                {
+                    continue;
+                }
+
+                var desired = new List<string>();
+
+                if (!string.IsNullOrWhiteSpace(seed.Translation))
+                {
+                    desired.Add(seed.Translation.Trim());
+                }
+
+                if (extraTranslationsByWord.TryGetValue(seed.Word, out var extras))
+                {
+                    foreach (var tr in extras)
+                    {
+                        if (!string.IsNullOrWhiteSpace(tr))
+                        {
+                            desired.Add(tr.Trim());
+                        }
+                    }
+                }
+
+                // Унікалізація з збереженням порядку
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                desired = desired.Where(x => seen.Add(x)).ToList();
+
+                if (desired.Count == 0)
+                {
+                    continue;
+                }
+
+                if (!existingByItemId.TryGetValue(entity.Id, out var current))
+                {
+                    current = new List<VocabularyItemTranslation>();
+                    existingByItemId[entity.Id] = current;
+                }
+
+                // Видаляємо зайві та оновлюємо/додаємо потрібні, щоб Order йшов 1..N
+                var currentByOrder = current.ToDictionary(x => x.Order, x => x);
+
+                // remove translations that are not desired
+                var remove = current.Where(x => !desired.Contains(x.Translation, StringComparer.OrdinalIgnoreCase)).ToList();
+                if (remove.Count > 0)
+                {
+                    dbContext.VocabularyItemTranslations.RemoveRange(remove);
+                }
+
+                // ensure desired translations
+                for (int i = 0; i < desired.Count; i++)
+                {
+                    var order = i + 1;
+                    var tr = desired[i];
+
+                    if (currentByOrder.TryGetValue(order, out var existingRow))
+                    {
+                        if (!string.Equals(existingRow.Translation, tr, StringComparison.OrdinalIgnoreCase))
+                        {
+                            // Якщо в цій же позиції інший текст — просто оновлюємо.
+                            existingRow.Translation = tr;
+                        }
+                    }
+                    else
+                    {
+                        dbContext.VocabularyItemTranslations.Add(new VocabularyItemTranslation
+                        {
+                            VocabularyItemId = entity.Id,
+                            Translation = tr,
+                            Order = order
+                        });
+                    }
+                }
             }
 
             dbContext.SaveChanges();
         }
+
 
         private static void SeedDemoContentEnglishOnly(LuminoDbContext dbContext)
         {
@@ -747,7 +969,7 @@ namespace Lumino.Api.Data
             EnsureFixedCourseStructureForDesign(dbContext, courseEnglish);
         }
 
-        
+
         private static void EnsureFixedCourseStructureForDesign(LuminoDbContext dbContext, Course course)
         {
             if (course == null)
@@ -761,27 +983,48 @@ namespace Lumino.Api.Data
             // 1 lesson = 9 exercises
             // This method is safe to call multiple times: it only adds missing items.
 
+            var topicTitlesByOrder = new Dictionary<int, string>
+            {
+                [1] = "Buy clothes",
+                [2] = "Food",
+                [3] = "Greetings",
+                [4] = "Numbers",
+                [5] = "Travel",
+                [6] = "Family",
+                [7] = "Home",
+                [8] = "Time",
+                [9] = "Weather",
+                [10] = "Hobbies"
+            };
+
             var topics = dbContext.Topics
                 .Where(x => x.CourseId == course.Id)
                 .OrderBy(x => x.Order)
                 .ToList();
 
-            var existingOrders = topics
-                .Select(x => x.Order)
-                .Distinct()
-                .ToHashSet();
+            var byOrder = topics
+                .GroupBy(x => x.Order)
+                .ToDictionary(x => x.Key, x => x.First());
 
             for (int topicOrder = 1; topicOrder <= 10; topicOrder++)
             {
-                if (existingOrders.Contains(topicOrder))
+                if (byOrder.TryGetValue(topicOrder, out var fromDb))
                 {
+                    if (topicTitlesByOrder.TryGetValue(topicOrder, out var desiredTitle))
+                    {
+                        if (!string.Equals(fromDb.Title, desiredTitle, StringComparison.Ordinal))
+                        {
+                            fromDb.Title = desiredTitle;
+                        }
+                    }
+
                     continue;
                 }
 
                 var topic = new Topic
                 {
                     CourseId = course.Id,
-                    Title = $"Topic {topicOrder}",
+                    Title = topicTitlesByOrder.TryGetValue(topicOrder, out var title) ? title : $"Topic {topicOrder}",
                     Order = topicOrder
                 };
 
@@ -884,29 +1127,103 @@ namespace Lumino.Api.Data
 
         private static void EnsureFinalSceneForTopic(LuminoDbContext dbContext, Course course, Topic topic)
         {
-            // One final scene per topic (sun). It is used by LearningPath rules (TopicId != null).
-            var hasScene = dbContext.Scenes.Any(x => x.CourseId == course.Id && x.TopicId == topic.Id);
-            if (hasScene)
+            // One final scene ("Sun") per topic. It is used by LearningPath rules (TopicId != null).
+            // IMPORTANT: We check exactly Sun, not "any scene", to avoid duplicates like:
+            // - linked dialog scene (not Sun) + additionally created Sun.
+            var existingForTopic = dbContext.Scenes.FirstOrDefault(x => x.CourseId == course.Id && x.TopicId == topic.Id);
+            if (existingForTopic != null)
             {
+                var desiredOrder = 1000 + topic.Order;
+
+                if (!string.Equals(existingForTopic.SceneType, "Sun", StringComparison.Ordinal))
+                {
+                    existingForTopic.SceneType = "Sun";
+                }
+
+                if (existingForTopic.Order != desiredOrder)
+                {
+                    existingForTopic.Order = desiredOrder;
+                }
+
+                if (string.IsNullOrWhiteSpace(existingForTopic.Title))
+                {
+                    existingForTopic.Title = $"{topic.Title} - Sun";
+                }
+
+                if (string.IsNullOrWhiteSpace(existingForTopic.Description))
+                {
+                    existingForTopic.Description = "Final topic scene (sun)";
+                }
+
                 return;
+            }
+
+            // If we already have dialog scenes seeded (SeedScenes), reuse them as topic "sun" scenes for the first topics.
+            // This keeps your existing content (titles/steps) and only links it to the course/topic.
+            var sceneTitlesByTopicOrder = new Dictionary<int, string>
+            {
+                [1] = "Cafe order",
+                [2] = "Airport check-in",
+                [3] = "Hotel booking",
+                [4] = "Asking directions",
+                [5] = "Shopping",
+                [6] = "Small talk",
+                [7] = "Restaurant reservation",
+                [8] = "Doctor visit",
+                [9] = "Public transport",
+                [10] = "Job interview"
+            };
+
+            if (sceneTitlesByTopicOrder.TryGetValue(topic.Order, out var desiredTitle))
+            {
+                var fromDb = dbContext.Scenes.FirstOrDefault(x => x.Title == desiredTitle);
+                if (fromDb != null)
+                {
+                    if (fromDb.CourseId != course.Id)
+                    {
+                        fromDb.CourseId = course.Id;
+                    }
+
+                    if (fromDb.TopicId != topic.Id)
+                    {
+                        fromDb.TopicId = topic.Id;
+                    }
+
+                    if (!string.Equals(fromDb.SceneType, "Sun", StringComparison.Ordinal))
+                    {
+                        fromDb.SceneType = "Sun";
+                    }
+
+                    // IMPORTANT: Scene.Order is unique per course (unique index CourseId + Order), so it must be unique across topics.
+                    var desiredOrder = 1000 + topic.Order;
+                    if (fromDb.Order != desiredOrder)
+                    {
+                        fromDb.Order = desiredOrder;
+                    }
+
+                    return;
+                }
             }
 
             var scene = new Scene
             {
                 CourseId = course.Id,
                 TopicId = topic.Id,
-                Title = "Sun",
+                Title = $"{topic.Title} - Sun",
                 Description = "Final topic scene (sun)",
                 SceneType = "Sun",
                 BackgroundUrl = null,
                 AudioUrl = null,
-                Order = 9
+                // IMPORTANT: Scene.Order is unique per course (unique index CourseId + Order),
+                // so we must keep it unique across topics.
+                Order = 1000 + topic.Order
             };
 
             dbContext.Scenes.Add(scene);
         }
 
-private static void SeedVocabularyLinks(LuminoDbContext dbContext)
+
+        private static void SeedVocabularyLinks(LuminoDbContext dbContext)
         {
             SeedLessonVocabularyLinks(dbContext);
             SeedExerciseVocabularyLinks(dbContext);
@@ -1629,6 +1946,7 @@ private static void SeedVocabularyLinks(LuminoDbContext dbContext)
             public string left { get; set; } = null!;
             public string right { get; set; } = null!;
         }
+
         private record SceneStepSeed(
             int Order,
             string Speaker,
@@ -1637,7 +1955,116 @@ private static void SeedVocabularyLinks(LuminoDbContext dbContext)
             string? MediaUrl = null,
             string? ChoicesJson = null);
 
-        private record TopicSeed(string Title, int Order);
+
+        private static void EnsureStrictCourseStructure(LuminoDbContext dbContext, int courseId)
+        {
+            // This is our content pipeline rule for UI: 1 course = 10 topics, 1 topic = 8 lessons, 1 lesson = 9 exercises.
+            // Seeder makes it true for the default demo course too.
+            var topics = dbContext.Topics
+                .Where(x => x.CourseId == courseId)
+                .OrderBy(x => x.Order)
+                .ThenBy(x => x.Id)
+                .ToList();
+
+            if (topics.Count < 10)
+            {
+                var startOrder = topics.Count == 0 ? 1 : topics.Max(x => x.Order) + 1;
+
+                for (int i = topics.Count + 1; i <= 10; i++)
+                {
+                    dbContext.Topics.Add(new Topic
+                    {
+                        CourseId = courseId,
+                        Title = $"Topic {i}",
+                        Order = startOrder++
+                    });
+                }
+
+                dbContext.SaveChanges();
+
+                topics = dbContext.Topics
+                    .Where(x => x.CourseId == courseId)
+                    .OrderBy(x => x.Order)
+                    .ThenBy(x => x.Id)
+                    .ToList();
+            }
+
+            foreach (var topic in topics.Take(10))
+            {
+                EnsureLessonsForTopic(dbContext, topic.Id, topic.Order);
+            }
+        }
+
+        private static void EnsureLessonsForTopic(LuminoDbContext dbContext, int topicId, int topicOrder)
+        {
+            var lessons = dbContext.Lessons
+                .Where(x => x.TopicId == topicId)
+                .OrderBy(x => x.Order)
+                .ThenBy(x => x.Id)
+                .ToList();
+
+            if (lessons.Count < 8)
+            {
+                var startOrder = lessons.Count == 0 ? 1 : lessons.Max(x => x.Order) + 1;
+
+                for (int i = lessons.Count + 1; i <= 8; i++)
+                {
+                    dbContext.Lessons.Add(new Lesson
+                    {
+                        TopicId = topicId,
+                        Title = $"Topic {topicOrder} — Lesson {i}",
+                        Theory = "Coming soon",
+                        Order = startOrder++
+                    });
+                }
+
+                dbContext.SaveChanges();
+
+                lessons = dbContext.Lessons
+                    .Where(x => x.TopicId == topicId)
+                    .OrderBy(x => x.Order)
+                    .ThenBy(x => x.Id)
+                    .ToList();
+            }
+
+            foreach (var lesson in lessons.Take(8))
+            {
+                EnsureExercisesForLesson(dbContext, lesson.Id);
+            }
+        }
+
+        private static void EnsureExercisesForLesson(LuminoDbContext dbContext, int lessonId)
+        {
+            var exercises = dbContext.Exercises
+                .Where(x => x.LessonId == lessonId)
+                .OrderBy(x => x.Order)
+                .ThenBy(x => x.Id)
+                .ToList();
+
+            if (exercises.Count >= 9)
+            {
+                return;
+            }
+
+            var startOrder = exercises.Count == 0 ? 1 : exercises.Max(x => x.Order) + 1;
+
+            for (int i = exercises.Count + 1; i <= 9; i++)
+            {
+                dbContext.Exercises.Add(new Exercise
+                {
+                    LessonId = lessonId,
+                    Type = ExerciseType.MultipleChoice,
+                    Question = $"Demo question {i}",
+                    Data = ToJsonStringArray("Option A", "Option B", "Option C"),
+                    CorrectAnswer = "Option A",
+                    Order = startOrder++
+                });
+            }
+
+            dbContext.SaveChanges();
+        }
+
+private record TopicSeed(string Title, int Order);
 
         private record LessonSeed(int TopicId, string Title, string Theory, int Order);
 
@@ -1699,5 +2126,6 @@ private static void SeedVocabularyLinks(LuminoDbContext dbContext)
                 dbContext.SaveChanges();
             }
         }
+
     }
 }

@@ -189,6 +189,14 @@ namespace Lumino.Api.Application.Services
                 _userEconomyService.AwardCrystalsForPassedLessonIfNeeded(userId);
             }
 
+            var earnedCrystals = 0;
+
+            if (shouldIncrementCompletedLessons)
+            {
+                var reward = _learningSettings.CrystalsRewardPerPassedLesson;
+                earnedCrystals = reward > 0 ? reward : 0;
+            }
+
             _achievementService.CheckAndGrantAchievements(userId, correct, exercises.Count);
 
             return new SubmitLessonResponse
@@ -196,6 +204,7 @@ namespace Lumino.Api.Application.Services
                 TotalExercises = exercises.Count,
                 CorrectAnswers = correct,
                 IsPassed = isPassed,
+                EarnedCrystals = earnedCrystals,
                 MistakeExerciseIds = mistakeExerciseIds,
                 Answers = answers
             };
@@ -205,6 +214,8 @@ namespace Lumino.Api.Application.Services
         {
             var passingScorePercent = LessonPassingRules.NormalizePassingPercent(_learningSettings.PassingScorePercent);
             var isPassed = LessonPassingRules.IsPassed(result.Score, result.TotalQuestions, passingScorePercent);
+
+            var earnedCrystals = GetEarnedCrystalsForLessonResult(result, passingScorePercent);
 
             var mistakeExerciseIds = new List<int>();
             var answers = new List<LessonAnswerResultDto>();
@@ -232,10 +243,43 @@ namespace Lumino.Api.Application.Services
                 TotalExercises = result.TotalQuestions,
                 CorrectAnswers = result.Score,
                 IsPassed = isPassed,
+                EarnedCrystals = earnedCrystals,
                 MistakeExerciseIds = mistakeExerciseIds,
                 Answers = answers
             };
         }
+
+private int GetEarnedCrystalsForLessonResult(LessonResult result, int passingScorePercent)
+{
+    var reward = _learningSettings.CrystalsRewardPerPassedLesson;
+
+    if (reward <= 0)
+    {
+        return 0;
+    }
+
+    var isPassed = LessonPassingRules.IsPassed(result.Score, result.TotalQuestions, passingScorePercent);
+
+    if (!isPassed)
+    {
+        return 0;
+    }
+
+    var firstPassed = _dbContext.LessonResults
+        .Where(x => x.UserId == result.UserId && x.LessonId == result.LessonId && x.TotalQuestions > 0)
+        .AsEnumerable()
+        .Where(x => LessonPassingRules.IsPassed(x.Score, x.TotalQuestions, passingScorePercent))
+        .OrderBy(x => x.CompletedAt)
+        .ThenBy(x => x.Id)
+        .FirstOrDefault();
+
+    if (firstPassed == null)
+    {
+        return 0;
+    }
+
+    return firstPassed.Id == result.Id ? reward : 0;
+}
 
         private string? NormalizeIdempotencyKey(string? key)
         {

@@ -88,6 +88,16 @@ namespace Lumino.Api.Controllers
             return NoContent();
         }
 
+        
+        [HttpGet("me")]
+        [Authorize]
+        public IActionResult GetForMe([FromQuery] int? courseId)
+        {
+            var userId = ClaimsUtils.GetUserIdOrThrow(User);
+
+            return Ok(_sceneService.GetAllSceneDetails(userId, courseId));
+        }
+
         [HttpGet("completed")]
         [Authorize]
         public IActionResult GetCompleted()
