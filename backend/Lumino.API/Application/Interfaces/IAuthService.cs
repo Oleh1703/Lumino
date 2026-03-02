@@ -10,8 +10,6 @@ namespace Lumino.Api.Application.Interfaces
 
         AuthResponse OAuthGoogle(OAuthLoginRequest request);
 
-        AuthResponse OAuthApple(OAuthLoginRequest request);
-
         ForgotPasswordResponse ForgotPassword(ForgotPasswordRequest request, string? ip, string? userAgent);
 
         void ResetPassword(ResetPasswordRequest request);

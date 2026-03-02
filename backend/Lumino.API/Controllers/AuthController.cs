@@ -66,18 +66,10 @@ namespace Lumino.Api.Controllers
             return Ok(result);
         }
 
-
         [HttpPost("oauth/google")]
         public IActionResult OAuthGoogle(OAuthLoginRequest request)
         {
             var result = _authService.OAuthGoogle(request);
-            return Ok(result);
-        }
-
-        [HttpPost("oauth/apple")]
-        public IActionResult OAuthApple(OAuthLoginRequest request)
-        {
-            var result = _authService.OAuthApple(request);
             return Ok(result);
         }
 

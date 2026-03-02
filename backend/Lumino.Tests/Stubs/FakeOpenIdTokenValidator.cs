@@ -13,22 +13,9 @@ namespace Lumino.Tests.Stubs
             PictureUrl = null
         };
 
-        public OpenIdUserInfo AppleUserInfo { get; set; } = new OpenIdUserInfo
-        {
-            Subject = "apple-subject",
-            Email = "apple@example.com",
-            Name = "Apple User",
-            PictureUrl = null
-        };
-
         public OpenIdUserInfo ValidateGoogleIdToken(string idToken)
         {
             return GoogleUserInfo;
-        }
-
-        public OpenIdUserInfo ValidateAppleIdToken(string idToken)
-        {
-            return AppleUserInfo;
         }
     }
 }

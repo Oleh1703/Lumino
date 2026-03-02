@@ -214,31 +214,6 @@ namespace Lumino.Api.Application.Services
             );
         }
 
-        public AuthResponse OAuthApple(OAuthLoginRequest request)
-        {
-            if (request == null)
-            {
-                throw new ArgumentNullException(nameof(request));
-            }
-
-            if (string.IsNullOrWhiteSpace(request.IdToken))
-            {
-                throw new ArgumentException("IdToken is required");
-            }
-
-            var info = _openIdTokenValidator.ValidateAppleIdToken(request.IdToken.Trim());
-
-            return LoginOrCreateExternalUser(
-                provider: "apple",
-                providerUserId: info.Subject,
-                email: info.Email,
-                name: info.Name,
-                pictureUrl: info.PictureUrl,
-                requestedUsername: request.Username,
-                requestedAvatarUrl: request.AvatarUrl
-            );
-        }
-
         private AuthResponse LoginOrCreateExternalUser(
             string provider,
             string providerUserId,
@@ -811,7 +786,6 @@ namespace Lumino.Api.Application.Services
             var bytes = RandomNumberGenerator.GetBytes(64);
             return Convert.ToBase64String(bytes);
         }
-
 
         private string BuildPasswordResetLink(string token)
         {

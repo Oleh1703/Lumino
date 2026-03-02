@@ -21,14 +21,15 @@ namespace Lumino.Api.Controllers
             _userService = userService;
             _userAccountService = userAccountService;
             _userEconomyService = userEconomyService;
-            _userExternalLoginService = userExternalLoginService;        }
+            _userExternalLoginService = userExternalLoginService;
+        }
 
         [HttpGet("me")]
         public IActionResult GetMe()
         {
             var userId = ClaimsUtils.GetUserIdOrThrow(User);
             _userEconomyService.RefreshHearts(userId);
-            var result = _userService.GetCurrentUser(userId); 
+            var result = _userService.GetCurrentUser(userId);
             return Ok(result);
         }
 
@@ -39,7 +40,7 @@ namespace Lumino.Api.Controllers
 
             _userEconomyService.RefreshHearts(userId);
 
-            var result = _userService.UpdateProfile(userId, request); 
+            var result = _userService.UpdateProfile(userId, request);
             return Ok(result);
         }
 
@@ -80,14 +81,6 @@ namespace Lumino.Api.Controllers
         {
             var userId = ClaimsUtils.GetUserIdOrThrow(User);
             _userExternalLoginService.LinkGoogleExternalLogin(userId, request);
-            return NoContent();
-        }
-
-        [HttpPost("external-logins/link/apple")]
-        public IActionResult LinkAppleExternalLogin(LinkExternalLoginRequest request)
-        {
-            var userId = ClaimsUtils.GetUserIdOrThrow(User);
-            _userExternalLoginService.LinkAppleExternalLogin(userId, request);
             return NoContent();
         }
 

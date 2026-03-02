@@ -92,22 +92,6 @@ namespace Lumino.Api.Application.Services
             LinkExternalLoginInternal(userId, provider: "google", providerUserId: info.Subject, email: info.Email);
         }
 
-        public void LinkAppleExternalLogin(int userId, LinkExternalLoginRequest request)
-        {
-            if (request == null)
-            {
-                throw new ArgumentNullException(nameof(request));
-            }
-
-            if (string.IsNullOrWhiteSpace(request.IdToken))
-            {
-                throw new ArgumentException("IdToken is required");
-            }
-
-            var info = _openIdTokenValidator.ValidateAppleIdToken(request.IdToken.Trim());
-            LinkExternalLoginInternal(userId, provider: "apple", providerUserId: info.Subject, email: info.Email);
-        }
-
         private void LinkExternalLoginInternal(int userId, string provider, string providerUserId, string? email)
         {
             if (string.IsNullOrWhiteSpace(provider))

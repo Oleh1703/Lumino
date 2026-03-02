@@ -14,7 +14,6 @@ namespace Lumino.Api.Application.Services
         private readonly IConfiguration _configuration;
 
         private readonly ConfigurationManager<OpenIdConnectConfiguration> _googleConfigurationManager;
-        private readonly ConfigurationManager<OpenIdConnectConfiguration> _appleConfigurationManager;
 
         public OpenIdTokenValidator(IConfiguration configuration)
         {
@@ -22,11 +21,6 @@ namespace Lumino.Api.Application.Services
 
             _googleConfigurationManager = new ConfigurationManager<OpenIdConnectConfiguration>(
                 "https://accounts.google.com/.well-known/openid-configuration",
-                new OpenIdConnectConfigurationRetriever()
-            );
-
-            _appleConfigurationManager = new ConfigurationManager<OpenIdConnectConfiguration>(
-                "https://appleid.apple.com/.well-known/openid-configuration",
                 new OpenIdConnectConfigurationRetriever()
             );
         }
@@ -61,39 +55,11 @@ namespace Lumino.Api.Application.Services
             return BuildUserInfoFromPrincipal(principal, requireEmail: true);
         }
 
-        public OpenIdUserInfo ValidateAppleIdToken(string idToken)
-        {
-            var clientId = _configuration["OAuth:Apple:ClientId"];
-            if (string.IsNullOrWhiteSpace(clientId))
-            {
-                throw new InvalidOperationException("OAuth Apple ClientId is not configured");
-            }
-
-            var config = _appleConfigurationManager.GetConfigurationAsync(CancellationToken.None)
-                .GetAwaiter()
-                .GetResult();
-
-            var handler = new JwtSecurityTokenHandler();
-            var parameters = new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidIssuers = new[] { "https://appleid.apple.com", "appleid.apple.com" },
-                ValidateAudience = true,
-                ValidAudience = clientId,
-                ValidateLifetime = true,
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKeys = config.SigningKeys,
-                ClockSkew = TimeSpan.FromMinutes(2)
-            };
-
-            var principal = handler.ValidateToken(idToken, parameters, out _);
-
-            return BuildUserInfoFromPrincipal(principal, requireEmail: false);
-        }
-
         private static OpenIdUserInfo BuildUserInfoFromPrincipal(ClaimsPrincipal principal, bool requireEmail)
         {
-            var subject = principal.FindFirstValue("sub");
+            var subject = principal.FindFirstValue("sub")
+                ?? principal.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? principal.FindFirstValue("subject");
             var email = principal.FindFirstValue(ClaimTypes.Email) ?? principal.FindFirstValue("email");
 
             if (string.IsNullOrWhiteSpace(subject))

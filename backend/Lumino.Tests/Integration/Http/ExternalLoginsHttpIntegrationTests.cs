@@ -46,15 +46,6 @@ public class ExternalLoginsHttpIntegrationTests : IClassFixture<ApiWebApplicatio
                 CreatedAtUtc = DateTime.UtcNow.AddMinutes(-2)
             });
 
-            dbContext.UserExternalLogins.Add(new UserExternalLogin
-            {
-                UserId = 10,
-                Provider = "apple",
-                ProviderUserId = "a-1",
-                Email = "test@test.com",
-                CreatedAtUtc = DateTime.UtcNow.AddMinutes(-1)
-            });
-
             dbContext.SaveChanges();
         }
 
@@ -68,11 +59,10 @@ public class ExternalLoginsHttpIntegrationTests : IClassFixture<ApiWebApplicatio
 
         var root = doc.RootElement;
         Assert.Equal(JsonValueKind.Array, root.ValueKind);
-        Assert.Equal(2, root.GetArrayLength());
+        Assert.Equal(1, root.GetArrayLength());
 
         var providers = root.EnumerateArray().Select(x => x.GetProperty("provider").GetString()).ToList();
         Assert.Contains("google", providers);
-        Assert.Contains("apple", providers);
     }
 
     [Fact]
@@ -102,13 +92,15 @@ public class ExternalLoginsHttpIntegrationTests : IClassFixture<ApiWebApplicatio
                 CreatedAtUtc = DateTime.UtcNow.AddMinutes(-2)
             });
 
+            // Додаємо ще один external login, щоб "google" не був останнім способом входу.
+            // (Apple-логін як провайдер прибраний з бекенду, але в БД можуть лишатися старі прив'язки.)
             dbContext.UserExternalLogins.Add(new UserExternalLogin
             {
                 UserId = 10,
                 Provider = "apple",
                 ProviderUserId = "a-1",
                 Email = "test@test.com",
-                CreatedAtUtc = DateTime.UtcNow.AddMinutes(-1)
+                CreatedAtUtc = DateTime.UtcNow.AddMinutes(-3)
             });
 
             dbContext.SaveChanges();

@@ -102,7 +102,7 @@ public class UserExternalLoginServiceTests
         dbContext.UserExternalLogins.Add(new UserExternalLogin
         {
             UserId = 10,
-            Provider = "apple",
+            Provider = "google_alt",
             ProviderUserId = "sub2",
             Email = "a@a.com",
             CreatedAtUtc = DateTime.UtcNow.AddMinutes(2)
@@ -125,7 +125,7 @@ public class UserExternalLoginServiceTests
 
         Assert.Equal(2, result.Count);
         Assert.Equal("google", result[0].Provider);
-        Assert.Equal("apple", result[1].Provider);
+        Assert.Equal("google_alt", result[1].Provider);
     }
 
     [Fact]

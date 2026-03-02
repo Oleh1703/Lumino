@@ -10,7 +10,5 @@ namespace Lumino.Api.Application.Interfaces
         void UnlinkExternalLogin(int userId, UnlinkExternalLoginRequest request);
 
         void LinkGoogleExternalLogin(int userId, LinkExternalLoginRequest request);
-
-        void LinkAppleExternalLogin(int userId, LinkExternalLoginRequest request);
     }
 }

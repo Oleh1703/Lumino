@@ -15,11 +15,6 @@ namespace Lumino.Api.Application.Services
             return ParseToken(idToken, providerPrefix: "test-google");
         }
 
-        public OpenIdUserInfo ValidateAppleIdToken(string idToken)
-        {
-            return ParseToken(idToken, providerPrefix: "test-apple");
-        }
-
         private OpenIdUserInfo ParseToken(string idToken, string providerPrefix)
         {
             if (string.IsNullOrWhiteSpace(idToken))
@@ -28,9 +23,8 @@ namespace Lumino.Api.Application.Services
             }
 
             // Формат:
-            // 1) "test-google" або "test-apple" => дефолтні дані
+            // 1) "test-google" => дефолтні дані
             // 2) "test-google:<subject>:<email>"
-            // 3) "test-apple:<subject>:<email>" або "test-apple:<subject>" (Apple може не повертати email)
             var token = idToken.Trim();
 
             if (string.Equals(token, providerPrefix, StringComparison.OrdinalIgnoreCase))

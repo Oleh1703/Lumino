@@ -5,9 +5,7 @@ using Lumino.Api.Data;
 using Lumino.Api.Domain.Entities;
 using Lumino.Api.Utils;
 using Lumino.Tests.Stubs;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
 using Xunit;
 
 namespace Lumino.Tests.Unit
@@ -36,10 +34,6 @@ namespace Lumino.Tests.Unit
             var forgotValidator = new ForgotPasswordRequestValidator();
             var resetValidator = new ResetPasswordRequestValidator();
 
-            var emailSender = new FakeEmailSender();
-            var hostEnvironment = new FakeHostEnvironment("Testing");
-            var passwordHasher = new PasswordHasher();
-
             var openIdValidator = new FakeOpenIdTokenValidator
             {
                 GoogleUserInfo = new OpenIdUserInfo
@@ -60,10 +54,10 @@ namespace Lumino.Tests.Unit
                 resetValidator,
                 new VerifyEmailRequestValidator(),
                 new ResendVerificationRequestValidator(),
-                emailSender,
+                new FakeEmailSender(),
                 openIdValidator,
-                hostEnvironment,
-                passwordHasher
+                new FakeHostEnvironment("Testing"),
+                new PasswordHasher()
             );
 
             var result = service.OAuthGoogle(new OAuthLoginRequest
@@ -137,117 +131,6 @@ namespace Lumino.Tests.Unit
             var external = dbContext.UserExternalLogins.FirstOrDefault(x => x.Provider == "google" && x.ProviderUserId == "sub-2");
             Assert.NotNull(external);
             Assert.Equal(existing.Id, external!.UserId);
-        }
-
-        [Fact]
-        public void OAuthApple_WhenEmailIsMissing_ButExternalLoginExists_ShouldLoginAndReturnTokens()
-        {
-            var dbContext = TestDbContextFactory.Create();
-
-            var user = new User
-            {
-                Email = "apple.user@test.local",
-                PasswordHash = new PasswordHasher().Hash("123456"),
-                CreatedAt = DateTime.UtcNow,
-                Role = Lumino.Api.Domain.Enums.Role.User
-            };
-            dbContext.Users.Add(user);
-            dbContext.SaveChanges();
-
-            dbContext.UserExternalLogins.Add(new UserExternalLogin
-            {
-                UserId = user.Id,
-                Provider = "apple",
-                ProviderUserId = "apple-sub-no-email",
-                Email = null,
-                CreatedAtUtc = DateTime.UtcNow
-            });
-            dbContext.SaveChanges();
-
-            var configuration = new ConfigurationBuilder()
-                .AddInMemoryCollection(new Dictionary<string, string?>
-                {
-                    { "Jwt:Key", "super_secret_test_key_1234567890" },
-                    { "Jwt:Issuer", "test-issuer" },
-                    { "Jwt:Audience", "test-audience" },
-                    { "Jwt:ExpiresMinutes", "60" },
-                    { "RefreshToken:ExpiresDays", "7" },
-                    { "OAuth:Apple:ClientId", "test-apple-client" }
-                })
-                .Build();
-
-            var service = new AuthService(
-                dbContext,
-                configuration,
-                new RegisterRequestValidator(configuration),
-                new LoginRequestValidator(),
-                new ForgotPasswordRequestValidator(),
-                new ResetPasswordRequestValidator(),
-                new VerifyEmailRequestValidator(),
-                new ResendVerificationRequestValidator(),
-                new FakeEmailSender(),
-                new FakeOpenIdTokenValidator
-                {
-                    AppleUserInfo = new OpenIdUserInfo
-                    {
-                        Subject = "apple-sub-no-email",
-                        Email = null,
-                        Name = null,
-                        PictureUrl = null
-                    }
-                },
-                new FakeHostEnvironment("Testing"),
-                new PasswordHasher()
-            );
-
-            var result = service.OAuthApple(new OAuthLoginRequest { IdToken = "dummy" });
-
-            Assert.False(string.IsNullOrWhiteSpace(result.Token));
-            Assert.False(string.IsNullOrWhiteSpace(result.RefreshToken));
-        }
-
-        [Fact]
-        public void OAuthApple_WhenEmailIsMissing_AndExternalLoginDoesNotExist_ShouldThrowForbidden()
-        {
-            var dbContext = TestDbContextFactory.Create();
-
-            var configuration = new ConfigurationBuilder()
-                .AddInMemoryCollection(new Dictionary<string, string?>
-                {
-                    { "Jwt:Key", "super_secret_test_key_1234567890" },
-                    { "Jwt:Issuer", "test-issuer" },
-                    { "Jwt:Audience", "test-audience" },
-                    { "Jwt:ExpiresMinutes", "60" },
-                    { "RefreshToken:ExpiresDays", "7" },
-                    { "OAuth:Apple:ClientId", "test-apple-client" }
-                })
-                .Build();
-
-            var service = new AuthService(
-                dbContext,
-                configuration,
-                new RegisterRequestValidator(configuration),
-                new LoginRequestValidator(),
-                new ForgotPasswordRequestValidator(),
-                new ResetPasswordRequestValidator(),
-                new VerifyEmailRequestValidator(),
-                new ResendVerificationRequestValidator(),
-                new FakeEmailSender(),
-                new FakeOpenIdTokenValidator
-                {
-                    AppleUserInfo = new OpenIdUserInfo
-                    {
-                        Subject = "apple-sub-no-email-2",
-                        Email = null,
-                        Name = null,
-                        PictureUrl = null
-                    }
-                },
-                new FakeHostEnvironment("Testing"),
-                new PasswordHasher()
-            );
-
-            Assert.Throws<ForbiddenAccessException>(() => service.OAuthApple(new OAuthLoginRequest { IdToken = "dummy" }));
         }
     }
 }

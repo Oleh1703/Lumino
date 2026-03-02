@@ -743,45 +743,73 @@ namespace Lumino.Api.Data
                     existingByItemId[entity.Id] = current;
                 }
 
-                // Видаляємо зайві та оновлюємо/додаємо потрібні, щоб Order йшов 1..N
-                var currentByOrder = current.ToDictionary(x => x.Order, x => x);
+                // Видаляємо зайві (ті, яких немає у desired)
+                var remove = current
+                    .Where(x => !desired.Contains(x.Translation, StringComparer.OrdinalIgnoreCase))
+                    .ToList();
 
-                // remove translations that are not desired
-                var remove = current.Where(x => !desired.Contains(x.Translation, StringComparer.OrdinalIgnoreCase)).ToList();
                 if (remove.Count > 0)
                 {
                     dbContext.VocabularyItemTranslations.RemoveRange(remove);
                 }
 
-                // ensure desired translations
+                // Після RemoveRange — працюємо лише з активними (не видаленими) рядками
+                var active = current
+                    .Where(x => !remove.Contains(x))
+                    .ToList();
+
+                // ВАЖЛИВО:
+                // У нас є унікальні індекси:
+                // 1) (VocabularyItemId, Order)
+                // 2) (VocabularyItemId, Translation)
+                // Якщо переклад "переїжджає" на інший Order (або міняється порядок),
+                // то оновлення "по позиції" може на одну мить створити дублікати і впасти на SaveChanges().
+                // Тому робимо безпечний 2-фазний апдейт:
+                // - спочатку даємо всім існуючим перекладам тимчасові унікальні Order (негативні)
+                // - зберігаємо
+                // - потім виставляємо фінальні Order 1..N для desired і додаємо відсутні
+
+                foreach (var row in active)
+                {
+                    // -Id гарантує унікальність в межах одного item
+                    row.Order = -row.Id;
+                }
+
+                dbContext.SaveChanges();
+
+                // Мапа translation -> рядок (для правильного "переміщення" перекладу між позиціями)
+                var byTranslation = active
+                    .GroupBy(x => x.Translation)
+                    .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+
                 for (int i = 0; i < desired.Count; i++)
                 {
                     var order = i + 1;
                     var tr = desired[i];
 
-                    if (currentByOrder.TryGetValue(order, out var existingRow))
+                    if (byTranslation.TryGetValue(tr, out var row))
                     {
-                        if (!string.Equals(existingRow.Translation, tr, StringComparison.OrdinalIgnoreCase))
-                        {
-                            // Якщо в цій же позиції інший текст — просто оновлюємо.
-                            existingRow.Translation = tr;
-                        }
+                        row.Order = order;
                     }
                     else
                     {
-                        dbContext.VocabularyItemTranslations.Add(new VocabularyItemTranslation
+                        var newRow = new VocabularyItemTranslation
                         {
                             VocabularyItemId = entity.Id,
                             Translation = tr,
                             Order = order
-                        });
+                        };
+
+                        dbContext.VocabularyItemTranslations.Add(newRow);
+
+                        active.Add(newRow);
+                        byTranslation[tr] = newRow;
                     }
                 }
+
+                dbContext.SaveChanges();
             }
-
-            dbContext.SaveChanges();
         }
-
 
         private static void SeedDemoContentEnglishOnly(LuminoDbContext dbContext)
         {
@@ -878,7 +906,7 @@ namespace Lumino.Api.Data
 
             var lessonMap = EnsureLessons(dbContext, lessons);
 
-            UpsertExercises(dbContext, lessonMap["Hello / Goodbye"].Id, new List<ExerciseSeed>
+            UpsertExercises(dbContext, lessonMap[LessonKey(topicMap["Greetings"].Id, "Hello / Goodbye")].Id, new List<ExerciseSeed>
             {
                 new ExerciseSeed(ExerciseType.MultipleChoice, "Hello = ?", ToJsonStringArray("Привіт","До побачення","Дякую"), "Привіт", 1),
                 new ExerciseSeed(ExerciseType.Input, "Write Ukrainian for: Goodbye", "{}", "До побачення", 2),
@@ -892,7 +920,7 @@ namespace Lumino.Api.Data
                 ), "{}", 5)
             });
 
-            UpsertExercises(dbContext, lessonMap["How are you?"].Id, new List<ExerciseSeed>
+            UpsertExercises(dbContext, lessonMap[LessonKey(topicMap["Greetings"].Id, "How are you?")].Id, new List<ExerciseSeed>
             {
                 new ExerciseSeed(ExerciseType.MultipleChoice, "How are you? = ?", ToJsonStringArray("Як ти?","Де ти?","Хто ти?"), "Як ти?", 1),
                 new ExerciseSeed(ExerciseType.Input, "Write English: У мене все добре", "{}", "I'm fine", 2),
@@ -905,7 +933,7 @@ namespace Lumino.Api.Data
                 ), "{}", 5)
             });
 
-            UpsertExercises(dbContext, lessonMap["Introducing yourself"].Id, new List<ExerciseSeed>
+            UpsertExercises(dbContext, lessonMap[LessonKey(topicMap["Greetings"].Id, "Introducing yourself")].Id, new List<ExerciseSeed>
             {
                 new ExerciseSeed(ExerciseType.MultipleChoice, "My name is ... = ?", ToJsonStringArray("Мене звати ...","Я добре","Я тут"), "Мене звати ...", 1),
                 new ExerciseSeed(ExerciseType.Input, "Write English: Мене звати Анна", "{}", "My name is Anna", 2),
@@ -917,7 +945,7 @@ namespace Lumino.Api.Data
                 ), "{}", 5)
             });
 
-            UpsertExercises(dbContext, lessonMap["Polite words"].Id, new List<ExerciseSeed>
+            UpsertExercises(dbContext, lessonMap[LessonKey(topicMap["Greetings"].Id, "Polite words")].Id, new List<ExerciseSeed>
             {
                 new ExerciseSeed(ExerciseType.MultipleChoice, "Sorry = ?", ToJsonStringArray("Пробач","Будь ласка","Дякую"), "Пробач", 1),
                 new ExerciseSeed(ExerciseType.Input, "Write English: Перепрошую", "{}", "Excuse me", 2),
@@ -930,7 +958,7 @@ namespace Lumino.Api.Data
                 ), "{}", 5)
             });
 
-            UpsertExercises(dbContext, lessonMap["Numbers 1-5"].Id, new List<ExerciseSeed>
+            UpsertExercises(dbContext, lessonMap[LessonKey(topicMap["Numbers"].Id, "Numbers 1-5")].Id, new List<ExerciseSeed>
             {
                 new ExerciseSeed(ExerciseType.MultipleChoice, "Three = ?", ToJsonStringArray("Три","Чотири","П'ять"), "Три", 1),
                 new ExerciseSeed(ExerciseType.Input, "Write English: Два", "{}", "Two", 2),
@@ -945,7 +973,7 @@ namespace Lumino.Api.Data
                 ), "{}", 5)
             });
 
-            UpsertExercises(dbContext, lessonMap["Numbers 6-10"].Id, new List<ExerciseSeed>
+            UpsertExercises(dbContext, lessonMap[LessonKey(topicMap["Numbers"].Id, "Numbers 6-10")].Id, new List<ExerciseSeed>
             {
                 new ExerciseSeed(ExerciseType.MultipleChoice, "Seven = ?", ToJsonStringArray("Сім","Шість","Вісім"), "Сім", 1),
                 new ExerciseSeed(ExerciseType.Input, "Write English: Десять", "{}", "Ten", 2),
@@ -960,7 +988,7 @@ namespace Lumino.Api.Data
                 ), "{}", 5)
             });
 
-            UpsertExercises(dbContext, lessonMap["At the airport"].Id, new List<ExerciseSeed>
+            UpsertExercises(dbContext, lessonMap[LessonKey(topicMap["Travel"].Id, "At the airport")].Id, new List<ExerciseSeed>
             {
                 new ExerciseSeed(ExerciseType.MultipleChoice, "Airport = ?", ToJsonStringArray("Аеропорт","Готель","Квиток"), "Аеропорт", 1),
                 new ExerciseSeed(ExerciseType.Input, "Write English: паспорт", "{}", "passport", 2),
@@ -973,7 +1001,7 @@ namespace Lumino.Api.Data
                 ), "{}", 5)
             });
 
-            UpsertExercises(dbContext, lessonMap["Asking directions"].Id, new List<ExerciseSeed>
+            UpsertExercises(dbContext, lessonMap[LessonKey(topicMap["Travel"].Id, "Asking directions")].Id, new List<ExerciseSeed>
             {
                 new ExerciseSeed(ExerciseType.MultipleChoice, "Turn left = ?", ToJsonStringArray("Поверніть ліворуч","Поверніть праворуч","Йдіть прямо"), "Поверніть ліворуч", 1),
                 new ExerciseSeed(ExerciseType.Input, "Write English: Йдіть прямо", "{}", "Go straight", 2),
@@ -986,7 +1014,7 @@ namespace Lumino.Api.Data
                 ), "{}", 5)
             });
 
-            UpsertExercises(dbContext, lessonMap["In a cafe"].Id, new List<ExerciseSeed>
+            UpsertExercises(dbContext, lessonMap[LessonKey(topicMap["Food & Cafe"].Id, "In a cafe")].Id, new List<ExerciseSeed>
             {
                 new ExerciseSeed(ExerciseType.MultipleChoice, "Coffee = ?", ToJsonStringArray("Кава","Чай","Вода"), "Кава", 1),
                 new ExerciseSeed(ExerciseType.Input, "Write Ukrainian for: menu", "{}", "меню", 2),
@@ -1000,7 +1028,7 @@ namespace Lumino.Api.Data
                 ), "{}", 5)
             });
 
-            UpsertExercises(dbContext, lessonMap["How much is it?"].Id, new List<ExerciseSeed>
+            UpsertExercises(dbContext, lessonMap[LessonKey(topicMap["Food & Cafe"].Id, "How much is it?")].Id, new List<ExerciseSeed>
             {
                 new ExerciseSeed(ExerciseType.MultipleChoice, "How much is it? = ?", ToJsonStringArray("Скільки коштує?","Де ти?","Котра година?"), "Скільки коштує?", 1),
                 new ExerciseSeed(ExerciseType.Input, "Write English: Це коштує 5", "{}", "It is 5", 2),
@@ -1992,9 +2020,13 @@ namespace Lumino.Api.Data
             return dbContext.Lessons
                 .Where(x => topicIds.Contains(x.TopicId))
                 .ToList()
-                .GroupBy(x => $"{x.TopicId}:{x.Title}", StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(x => x.Value.Title, x => x.Value, StringComparer.OrdinalIgnoreCase);
+                .GroupBy(x => LessonKey(x.TopicId, x.Title), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static string LessonKey(int topicId, string title)
+        {
+            return $"{topicId}:{title}";
         }
 
         private static void UpsertExercises(LuminoDbContext dbContext, int lessonId, List<ExerciseSeed> seeds)
