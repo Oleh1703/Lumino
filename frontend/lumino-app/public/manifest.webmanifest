@@ -1,0 +1,6 @@
+{
+  "name": "Lumino",
+  "short_name": "Lumino",
+  "start_url": "/",
+  "display": "standalone"
+}

@@ -1,0 +1,9 @@
+:root {
+  --font-ui: "Montserrat", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-logo: "Fredoka One", "Montserrat", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+
+  --color-primary: #26415E;
+  --color-lang: #0B1B32;
+  --color-start: #83A6CE;
+  --color-secondary: #9DABBC;
+}
