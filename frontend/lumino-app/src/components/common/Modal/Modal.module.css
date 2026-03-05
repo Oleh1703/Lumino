@@ -1,0 +1,83 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 24px;
+}
+
+.modal {
+  width: min(520px, 100%);
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.25);
+  padding: 22px 22px 18px;
+  font-family: var(--font-ui);
+  color: var(--color-lang);
+  text-align: center;
+}
+
+.title {
+  font-weight: 800;
+  font-size: 20px;
+  line-height: 1.2;
+  margin-bottom: 10px;
+  color: var(--color-primary);
+}
+
+.message {
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--color-lang);
+  opacity: 0.92;
+  margin-bottom: 16px;
+}
+
+.okBtn {
+  width: 160px;
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  background: var(--color-start);
+  color: #fff;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+.okBtn:hover {
+  filter: brightness(0.98);
+  transform: translateY(-1px);
+}
+
+.okBtn:active {
+  transform: translateY(0);
+}
+@keyframes backdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.backdrop {
+  animation: backdropIn 140ms ease-out;
+}
+
+.modal {
+  animation: modalIn 160ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop, .modal { animation: none; }
+  .okBtn { transition: none; }
+}

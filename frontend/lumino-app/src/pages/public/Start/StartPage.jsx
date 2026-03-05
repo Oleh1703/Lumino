@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { PATHS } from "../../../routes/paths.js";
+import { onboardingService } from "../../../services/onboardingService.js";
 import styles from "./StartPage.module.css";
 
 import BgLeft from "../../../assets/backgrounds/bg-left@2x.png";
@@ -20,6 +21,8 @@ import FlagJa from "../../../assets/flags/flag-ja.svg";
 import FlagKo from "../../../assets/flags/flag-ko.svg";
 import FlagZn from "../../../assets/flags/flag-zn.svg";
 
+import Modal from "../../../components/common/Modal/Modal.jsx";
+
 const LANGS = [
   { code: "en", label: "АНГЛІЙСЬКА", src: FlagEn },
   { code: "de", label: "НІМЕЦЬКА", src: FlagDe },
@@ -29,7 +32,7 @@ const LANGS = [
   { code: "pl", label: "ПОЛЬСЬКА", src: FlagPl },
   { code: "ja", label: "ЯПОНСЬКА", src: FlagJa },
   { code: "ko", label: "КОРЕЙСЬКА", src: FlagKo },
-  { code: "zn", label: "КИТАЙСЬКА", src: FlagZn },
+  { code: "zh", label: "КИТАЙСЬКА", src: FlagZn },
 ];
 
 export default function Start() {
@@ -43,6 +46,8 @@ export default function Start() {
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [selected, setSelected] = useState(null);
+  const [checking, setChecking] = useState(false);
+  const [modal, setModal] = useState({ open: false, title: "", message: "" });
 
   useEffect(() => {
     activeIndexRef.current = activeIndex;
@@ -105,15 +110,53 @@ export default function Start() {
     scrollToIndex(next, "smooth");
   }, [scrollToIndex]);
 
-  const onStart = () => {
-    if (!selected) return;
+  const closeModal = useCallback(() => {
+    setModal({ open: false, title: "", message: "" });
+  }, []);
+
+  const onStart = useCallback(async () => {
+    if (!selected || checking) return;
+
+    setChecking(true);
+
     try {
-      localStorage.setItem("lumino.language", selected);
-    } catch {
-      // ignore
+      const res = await onboardingService.getLanguageAvailability(selected);
+
+      if (!res.ok) {
+        setModal({
+          open: true,
+          title: "Не вдалося перевірити",
+          message: "Спробуй ще раз або перевір, що бекенд запущений (https://localhost:7181).",
+        });
+        return;
+      }
+
+      if (!res.hasPublishedCourses) {
+        setModal({
+          open: true,
+          title: "Курсів ще немає",
+          message: "Для цієї мови поки що немає доступних курсів. Обери іншу мову.",
+        });
+        return;
+      }
+
+      try {
+        localStorage.setItem("targetLanguage", res.languageCode || selected);
+      } catch (e) {
+        // ignore
+      }
+
+      navigate(PATHS.onboarding);
+    } catch (e) {
+      setModal({
+        open: true,
+        title: "Помилка",
+        message: "Сталася помилка під час перевірки. Спробуй ще раз.",
+      });
+    } finally {
+      setChecking(false);
     }
-    navigate(PATHS.onboarding);
-  };
+  }, [navigate, selected, checking]);
 
   useEffect(() => {
     scrollToIndex(0, "auto");
@@ -147,6 +190,7 @@ export default function Start() {
 
   return (
     <div className={styles.viewport}>
+      <Modal open={modal.open} title={modal.title} message={modal.message} onClose={closeModal} />
       <div className={styles.stage} ref={stageRef}>
         <img className={styles.bgLeft} src={BgLeft} alt="" aria-hidden="true" />
         <img className={styles.bgRight} src={BgRight} alt="" aria-hidden="true" />
@@ -161,8 +205,8 @@ export default function Start() {
           <div className={styles.title}>Навчайся легко та цікаво!</div>
           <div className={styles.subtitle}>Щоб розпочати оберіть мову</div>
 
-          <button className={styles.startBtn} type="button" disabled={!selected} onClick={onStart}>
-            РОЗПОЧАТИ
+          <button className={styles.startBtn} type="button" disabled={!selected || checking} onClick={onStart}>
+            {checking ? "ПЕРЕВІРКА..." : "РОЗПОЧАТИ"}
           </button>
 
           <button className={styles.accountBtn} type="button" onClick={() => navigate(PATHS.login)}>

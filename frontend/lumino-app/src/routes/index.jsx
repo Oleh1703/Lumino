@@ -9,6 +9,7 @@ import RegisterPage from "../pages/public/Register/RegisterPage.jsx";
 import ForgotPasswordPage from "../pages/public/ForgotPassword/ForgotPasswordPage.jsx";
 import VerifyEmailPage from "../pages/public/VerifyEmail/VerifyEmailPage.jsx";
 import OnboardingPage from "../pages/public/Onboarding/OnboardingPage.jsx";
+import OnboardingLevelPage from "../pages/public/OnboardingLevel/OnboardingLevelPage.jsx";
 import HomePage from "../pages/user/Home/HomePage.jsx";
 
 export default function AppRoutes() {
@@ -23,6 +24,7 @@ export default function AppRoutes() {
       <Route path={PATHS.forgotPassword} element={<ForgotPasswordPage />} />
       <Route path={PATHS.verifyEmail} element={<VerifyEmailPage />} />
       <Route path={PATHS.onboarding} element={<OnboardingPage />} />
+      <Route path={PATHS.onboardingLevel} element={<OnboardingLevelPage />} />
 
       <Route element={<UserLayout />}>
         <Route path={PATHS.home} element={isAuthed ? <HomePage /> : <Navigate to={PATHS.login} replace />} />

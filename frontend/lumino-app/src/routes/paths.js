@@ -5,6 +5,7 @@ export const PATHS = {
   forgotPassword: "/forgot-password",
   verifyEmail: "/verify-email",
   onboarding: "/onboarding",
+  onboardingLevel: "/onboarding/level",
   home: "/home",
   admin: "/admin",
 };
