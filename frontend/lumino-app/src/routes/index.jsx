@@ -13,6 +13,11 @@ import OnboardingLevelPage from "../pages/public/Onboarding/OnboardingLevel/Onbo
 import OnboardingLevelQuestionPage from "../pages/public/Onboarding/OnboardingLevelQuestion/OnboardingLevelQuestionPage.jsx";
 import OnboardingLevelQuestionFlyPage from "../pages/public/Onboarding/OnboardinFly/OnboardingLevelQuestionFlyPage.jsx";
 import OnboardingQuestionGoalPage from "../pages/public/Onboarding/OnboardingQuestionGoal/OnboardingQuestionGoalPage.jsx";
+import OnboardingResultsPage from "../pages/public/Onboarding/OnboardingResults/OnboardingResultsPage.jsx";
+import OnboardingDailyGoalPage from "../pages/public/Onboarding/OnboardingDailyGoal/OnboardingDailyGoalPage.jsx";
+import OnboardingTrialPage from "../pages/public/Onboarding/OnboardingTrial/OnboardingTrialPage.jsx";
+import OnboardingRunLessonPage from "../pages/public/Onboarding/OnboardingRunLesson/OnboardingRunLessonPage.jsx";
+import OnboardingPreCreateProfPage from "../pages/public/Onboarding/OnboardingPreCreateProf/OnboardingPreCreateProfPage.jsx";
 import HomePage from "../pages/user/Home/HomePage.jsx";
 
 export default function AppRoutes() {
@@ -31,6 +36,11 @@ export default function AppRoutes() {
       <Route path={PATHS.onboardingLevelQuestion} element={<OnboardingLevelQuestionPage />} />
       <Route path={PATHS.onboardingLevelQuestionFly} element={<OnboardingLevelQuestionFlyPage />} />
       <Route path={PATHS.onboardingQuestionGoal} element={<OnboardingQuestionGoalPage />} />
+      <Route path={PATHS.onboardingResults} element={<OnboardingResultsPage />} />
+      <Route path={PATHS.onboardingDailyGoal} element={<OnboardingDailyGoalPage />} />
+      <Route path={PATHS.onboardingTrial} element={<OnboardingTrialPage />} />
+      <Route path={PATHS.onboardingRunLesson} element={<OnboardingRunLessonPage />} />
+      <Route path={PATHS.onboardingPreCreateProf} element={<OnboardingPreCreateProfPage />} />
 
       <Route element={<UserLayout />}>
         <Route path={PATHS.home} element={isAuthed ? <HomePage /> : <Navigate to={PATHS.login} replace />} />

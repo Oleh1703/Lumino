@@ -9,6 +9,11 @@ export const PATHS = {
   onboardingLevelQuestion: "/onboarding/level/question",
   onboardingLevelQuestionFly: "/onboarding/level/question/fly",
   onboardingQuestionGoal: "/onboarding/question/goal",
+  onboardingResults: "/onboarding/results",
+  onboardingDailyGoal: "/onboarding/daily-goal",
+  onboardingTrial: "/onboarding/trial",
+  onboardingRunLesson: "/onboarding/run-lesson",
+  onboardingPreCreateProf: "/onboarding/pre-create-profile",
   home: "/home",
   admin: "/admin",
 };

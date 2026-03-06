@@ -1,30 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PATHS } from "../../../../routes/paths.js";
-import styles from "./OnboardingQuestionGoalPage.module.css";
+import styles from "./OnboardingDailyGoalPage.module.css";
 
 import BgLeft from "../../../../assets/backgrounds/bg1-left.png";
 import BgRight from "../../../../assets/backgrounds/bg1-right.png";
 
 import ArrowPrev from "../../../../assets/icons/arrow-previous.svg";
-import Bubble from "../../../../assets/onboarding/bubble4.svg";
-import Mascot from "../../../../assets/mascot/mascot5.svg";
+import Bubble from "../../../../assets/onboarding/bubble5.svg";
+import Mascot from "../../../../assets/mascot/mascot3.svg";
 
-import TravelIcon from "../../../../assets/icons/goal/travel.png";
-import TeachingIcon from "../../../../assets/icons/goal/teaching.png";
-import CareerIcon from "../../../../assets/icons/goal/career.png";
-import CommunionIcon from "../../../../assets/icons/goal/communion.png";
-import DevelopmentIcon from "../../../../assets/icons/goal/development.png";
-import EntertainmentIcon from "../../../../assets/icons/goal/entertainment.png";
-import OtherIcon from "../../../../assets/icons/goal/other.png";
+import FiveMinIcon from "../../../../assets/icons/goal/daygoal/5min.png";
+import TenMinIcon from "../../../../assets/icons/goal/daygoal/10min.png";
+import TwentyMinIcon from "../../../../assets/icons/goal/daygoal/20min.png";
 
-const STORAGE_KEY = "lumino_goal";
+const STORAGE_KEY = "lumino_daily_goal";
 
-export default function OnboardingQuestionGoalPage() {
+export default function OnboardingDailyGoalPage() {
   const navigate = useNavigate();
   const stageRef = useRef(null);
 
-  const [goal, setGoal] = useState("");
+  const [dailyGoal, setDailyGoal] = useState("");
 
   useEffect(() => {
     const stage = stageRef.current;
@@ -51,33 +47,29 @@ export default function OnboardingQuestionGoalPage() {
   }, []);
 
   useEffect(() => {
-    if (!goal) {
+    if (!dailyGoal) {
       localStorage.removeItem(STORAGE_KEY);
       return;
     }
 
-    localStorage.setItem(STORAGE_KEY, goal);
-  }, [goal]);
+    localStorage.setItem(STORAGE_KEY, dailyGoal);
+  }, [dailyGoal]);
 
   const goals = useMemo(
     () => [
-      { key: "travel", title: "подорожі", icon: TravelIcon, x: 484, y: 584, w: 214 },
-      { key: "teaching", title: "навчання", icon: TeachingIcon, x: 728, y: 584, w: 214 },
-      { key: "career", title: "кар’єра", icon: CareerIcon, x: 972, y: 584, w: 216 },
-      { key: "communion", title: "спілкування", icon: CommunionIcon, x: 1218, y: 584, w: 249 },
-      { key: "development", title: "саморозвиток", icon: DevelopmentIcon, x: 618, y: 684, w: 278 },
-      { key: "entertainment", title: "розваги", icon: EntertainmentIcon, x: 926, y: 684, w: 194 },
-      { key: "other", title: "інше", icon: OtherIcon, x: 1150, y: 684, w: 153 },
+      { key: "5min", title: "5 хв/день", icon: FiveMinIcon, x: 598, y: 585, w: 213 },
+      { key: "10min", title: "10 хв/день", icon: TenMinIcon, x: 841, y: 585, w: 225 },
+      { key: "20min", title: "20 хв/день", icon: TwentyMinIcon, x: 1096, y: 585, w: 226 },
     ],
     []
   );
 
   const handleBack = () => {
-    navigate(PATHS.onboardingLevelQuestionFly);
+    navigate(PATHS.onboardingResults);
   };
 
   const handleContinue = () => {
-    navigate(PATHS.onboardingResults);
+    navigate(PATHS.onboardingTrial);
   };
 
   return (
@@ -104,19 +96,19 @@ export default function OnboardingQuestionGoalPage() {
         <img className={styles.bubble} src={Bubble} alt="" />
 
         <p className={styles.bubbleText}>
-          <span>Обери свою мету —</span>
-          <span>і вперед!</span>
+          <span>Регулярність</span>
+          <span>творить магію!</span>
         </p>
 
-        <h1 className={styles.title}>З якою метою ви вивчаєте англійську?</h1>
+        <h1 className={styles.title}>Яку щоденну ціль оберемо?</h1>
 
         {goals.map((it) => (
           <button
             key={it.key}
             type="button"
-            className={`${styles.goalBtn} ${goal === it.key ? styles.goalBtnActive : ""}`}
+            className={`${styles.goalBtn} ${dailyGoal === it.key ? styles.goalBtnActive : ""}`}
             style={{ left: `${it.x}px`, top: `${it.y}px`, width: `${it.w}px` }}
-            onClick={() => setGoal(it.key)}
+            onClick={() => setDailyGoal(it.key)}
           >
             <img className={styles.goalIcon} src={it.icon} alt="" />
             {it.title}
