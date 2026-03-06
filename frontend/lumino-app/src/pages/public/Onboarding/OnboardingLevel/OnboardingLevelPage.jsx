@@ -1,13 +1,13 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { PATHS } from "../../../routes/paths.js";
+import { PATHS } from "../../../../routes/paths.js";
 import styles from "./OnboardingLevelPage.module.css";
 
-import BgLeft from "../../../assets/backgrounds/bg-left.png";
-import BgRight from "../../../assets/backgrounds/bg-right.png";
+import BgLeft from "../../../../assets/backgrounds/bg-left.png";
+import BgRight from "../../../../assets/backgrounds/bg-right.png";
 
-import Bubble from "../../../assets/onboarding/bubble1.svg";
-import Mascot from "../../../assets/mascot/mascot2.svg";
+import Bubble from "../../../../assets/onboarding/bubble1.svg";
+import Mascot from "../../../../assets/mascot/mascot2.svg";
 
 export default function OnboardingLevelPage() {
   const navigate = useNavigate();

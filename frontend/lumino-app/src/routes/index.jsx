@@ -9,9 +9,10 @@ import RegisterPage from "../pages/public/Register/RegisterPage.jsx";
 import ForgotPasswordPage from "../pages/public/ForgotPassword/ForgotPasswordPage.jsx";
 import VerifyEmailPage from "../pages/public/VerifyEmail/VerifyEmailPage.jsx";
 import OnboardingPage from "../pages/public/Onboarding/OnboardingPage.jsx";
-import OnboardingLevelPage from "../pages/public/OnboardingLevel/OnboardingLevelPage.jsx";
-import OnboardingLevelQuestionPage from "../pages/public/OnboardingLevelQuestion/OnboardingLevelQuestionPage.jsx";
-import OnboardingLevelQuestionFlyPage from "../pages/public/OnboardingLevelQuestionFly/OnboardingLevelQuestionFlyPage.jsx";
+import OnboardingLevelPage from "../pages/public/Onboarding/OnboardingLevel/OnboardingLevelPage.jsx";
+import OnboardingLevelQuestionPage from "../pages/public/Onboarding/OnboardingLevelQuestion/OnboardingLevelQuestionPage.jsx";
+import OnboardingLevelQuestionFlyPage from "../pages/public/Onboarding/OnboardinFly/OnboardingLevelQuestionFlyPage.jsx";
+import OnboardingQuestionGoalPage from "../pages/public/Onboarding/OnboardingQuestionGoal/OnboardingQuestionGoalPage.jsx";
 import HomePage from "../pages/user/Home/HomePage.jsx";
 
 export default function AppRoutes() {
@@ -29,6 +30,7 @@ export default function AppRoutes() {
       <Route path={PATHS.onboardingLevel} element={<OnboardingLevelPage />} />
       <Route path={PATHS.onboardingLevelQuestion} element={<OnboardingLevelQuestionPage />} />
       <Route path={PATHS.onboardingLevelQuestionFly} element={<OnboardingLevelQuestionFlyPage />} />
+      <Route path={PATHS.onboardingQuestionGoal} element={<OnboardingQuestionGoalPage />} />
 
       <Route element={<UserLayout />}>
         <Route path={PATHS.home} element={isAuthed ? <HomePage /> : <Navigate to={PATHS.login} replace />} />

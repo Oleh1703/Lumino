@@ -1,28 +1,31 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { PATHS } from "../../../routes/paths.js";
+import { PATHS } from "../../../../routes/paths.js";
+import { onboardingService } from "../../../../services/onboardingService.js";
 import styles from "./OnboardingLevelQuestionPage.module.css";
 
-import BgLeft from "../../../assets/backgrounds/bg1-left.png";
-import BgRight from "../../../assets/backgrounds/bg1-right.png";
+import BgLeft from "../../../../assets/backgrounds/bg1-left.png";
+import BgRight from "../../../../assets/backgrounds/bg1-right.png";
 
-import ArrowPrev from "../../../assets/icons/arrow-previous.svg";
-import Bubble from "../../../assets/onboarding/bubble2.svg";
-import Mascot from "../../../assets/mascot/mascot3.svg";
+import ArrowPrev from "../../../../assets/icons/arrow-previous.svg";
+import Bubble from "../../../../assets/onboarding/bubble2.svg";
+import Mascot from "../../../../assets/mascot/mascot3.svg";
 
-import A1Icon from "../../../assets/icons/levels/a1.jpg";
-import A2Icon from "../../../assets/icons/levels/a2.jpg";
-import B1Icon from "../../../assets/icons/levels/b1.jpg";
-import B2Icon from "../../../assets/icons/levels/b2.jpg";
-import C1Icon from "../../../assets/icons/levels/c1.jpg";
+import A1Icon from "../../../../assets/icons/levels/a1.png";
+import A2Icon from "../../../../assets/icons/levels/a2.png";
+import B1Icon from "../../../../assets/icons/levels/b1.png";
+import B2Icon from "../../../../assets/icons/levels/b2.png";
+import C1Icon from "../../../../assets/icons/levels/c1.png";
 
 const STORAGE_KEY = "lumino_course_level";
+const DEMO_EXERCISES_KEY = "lumino_demo_exercises";
 
 export default function OnboardingLevelQuestionPage() {
   const navigate = useNavigate();
   const stageRef = useRef(null);
 
   const [level, setLevel] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const stage = stageRef.current;
@@ -59,11 +62,11 @@ export default function OnboardingLevelQuestionPage() {
 
 const levels = useMemo(
     () => [
-      { key: "A1", title: "новачок", icon: A1Icon, x: 600, y: 584, w: 198 },
-      { key: "A2", title: "початківець", icon: A2Icon, x: 828, y: 583.71, w: 246 },
-      { key: "B1", title: "впевнено", icon: B1Icon, x: 1104, y: 583.71, w: 216 },
-      { key: "B2", title: "просунуто", icon: B2Icon, x: 746, y: 683.71, w: 225 },
-      { key: "C1", title: "вільно", icon: C1Icon, x: 1001, y: 683.71, w: 174 },
+      { key: "a1", title: "новачок", icon: A1Icon, x: 600, y: 584, w: 198 },
+      { key: "a2", title: "початківець", icon: A2Icon, x: 828, y: 583.71, w: 246 },
+      { key: "b1", title: "впевнено", icon: B1Icon, x: 1104, y: 583.71, w: 216 },
+      { key: "b2", title: "просунуто", icon: B2Icon, x: 746, y: 683.71, w: 225 },
+      { key: "c1", title: "вільно", icon: C1Icon, x: 1001, y: 683.71, w: 174 },
     ],
     []
   );
@@ -72,9 +75,26 @@ const levels = useMemo(
     navigate(PATHS.onboardingLevel);
   };
 
-  const handleContinue = () => {
-    if (!level) return;
-    navigate(PATHS.onboardingLevelQuestionFly || "/onboarding/level/question/fly");
+  const handleContinue = async () => {
+    if (!level || loading) return;
+
+    setLoading(true);
+
+    try {
+      const languageCode = localStorage.getItem("targetLanguage") || "en";
+      const res = await onboardingService.getDemoExercises(languageCode, level);
+
+      if (res.ok) {
+        localStorage.setItem(DEMO_EXERCISES_KEY, JSON.stringify(res.items || []));
+      } else {
+        localStorage.removeItem(DEMO_EXERCISES_KEY);
+      }
+    } catch (e) {
+      localStorage.removeItem(DEMO_EXERCISES_KEY);
+    } finally {
+      setLoading(false);
+      navigate(PATHS.onboardingLevelQuestionFly || "/onboarding/level/question/fly");
+    }
   };
 
 
@@ -133,9 +153,9 @@ const levels = useMemo(
           className={styles.continueBtn}
           type="button"
           onClick={handleContinue}
-          disabled={!level}
+          disabled={!level || loading}
         >
-          ПРОДОВЖИТИ
+          {loading ? "ЗАВАНТАЖЕННЯ..." : "ПРОДОВЖИТИ"}
         </button>
       </div>
     </div>

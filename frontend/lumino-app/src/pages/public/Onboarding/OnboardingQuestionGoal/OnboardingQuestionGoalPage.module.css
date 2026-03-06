@@ -26,10 +26,10 @@
 
 .backBtn{
   position: absolute;
-  left: 50px;
+  left: 72px;
   top: 52px;
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 28px;
   padding: 0;
   border: none;
   background: transparent;
@@ -57,7 +57,7 @@
 }
 
 .progressFill{
-  width: 430px;
+  width: 750px;
   height: 28px;
   border-radius: 15px;
   background: #83a6ce;
@@ -65,8 +65,8 @@
 
 .mascot{
   position: absolute;
-  left: 247px;
-  top: 144px;
+  left: 236.08px;
+  top: 110.1px;
   width: 223.17px;
   height: 223.17px;
   pointer-events: none;
@@ -75,35 +75,43 @@
 
 .bubble{
   position: absolute;
-  left: 529px;
-  top: 212px;
-  width: 368px;
-  height: 86px;
+  left: 520px;
+  top: 196.29px;
+  width: 313px;
+  height: 118px;
   pointer-events: none;
   user-select: none;
 }
 
 .bubbleText{
   position: absolute;
-  left: 557px;
-  top: 241px;
-  width: 311px;
-  height: 29px;
+  left: 559px;
+  top: 226.29px;
+  width: 252px;
+  height: 58px;
   margin: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
   font-family: Montserrat, sans-serif;
   font-size: 24px;
   font-weight: 500;
   line-height: 29px;
   letter-spacing: 0;
   color: #000001;
+}
+
+.bubbleText span{
+  display: block;
   white-space: nowrap;
 }
 
 .title{
   position: absolute;
-  left: 539px;
-  top: 435px;
-  width: 842px;
+  left: 546px;
+  top: 435.29px;
+  width: 828px;
   height: 49px;
   margin: 0;
   font-family: Montserrat, sans-serif;
@@ -115,66 +123,65 @@
   white-space: nowrap;
 }
 
-.levelBtn{
+.goalBtn{
   position: absolute;
   height: 70px;
   padding: 0 24px;
   border-radius: 15px;
-  border: 1px solid rgba(193,210,230,0.35);
+  border: 1px solid rgba(193,210,230,0.45);
   background: #ffffff;
   cursor: pointer;
-
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
-
   font-family: Montserrat, sans-serif;
   font-size: 24px;
   font-weight: 500;
   line-height: 29px;
   letter-spacing: 0;
   color: #0b1b32;
-
   box-shadow: 0 4px 14px rgba(11,27,50,0.10);
 }
 
-.levelIcon{
-  width: 24px;
-  height: 24px;
-  display: block;
-  border-radius: 4px;
-}
-
-.levelBtn:hover,
-.levelBtnActive{
+.goalBtn:hover,
+.goalBtnActive{
   background: #83a6ce;
   color: #ffffff;
 }
 
+.goalIcon{
+  width: 24px;
+  height: 24px;
+  display: block;
+  object-fit: contain;
+}
+
 .continueBtn{
   position: absolute;
-  left: 745px;
-  top: 860px;
+  left: 744px;
+  top: 910.29px;
   width: 430px;
   height: 70px;
   border-radius: 15px;
   border: none;
   background: #83a6ce;
   cursor: pointer;
-
-  font-family: Montserrat, sans-serif;
-  font-size: 24px;
-  font-weight: 600;
+  font-family: var(--font-ui);
+  font-size: 20px;
+  font-weight: 700;
   letter-spacing: 0;
   color: #ffffff;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms ease, color 120ms ease, opacity 120ms ease;
 }
 
-.continueBtn:disabled{
-  opacity: 0.55;
-  cursor: not-allowed;
+.continueBtn:hover{
+  background: var(--color-primary);
 }
-
 
 .bottomShade{
   position: absolute;

@@ -8,6 +8,7 @@ export const PATHS = {
   onboardingLevel: "/onboarding/level",
   onboardingLevelQuestion: "/onboarding/level/question",
   onboardingLevelQuestionFly: "/onboarding/level/question/fly",
+  onboardingQuestionGoal: "/onboarding/question/goal",
   home: "/home",
   admin: "/admin",
 };

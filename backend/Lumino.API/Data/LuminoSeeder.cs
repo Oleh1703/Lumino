@@ -910,14 +910,14 @@ namespace Lumino.Api.Data
             {
                 new ExerciseSeed(ExerciseType.MultipleChoice, "Hello = ?", ToJsonStringArray("Привіт","До побачення","Дякую"), "Привіт", 1),
                 new ExerciseSeed(ExerciseType.Input, "Write Ukrainian for: Goodbye", "{}", "До побачення", 2),
-                new ExerciseSeed(ExerciseType.MultipleChoice, "Please = ?", ToJsonStringArray("Будь ласка","Пробач","Нема за що"), "Будь ласка", 3),
-                new ExerciseSeed(ExerciseType.Input, "Write Ukrainian for: Thank you", "{}", "Дякую", 4),
                 new ExerciseSeed(ExerciseType.Match, "Match the pairs", ToJsonMatchPairs(
                     ("Hello", "Привіт"),
                     ("Goodbye", "До побачення"),
                     ("Please", "Будь ласка"),
                     ("Thank you", "Дякую")
-                ), "{}", 5)
+                ), "{}", 3),
+                new ExerciseSeed(ExerciseType.Input, "Write Ukrainian for: Thank you", "{}", "Дякую", 4),
+                new ExerciseSeed(ExerciseType.MultipleChoice, "Please = ?", ToJsonStringArray("Будь ласка","Пробач","Нема за що"), "Будь ласка", 5)
             });
 
             UpsertExercises(dbContext, lessonMap[LessonKey(topicMap["Greetings"].Id, "How are you?")].Id, new List<ExerciseSeed>

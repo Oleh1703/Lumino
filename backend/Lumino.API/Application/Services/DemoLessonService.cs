@@ -1,4 +1,4 @@
-﻿using Lumino.Api.Application.DTOs;
+using Lumino.Api.Application.DTOs;
 using Lumino.Api.Application.Interfaces;
 using Lumino.Api.Application.Validators;
 using Lumino.Api.Data;
@@ -386,10 +386,25 @@ namespace Lumino.Api.Application.Services
 
             if (!SupportedLanguages.IsLearnable(languageCode))
             {
-                throw new ArgumentException("LanguageCode is not supported");
+                throw new ArgumentException($"Language '{languageCode}' is not supported");
             }
 
             var normalized = languageCode.Trim().ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(level))
+            {
+                level = "a1";
+            }
+
+            if (string.IsNullOrWhiteSpace(level))
+            {
+                level = "a1";
+            }
+
+            if (string.IsNullOrWhiteSpace(level))
+            {
+                level = "a1";
+            }
+
             var normalizedLevel = NormalizeLevelKey(level);
 
             // when config mapping is used (only for no level), we can't reliably resolve a level
@@ -502,10 +517,25 @@ namespace Lumino.Api.Application.Services
             {
                 if (!SupportedLanguages.IsLearnable(languageCode))
                 {
-                    throw new ArgumentException("LanguageCode is not supported");
+                    throw new ArgumentException($"Language '{languageCode}' is not supported");
                 }
 
                 var normalized = languageCode.Trim().ToLowerInvariant();
+                if (string.IsNullOrWhiteSpace(level))
+                {
+                    level = "a1";
+                }
+
+                if (string.IsNullOrWhiteSpace(level))
+                {
+                    level = "a1";
+                }
+
+                if (string.IsNullOrWhiteSpace(level))
+                {
+                    level = "a1";
+                }
+
                 var normalizedLevel = NormalizeLevelKey(level);
 
                 if (normalizedLevel == null &&
