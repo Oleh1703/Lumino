@@ -1248,12 +1248,175 @@ namespace Lumino.Api.Application.Services
 
                 UpdateUserProgressAfterScene(userId);
 
+                UnlockNextTopicAfterSceneIfNeeded(userId, sceneId, now);
+                TryMarkCourseCompletedAfterScene(userId, sceneId, now);
+
                 _userEconomyService.AwardCrystalsForCompletedSceneIfNeeded(userId);
 
                 _achievementService.CheckAndGrantSceneAchievements(userId);
             }
         }
 
+
+
+        private void UnlockNextTopicAfterSceneIfNeeded(int userId, int sceneId, DateTime now)
+        {
+            var sceneInfo = _dbContext.Scenes
+                .Where(x => x.Id == sceneId)
+                .Select(x => new
+                {
+                    x.CourseId,
+                    x.TopicId
+                })
+                .FirstOrDefault();
+
+            if (sceneInfo == null || !sceneInfo.TopicId.HasValue || !sceneInfo.CourseId.HasValue)
+            {
+                return;
+            }
+
+            var orderedTopics = _dbContext.Topics
+                .Where(x => x.CourseId == sceneInfo.CourseId.Value)
+                .OrderBy(x => x.Order <= 0 ? int.MaxValue : x.Order)
+                .ThenBy(x => x.Id)
+                .Select(x => new
+                {
+                    x.Id
+                })
+                .ToList();
+
+            int topicIndex = orderedTopics.FindIndex(x => x.Id == sceneInfo.TopicId.Value);
+
+            if (topicIndex < 0 || topicIndex + 1 >= orderedTopics.Count)
+            {
+                return;
+            }
+
+            int nextTopicId = orderedTopics[topicIndex + 1].Id;
+
+            var firstLessonId = _dbContext.Lessons
+                .Where(x => x.TopicId == nextTopicId)
+                .OrderBy(x => x.Order <= 0 ? int.MaxValue : x.Order)
+                .ThenBy(x => x.Id)
+                .Select(x => (int?)x.Id)
+                .FirstOrDefault();
+
+            if (firstLessonId == null)
+            {
+                return;
+            }
+
+            var progress = _dbContext.UserLessonProgresses
+                .FirstOrDefault(x => x.UserId == userId && x.LessonId == firstLessonId.Value);
+
+            if (progress == null)
+            {
+                progress = new UserLessonProgress
+                {
+                    UserId = userId,
+                    LessonId = firstLessonId.Value,
+                    IsUnlocked = true,
+                    IsCompleted = false,
+                    BestScore = 0,
+                    LastAttemptAt = now
+                };
+
+                _dbContext.UserLessonProgresses.Add(progress);
+            }
+            else if (!progress.IsUnlocked)
+            {
+                progress.IsUnlocked = true;
+
+                if (progress.LastAttemptAt == null)
+                {
+                    progress.LastAttemptAt = now;
+                }
+            }
+
+            var userCourse = _dbContext.UserCourses
+                .FirstOrDefault(x => x.UserId == userId && x.CourseId == sceneInfo.CourseId.Value);
+
+            if (userCourse != null)
+            {
+                userCourse.LastLessonId = firstLessonId.Value;
+                userCourse.LastOpenedAt = now;
+            }
+
+            _dbContext.SaveChanges();
+        }
+
+        private void TryMarkCourseCompletedAfterScene(int userId, int sceneId, DateTime now)
+        {
+            var courseId = _dbContext.Scenes
+                .Where(x => x.Id == sceneId)
+                .Select(x => (int?)x.CourseId)
+                .FirstOrDefault();
+
+            if (courseId == null)
+            {
+                return;
+            }
+
+            var userCourse = _dbContext.UserCourses
+                .FirstOrDefault(x => x.UserId == userId && x.CourseId == courseId.Value);
+
+            if (userCourse == null || userCourse.IsCompleted)
+            {
+                return;
+            }
+
+            var lessonIds = (
+                from t in _dbContext.Topics
+                join l in _dbContext.Lessons on t.Id equals l.TopicId
+                where t.CourseId == courseId.Value
+                select l.Id)
+                .Distinct()
+                .ToList();
+
+            if (lessonIds.Count == 0)
+            {
+                return;
+            }
+
+            var completedLessonIds = _dbContext.UserLessonProgresses
+                .Where(x => x.UserId == userId && x.IsCompleted && lessonIds.Contains(x.LessonId))
+                .Select(x => x.LessonId)
+                .Distinct()
+                .ToHashSet();
+
+            if (completedLessonIds.Count < lessonIds.Count)
+            {
+                return;
+            }
+
+            var courseSceneIds = _dbContext.Scenes
+                .Where(x => x.CourseId == courseId.Value)
+                .Select(x => x.Id)
+                .Distinct()
+                .ToList();
+
+            if (courseSceneIds.Count > 0)
+            {
+                var completedSceneIds = _dbContext.SceneAttempts
+                    .Where(x => x.UserId == userId && x.IsCompleted && courseSceneIds.Contains(x.SceneId))
+                    .Select(x => x.SceneId)
+                    .Distinct()
+                    .ToHashSet();
+
+                if (completedSceneIds.Count < courseSceneIds.Count)
+                {
+                    return;
+                }
+            }
+
+            userCourse.IsCompleted = true;
+            userCourse.IsActive = false;
+            userCourse.CompletedAt = now;
+            userCourse.LastLessonId = null;
+            userCourse.LastOpenedAt = now;
+
+            _dbContext.SaveChanges();
+        }
 
         private void AddSceneVocabularyIfNeeded(int userId, int sceneId, string? detailsJson)
         {

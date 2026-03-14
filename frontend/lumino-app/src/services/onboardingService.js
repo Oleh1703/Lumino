@@ -1,6 +1,29 @@
 import { apiClient } from "./apiClient.js";
 
+const normalizeLanguagesPayload = (data, fallbackCode = "en") => {
+  const activeTargetLanguageCode = data?.activeTargetLanguageCode || data?.targetLanguageCode || fallbackCode;
+  const learningLanguages = Array.isArray(data?.learningLanguages) ? data.learningLanguages : [];
+
+  return {
+    ok: true,
+    activeTargetLanguageCode,
+    learningLanguages,
+    data,
+  };
+};
+
 export const onboardingService = {
+  async getSupportedLanguages() {
+    const res = await apiClient.get("/onboarding/languages");
+
+    return {
+      ok: res.ok,
+      status: res.status,
+      items: res.ok ? (Array.isArray(res.data) ? res.data : []) : [],
+      error: res.error || "",
+    };
+  },
+
   async getLanguageAvailability(languageCode) {
     if (!languageCode) return { ok: false };
 
@@ -18,48 +41,38 @@ export const onboardingService = {
     };
   },
 
-  async getDemoExercises(languageCode, level) {
-    if (!languageCode || !level) return { ok: false, items: [] };
+  async getMyLanguages() {
+    const res = await apiClient.get("/onboarding/languages/me");
 
-    const code = String(languageCode).trim().toLowerCase();
-    const courseLevel = String(level).trim().toLowerCase();
-
-    const paths = [
-      `/onboarding/demo-exercises?languageCode=${encodeURIComponent(code)}&level=${encodeURIComponent(courseLevel)}`,
-      `/onboarding/demo-exercises/${encodeURIComponent(code)}/${encodeURIComponent(courseLevel)}`,
-      `/learning/demo-exercises?languageCode=${encodeURIComponent(code)}&level=${encodeURIComponent(courseLevel)}`,
-      `/exercises/demo?languageCode=${encodeURIComponent(code)}&level=${encodeURIComponent(courseLevel)}`,
-      `/demo-exercises?languageCode=${encodeURIComponent(code)}&level=${encodeURIComponent(courseLevel)}`,
-    ];
-
-    for (const path of paths) {
-      const res = await apiClient.get(path);
-
-      if (!res.ok) {
-        continue;
-      }
-
-      const items = Array.isArray(res.data)
-        ? res.data
-        : Array.isArray(res.data?.items)
-          ? res.data.items
-          : Array.isArray(res.data?.exercises)
-            ? res.data.exercises
-            : [];
-
-      return {
-        ok: true,
-        languageCode: code,
-        level: courseLevel,
-        items,
-      };
+    if (!res.ok) {
+      return { ok: false, data: null, error: res.error || "" };
     }
 
+    return normalizeLanguagesPayload(res.data, "en");
+  },
+
+  async updateMyLanguages(dto) {
+    const res = await apiClient.put("/onboarding/languages/me", dto);
+
     return {
-      ok: false,
-      languageCode: code,
-      level: courseLevel,
-      items: [],
+      ok: res.ok,
+      status: res.status,
+      error: res.error || "",
+    };
+  },
+
+  async updateMyTargetLanguage(targetLanguageCode) {
+    if (!targetLanguageCode) {
+      return { ok: false, error: "TargetLanguageCode is required" };
+    }
+
+    const code = String(targetLanguageCode).trim().toLowerCase();
+    const res = await apiClient.put("/onboarding/target-language/me", { targetLanguageCode: code });
+
+    return {
+      ok: res.ok,
+      status: res.status,
+      error: res.error || "",
     };
   },
 };

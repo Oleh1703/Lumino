@@ -18,6 +18,21 @@ const safeJson = async (res) => {
   }
 };
 
+const shouldClearTokens = (res, data, error) => {
+  if (res.status === 401) {
+    return true;
+  }
+
+  if (res.status !== 404) {
+    return false;
+  }
+
+  const type = String(data?.type || "").trim().toLowerCase();
+  const detail = String(data?.detail || error || "").trim().toLowerCase();
+
+  return type === "not_found" && detail === "user not found";
+};
+
 export const apiClient = {
   async request(path, options = {}) {
     const url = buildUrl(path);
@@ -43,6 +58,10 @@ export const apiClient = {
     const error =
       (data && (data.detail || data.message || data.error || data.title)) ||
       `HTTP ${res.status}`;
+
+    if (shouldClearTokens(res, data, error)) {
+      authStorage.clearTokens();
+    }
 
     return { ok: false, status: res.status, data, error };
   },

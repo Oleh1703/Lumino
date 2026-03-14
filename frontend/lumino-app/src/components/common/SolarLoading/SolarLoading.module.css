@@ -1,61 +1,61 @@
 .loading{
-  width: 150px;
-  height: 150px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  flex-shrink: 0;
+  width:150px;
+  height:150px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:transparent;
+  flex-shrink:0;
 }
 
 .svg{
-  width: 150px;
-  height: 150px;
-  display: block;
-  overflow: visible;
-  background: transparent;
+  width:100%;
+  height:100%;
+  display:block;
+  overflow:visible;
+  background:transparent;
 }
 
 .orbitSpin{
-  transform-origin: 286.5px 304.5px;
-  transform-box: view-box;
-  animation: orbit var(--duration) linear infinite;
-  will-change: transform;
+  transform-origin:286.5px 304.5px;
+  transform-box:view-box;
+  animation:orbit var(--duration) linear infinite;
+  will-change:transform;
 }
 
 .counterSpin{
-  transform-origin: center;
-  transform-box: fill-box;
-  animation: orbit var(--duration) linear infinite reverse;
-  will-change: transform;
+  transform-origin:center;
+  transform-box:fill-box;
+  animation:orbit var(--duration) linear infinite reverse;
+  will-change:transform;
 }
 
 .orbit1{
-  --duration: 2.6s;
+  --duration:2.6s;
 }
 
 .orbit2{
-  --duration: 4.2s;
+  --duration:4.2s;
 }
 
 .orbit3{
-  --duration: 6.2s;
+  --duration:6.2s;
 }
 
 .orbit4{
-  --duration: 8.8s;
+  --duration:8.8s;
 }
 
 .orbit5{
-  --duration: 11.8s;
+  --duration:11.8s;
 }
 
 @keyframes orbit {
   from {
-    transform: rotate(0deg);
+    transform:rotate(0deg);
   }
 
   to {
-    transform: rotate(360deg);
+    transform:rotate(360deg);
   }
 }

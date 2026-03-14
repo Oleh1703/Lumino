@@ -96,61 +96,50 @@ namespace Lumino.Api.Application.Services
             int scenesPercent = 0;
             bool scenesIncluded = false;
 
-            var courseScenes = _dbContext.Scenes
+            var courseSceneIds = _dbContext.Scenes
                 .Where(x => x.CourseId == courseId)
-                .Select(x => new { x.Id, x.Order, x.TopicId })
+                .OrderBy(x => x.Order > 0 ? x.Order : x.Id)
+                .ThenBy(x => x.Id)
+                .Select(x => x.Id)
                 .ToList();
 
-            if (courseScenes.Count > 0)
+            if (courseSceneIds.Count > 0)
             {
-                var orderedScenes = courseScenes
-                    .OrderBy(x => x.Order > 0 ? x.Order : x.Id)
-                    .ThenBy(x => x.Id)
-                    .ToList();
+                scenesIncluded = true;
+                scenesTotal = courseSceneIds.Count;
 
-                var unlockedSceneIds = new List<int>();
+                scenesCompleted = _dbContext.SceneAttempts
+                    .Where(x => x.UserId == userId && x.IsCompleted && courseSceneIds.Contains(x.SceneId))
+                    .Select(x => x.SceneId)
+                    .Distinct()
+                    .Count();
 
-                for (int i = 0; i < orderedScenes.Count; i++)
+                scenesPercent = (int)Math.Round((double)scenesCompleted * 100 / scenesTotal);
+
+                if (scenesPercent > 100)
                 {
-                    int scenePosition = i + 1;
-
-                    var s = orderedScenes[i];
-
-                    bool isUnlocked;
-
-                    if (s.TopicId != null)
-                    {
-                        isUnlocked = GetIsSceneUnlockedByTopic(passedLessonIds, s.TopicId.Value);
-                    }
-                    else
-                    {
-                        isUnlocked = SceneUnlockRules.IsUnlocked(scenePosition, completedLessons, _learningSettings.SceneUnlockEveryLessons);
-                    }
-
-                    if (isUnlocked)
-                    {
-                        unlockedSceneIds.Add(s.Id);
-                    }
+                    scenesPercent = 100;
                 }
+            }
 
-                scenesTotal = unlockedSceneIds.Count;
+            int totalSteps = totalLessons * 9 + scenesTotal;
+            int completedSteps = completedLessons * 9 + scenesCompleted;
 
-                if (scenesTotal > 0)
+            if (totalSteps <= 0)
+            {
+                percent = 0;
+            }
+            else if (completedSteps <= 0)
+            {
+                percent = 0;
+            }
+            else
+            {
+                percent = (int)Math.Round((double)completedSteps * 100 / totalSteps);
+
+                if (percent > 100)
                 {
-                    scenesIncluded = true;
-
-                    scenesCompleted = _dbContext.SceneAttempts
-                        .Where(x => x.UserId == userId && x.IsCompleted && unlockedSceneIds.Contains(x.SceneId))
-                        .Select(x => x.SceneId)
-                        .Distinct()
-                        .Count();
-
-                    scenesPercent = (int)Math.Round((double)scenesCompleted * 100 / scenesTotal);
-
-                    if (scenesPercent > 100)
-                    {
-                        scenesPercent = 100;
-                    }
+                    percent = 100;
                 }
             }
 

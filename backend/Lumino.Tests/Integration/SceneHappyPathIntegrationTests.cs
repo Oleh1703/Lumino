@@ -11,6 +11,135 @@ namespace Lumino.Tests.Integration;
 
 public class SceneHappyPathIntegrationTests
 {
+
+    [Fact]
+    public void SubmitScene_WhenTopicSceneCompleted_ShouldUnlockFirstLessonOfNextTopic()
+    {
+        var now = new DateTime(2026, 02, 16, 12, 0, 0, DateTimeKind.Utc);
+
+        var dbContext = TestDbContextFactory.Create();
+        var dateTimeProvider = new FixedDateTimeProvider(now);
+
+        dbContext.Courses.Add(new Course
+        {
+            Id = 1,
+            Title = "Course",
+            Description = "Desc",
+            IsPublished = true
+        });
+
+        dbContext.Topics.AddRange(
+            new Topic { Id = 1, CourseId = 1, Title = "Topic 1", Order = 1 },
+            new Topic { Id = 2, CourseId = 1, Title = "Topic 2", Order = 2 }
+        );
+
+        dbContext.Lessons.AddRange(
+            new Lesson { Id = 1, TopicId = 1, Title = "Lesson 1", Theory = "", Order = 1 },
+            new Lesson { Id = 2, TopicId = 1, Title = "Lesson 2", Theory = "", Order = 2 },
+            new Lesson { Id = 3, TopicId = 2, Title = "Lesson 3", Theory = "", Order = 1 }
+        );
+
+        dbContext.Exercises.AddRange(
+            new Exercise { Id = 1, LessonId = 1, Type = ExerciseType.Input, Question = "Q1", Data = "", CorrectAnswer = "a", Order = 1 },
+            new Exercise { Id = 2, LessonId = 2, Type = ExerciseType.Input, Question = "Q2", Data = "", CorrectAnswer = "b", Order = 1 }
+        );
+
+        dbContext.Scenes.Add(new Scene
+        {
+            Id = 10,
+            CourseId = 1,
+            TopicId = 1,
+            Order = 1,
+            Title = "Scene 1",
+            Description = "",
+            SceneType = "Quiz"
+        });
+
+        dbContext.SceneSteps.Add(new SceneStep
+        {
+            Id = 100,
+            SceneId = 10,
+            Order = 1,
+            Speaker = "NPC",
+            Text = "Choose correct answer",
+            StepType = "Choice",
+            MediaUrl = null,
+            ChoicesJson = "[{\"text\":\"A\",\"isCorrect\":true},{\"text\":\"B\",\"isCorrect\":false}]"
+        });
+
+        dbContext.SaveChanges();
+
+        var settings = Options.Create(new LearningSettings
+        {
+            PassingScorePercent = 80,
+            SceneUnlockEveryLessons = 1
+        });
+
+        var courseProgressService = new CourseProgressService(dbContext, dateTimeProvider, settings);
+
+        var lessonResultService = new LessonResultService(
+            dbContext,
+            new FakeAchievementService(),
+            dateTimeProvider,
+            new FakeUserEconomyService(),
+            new FakeStreakService(),
+            new SubmitLessonRequestValidator(),
+            settings
+        );
+
+        var sceneService = new SceneService(
+            dbContext,
+            dateTimeProvider,
+            new FakeAchievementService(),
+            new FakeUserEconomyService(),
+            settings
+        );
+
+        var nextActivityService = new NextActivityService(dbContext, dateTimeProvider, settings);
+
+        courseProgressService.StartCourse(10, 1);
+
+        lessonResultService.SubmitLesson(10, new SubmitLessonRequest
+        {
+            LessonId = 1,
+            Answers = new List<SubmitExerciseAnswerRequest>
+            {
+                new SubmitExerciseAnswerRequest { ExerciseId = 1, Answer = "a" }
+            }
+        });
+
+        lessonResultService.SubmitLesson(10, new SubmitLessonRequest
+        {
+            LessonId = 2,
+            Answers = new List<SubmitExerciseAnswerRequest>
+            {
+                new SubmitExerciseAnswerRequest { ExerciseId = 2, Answer = "b" }
+            }
+        });
+
+        var nextBeforeScene = nextActivityService.GetNext(10);
+
+        Assert.NotNull(nextBeforeScene);
+        Assert.Equal("Scene", nextBeforeScene!.Type);
+        Assert.Equal(10, nextBeforeScene.SceneId);
+
+        sceneService.SubmitScene(10, 10, new SubmitSceneRequest
+        {
+            Answers = new List<SubmitSceneAnswerRequest>
+            {
+                new SubmitSceneAnswerRequest { StepId = 100, Answer = "A" }
+            }
+        });
+
+        var nextAfterScene = nextActivityService.GetNext(10);
+
+        Assert.NotNull(nextAfterScene);
+        Assert.Equal("Lesson", nextAfterScene!.Type);
+        Assert.Equal(3, nextAfterScene.LessonId);
+        Assert.Equal(2, nextAfterScene.TopicId);
+    }
+
+
     [Fact]
     public void StartCourse_PassLesson_Then_Next_ShouldReturnUnlockedScene_Then_SubmitSceneCompleted_Then_NextNull()
     {

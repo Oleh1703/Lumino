@@ -53,7 +53,7 @@ export default function AppRoutes() {
       <Route element={<UserLayout />}>
         <Route
           path={PATHS.home}
-          element={isAuthed || isGuestPreview ? <HomePage /> : <Navigate to={PATHS.login} replace />}
+          element={<HomePage />}
         />
       </Route>
 

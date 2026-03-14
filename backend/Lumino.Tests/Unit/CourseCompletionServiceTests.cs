@@ -253,6 +253,66 @@ public class CourseCompletionServiceTests
         Assert.Equal(2, result.ScenesTotal);
         Assert.Equal(0, result.ScenesCompleted);
         Assert.Equal(0, result.ScenesCompletionPercent);
+        Assert.Equal(90, result.CompletionPercent);
+    }
+
+
+    [Fact]
+    public void GetMyCourseCompletion_WhenCourseHasScenes_ShouldUseCombinedCourseStepsFormula()
+    {
+        var dbContext = TestDbContextFactory.Create();
+
+        var course = new Course { Id = 1, Title = "English A1", Description = "Demo", IsPublished = true };
+        dbContext.Courses.Add(course);
+        dbContext.SaveChanges();
+
+        var topic = new Topic { Id = 1, CourseId = course.Id, Title = "Basics", Order = 1 };
+        dbContext.Topics.Add(topic);
+        dbContext.SaveChanges();
+
+        dbContext.Lessons.AddRange(
+            new Lesson { Id = 1, TopicId = topic.Id, Title = "L1", Theory = "T", Order = 1 },
+            new Lesson { Id = 2, TopicId = topic.Id, Title = "L2", Theory = "T", Order = 2 }
+        );
+
+        dbContext.Scenes.AddRange(
+            new Scene { Id = 100, CourseId = course.Id, TopicId = topic.Id, Title = "S1", Description = "D", SceneType = "Dialog", Order = 1 },
+            new Scene { Id = 101, CourseId = course.Id, Title = "S2", Description = "D", SceneType = "Dialog", Order = 2 }
+        );
+
+        dbContext.LessonResults.Add(new LessonResult
+        {
+            UserId = 10,
+            LessonId = 1,
+            Score = 8,
+            TotalQuestions = 10,
+            CompletedAt = new DateTime(2026, 2, 1, 10, 0, 0, DateTimeKind.Utc)
+        });
+
+        dbContext.SceneAttempts.Add(new SceneAttempt
+        {
+            UserId = 10,
+            SceneId = 100,
+            IsCompleted = true,
+            Score = 5,
+            TotalQuestions = 1,
+            CompletedAt = new DateTime(2026, 2, 2, 10, 0, 0, DateTimeKind.Utc)
+        });
+
+        dbContext.SaveChanges();
+
+        var service = new CourseCompletionService(
+            dbContext,
+            new FixedDateTimeProvider(new DateTime(2026, 2, 15, 10, 0, 0, DateTimeKind.Utc)),
+            Options.Create(new LearningSettings { PassingScorePercent = 80, SceneCompletionScore = 5, SceneUnlockEveryLessons = 1 })
+        );
+
+        var result = service.GetMyCourseCompletion(userId: 10, courseId: course.Id);
+
+        Assert.Equal(50, result.CompletionPercent);
+        Assert.Equal(2, result.ScenesTotal);
+        Assert.Equal(1, result.ScenesCompleted);
+        Assert.Equal(50, result.ScenesCompletionPercent);
     }
 
     [Fact]

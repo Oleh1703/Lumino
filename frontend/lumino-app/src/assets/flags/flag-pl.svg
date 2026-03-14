@@ -1,4 +1,9 @@
 <svg width="60" height="45" viewBox="0 0 60 45" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="60" height="45" rx="10" fill="#EEEEEE"/>
-<rect y="22.5" width="60" height="22.5" fill="#FF4C4B"/>
+  <defs>
+    <clipPath id="flagClip">
+      <rect width="60" height="45" rx="10" fill="white"/>
+    </clipPath>
+  </defs>
+  <rect width="60" height="45" rx="10" fill="#EEEEEE"/>
+  <rect y="22.5" width="60" height="22.5" fill="#FF4C4B" clip-path="url(#flagClip)"/>
 </svg>

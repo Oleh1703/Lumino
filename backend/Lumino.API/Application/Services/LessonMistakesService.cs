@@ -736,27 +736,55 @@ namespace Lumino.Api.Application.Services
 
         private int? UnlockNextLesson(int userId, int courseId, int currentLessonId, DateTime now)
         {
-            var orderedLessonIds =
+            var orderedLessons =
                 (from t in _dbContext.Topics
                  join l in _dbContext.Lessons on t.Id equals l.TopicId
                  where t.CourseId == courseId
                  orderby (t.Order <= 0 ? int.MaxValue : t.Order), t.Id, (l.Order <= 0 ? int.MaxValue : l.Order), l.Id
-                 select l.Id)
+                 select new
+                 {
+                     LessonId = l.Id,
+                     TopicId = t.Id
+                 })
                 .ToList();
 
-            if (orderedLessonIds.Count == 0)
+            if (orderedLessons.Count == 0)
             {
                 return null;
             }
 
-            int index = orderedLessonIds.IndexOf(currentLessonId);
+            int index = orderedLessons.FindIndex(x => x.LessonId == currentLessonId);
 
-            if (index < 0 || index + 1 >= orderedLessonIds.Count)
+            if (index < 0 || index + 1 >= orderedLessons.Count)
             {
                 return null;
             }
 
-            int nextLessonId = orderedLessonIds[index + 1];
+            var current = orderedLessons[index];
+            var nextInfo = orderedLessons[index + 1];
+
+            if (nextInfo.TopicId != current.TopicId)
+            {
+                bool hasCurrentTopicScene = _dbContext.Scenes.Any(x => x.TopicId == current.TopicId);
+
+                if (hasCurrentTopicScene)
+                {
+                    bool isCurrentTopicSceneCompleted = _dbContext.SceneAttempts
+                        .Where(x => x.UserId == userId && x.IsCompleted)
+                        .Join(_dbContext.Scenes,
+                            attempt => attempt.SceneId,
+                            scene => scene.Id,
+                            (attempt, scene) => scene)
+                        .Any(x => x.TopicId == current.TopicId);
+
+                    if (!isCurrentTopicSceneCompleted)
+                    {
+                        return null;
+                    }
+                }
+            }
+
+            int nextLessonId = nextInfo.LessonId;
 
             var next = _dbContext.UserLessonProgresses
                 .FirstOrDefault(x => x.UserId == userId && x.LessonId == nextLessonId);
@@ -846,14 +874,58 @@ namespace Lumino.Api.Application.Services
                 }
             }
 
-            if (completedSet.Count >= lessonIds.Count)
+            if (completedSet.Count < lessonIds.Count)
             {
-                userCourse.IsCompleted = true;
+                return;
+            }
 
-                if (userCourse.CompletedAt == null)
+            var courseSceneIds = _dbContext.Scenes
+                .Where(x => x.CourseId == courseId)
+                .Select(x => x.Id)
+                .Distinct()
+                .ToList();
+
+            if (courseSceneIds.Count > 0)
+            {
+                var completedSceneIds = _dbContext.SceneAttempts
+                    .Where(x => x.UserId == userId && x.IsCompleted && courseSceneIds.Contains(x.SceneId))
+                    .Select(x => x.SceneId)
+                    .Distinct()
+                    .ToHashSet();
+
+                foreach (var attempt in _dbContext.SceneAttempts.Local)
                 {
-                    userCourse.CompletedAt = now;
+                    if (attempt.UserId != userId)
+                    {
+                        continue;
+                    }
+
+                    if (!courseSceneIds.Contains(attempt.SceneId))
+                    {
+                        continue;
+                    }
+
+                    if (attempt.IsCompleted)
+                    {
+                        completedSceneIds.Add(attempt.SceneId);
+                    }
+                    else
+                    {
+                        completedSceneIds.Remove(attempt.SceneId);
+                    }
                 }
+
+                if (completedSceneIds.Count < courseSceneIds.Count)
+                {
+                    return;
+                }
+            }
+
+            userCourse.IsCompleted = true;
+
+            if (userCourse.CompletedAt == null)
+            {
+                userCourse.CompletedAt = now;
             }
         }
 
